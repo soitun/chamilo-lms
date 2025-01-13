@@ -377,6 +377,15 @@ class HTML_QuickForm_Renderer_Default extends HTML_QuickForm_Renderer
                 $required,
                 $error
             );
+
+            if ($error) {
+                $attClass = $element->getAttribute('class');
+                if (is_array($attClass)) {
+                    $attClass = implode(' ', $attClass);
+                }
+                $element->setAttribute('class', $attClass.' p-invalid ');
+            }
+
             $this->_html .= str_replace('{element}', $element->toHtml(), $html);
         } elseif (!empty($this->_groupElementTemplate)) {
             $html = str_replace('{label}', $element->getLabel(), $this->_groupElementTemplate);

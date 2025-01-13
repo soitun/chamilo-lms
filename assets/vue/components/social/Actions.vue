@@ -1,46 +1,41 @@
 <template>
   <div class="text-grey-8 q-gutter-xs">
-    <q-btn
+    <button
       v-if="enableFeedback"
-      :label="socialPost.countFeedbackLikes"
       :loading="isLoading.like"
       :title="$t('Like')"
-      class="gt-xs"
-      dense
-      flat
-      icon="mdi-heart-plus"
-      size="12px"
+      class="gt-xs dense flat"
       @click="onLikeComment"
-    />
-    <q-btn
+    >
+      <i class="mdi mdi-heart-plus mdi-24px"></i>
+      {{ socialPost.countFeedbackLikes }}
+    </button>
+    <button
       v-if="enableFeedback && !disableDislike"
-      :label="socialPost.countFeedbackDislikes"
       :loading="isLoading.dislike"
       :title="$t('Dislike')"
-      class="gt-xs"
-      dense
-      flat
-      icon="mdi-heart-remove"
-      size="12px"
+      class="gt-xs dense flat"
       @click="onDisikeComment"
-    />
-    <q-btn
+    >
+      <i class="mdi mdi-heart-remove mdi-24px"></i>
+      {{ socialPost.countFeedbackDislikes }}
+    </button>
+    <button
       v-if="isOwner"
       :loading="isLoading.delete"
       :title="$t('Delete')"
-      class="gt-xs"
-      dense
-      flat
-      icon="delete"
-      size="12px"
+      class="gt-xs dense flat"
       @click="onDeleteComment"
-    />
+    >
+      <i class="mdi mdi-delete mdi-24px"></i>
+    </button>
   </div>
 </template>
 
 <script>
-import {reactive, ref} from "vue";
-import axios from "axios";
+import { reactive } from "vue"
+import { usePlatformConfig } from "../../store/platformConfig"
+import socialService from "../../services/socialService"
 
 export default {
   name: "WallActions",
@@ -54,52 +49,51 @@ export default {
       required: true,
     },
   },
-  emits: ['post-deleted'],
-  setup(props, {emit}) {
+  emits: ["post-deleted"],
+  setup(props, { emit }) {
+    const platformConfigStore = usePlatformConfig()
+
     const isLoading = reactive({
       like: false,
       dislike: false,
       delete: false,
-    });
+    })
 
     function onLikeComment() {
-      isLoading.like = true;
+      isLoading.like = true
 
-      axios
-        .post(props.socialPost['@id'] + '/like', {})
-        .then(({data}) => {
-          props.socialPost.countFeedbackLikes = data.countFeedbackLikes;
-          props.socialPost.countFeedbackDislikes = data.countFeedbackDislikes;
+      socialService
+        .sendPostLike(props.socialPost["@id"])
+        .then((like) => {
+          props.socialPost.countFeedbackLikes = like.countFeedbackLikes
+          props.socialPost.countFeedbackDislikes = like.countFeedbackDislikes
         })
-        .finally(() => isLoading.like = false)
-      ;
+        .finally(() => (isLoading.like = false))
     }
 
     function onDisikeComment() {
-      isLoading.dislike = true;
+      isLoading.dislike = true
 
-      axios
-        .post(props.socialPost['@id'] + '/dislike', {})
-        .then(({data}) => {
-          props.socialPost.countFeedbackLikes = data.countFeedbackLikes;
-          props.socialPost.countFeedbackDislikes = data.countFeedbackDislikes;
+      socialService
+        .sendPostDislike(props.socialPost["@id"])
+        .then((like) => {
+          props.socialPost.countFeedbackLikes = like.countFeedbackLikes
+          props.socialPost.countFeedbackDislikes = like.countFeedbackDislikes
         })
-        .finally(() => isLoading.dislike = false)
-      ;
+        .finally(() => (isLoading.dislike = false))
     }
 
     function onDeleteComment() {
-      isLoading.delete = true;
+      isLoading.delete = true
 
-      axios
-        .delete(props.socialPost['@id'])
-        .then(() => emit('post-deleted', props.socialPost))
-        .finally(() => isLoading.delete = false)
-      ;
+      socialService
+        .delete(props.socialPost["@id"])
+        .then(() => emit("post-deleted", props.socialPost))
+        .finally(() => (isLoading.delete = false))
     }
 
-    const enableFeedback = ref(window.config['social.social_enable_messages_feedback'] === 'true');
-    const disableDislike = ref(window.config['social.disable_dislike_option'] === 'true');
+    const enableFeedback = "true" === platformConfigStore.getSetting("social.social_enable_messages_feedback")
+    const disableDislike = "true" === platformConfigStore.getSetting("social.disable_dislike_option")
 
     return {
       enableFeedback,
@@ -109,6 +103,6 @@ export default {
       onDisikeComment,
       onDeleteComment,
     }
-  }
+  },
 }
 </script>

@@ -7,9 +7,11 @@ declare(strict_types=1);
 namespace Chamilo\LtiBundle\Controller;
 
 use Category;
+use Chamilo\CoreBundle\Component\Utils\ToolIcon;
 use Chamilo\CoreBundle\Entity\Course;
 use Chamilo\CoreBundle\Entity\Session;
 use Chamilo\CoreBundle\Entity\User;
+use Chamilo\CoreBundle\ServiceHelper\UserHelper;
 use Chamilo\CourseBundle\Controller\ToolBaseController;
 use Chamilo\CourseBundle\Entity\CTool;
 use Chamilo\CourseBundle\Repository\CShortcutRepository;
@@ -17,6 +19,7 @@ use Chamilo\LtiBundle\Entity\ExternalTool;
 use Chamilo\LtiBundle\Form\ExternalToolType;
 use Chamilo\LtiBundle\Util\Utils;
 use Display;
+use Doctrine\Persistence\ManagerRegistry;
 use EvalForm;
 use Evaluation;
 use Exception;
@@ -27,32 +30,24 @@ use OAuthSignatureMethod_HMAC_SHA1;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use UserManager;
 
-/**
- * Class CourseController.
- *
- * @Route("/courses/{cid}/lti");
- */
+#[Route(path: '/courses/{cid}/lti')] // ;
 class CourseController extends ToolBaseController
 {
-    private CShortcutRepository $shortcutRepository;
+    public function __construct(
+        private readonly CShortcutRepository $shortcutRepository,
+        private readonly ManagerRegistry $managerRegistry,
+        private readonly UserHelper $userHelper,
+    ) {}
 
-    public function __construct(CShortcutRepository $shortcutRepository)
+    #[Route(path: '/edit/{id}', name: 'chamilo_lti_edit', requirements: ['id' => '\d+'])]
+    public function edit(int $id, Request $request): Response
     {
-        $this->shortcutRepository = $shortcutRepository;
-    }
+        $em = $this->managerRegistry->getManager();
 
-    /**
-     * @Route("/edit/{id}", name="chamilo_lti_edit", requirements={"id"="\d+"})
-     *
-     * @param string $id
-     */
-    public function editAction($id, Request $request): Response
-    {
-        $em = $this->getDoctrine()->getManager();
         /** @var ExternalTool $tool */
         $tool = $em->find(ExternalTool::class, $id);
 
@@ -75,7 +70,7 @@ class CourseController extends ToolBaseController
                     'title' => $this->trans('Edit external tool'),
                     'added_tools' => [],
                     'global_tools' => [],
-                    'form' => $form->createView(),
+                    'form' => $form,
                     'course' => $course,
                 ]
             );
@@ -106,7 +101,7 @@ class CourseController extends ToolBaseController
                 throw $this->createNotFoundException('Course tool not found.');
             }
 
-            $courseTool->setName($tool->getName());
+            $courseTool->setTitle($tool->getTitle());
 
             $em->persist($courseTool);
         }
@@ -124,12 +119,11 @@ class CourseController extends ToolBaseController
         );
     }
 
-    /**
-     * @Route("/launch/{id}", name="chamilo_lti_launch", requirements={"id"="\d+"})
-     */
-    public function launchAction(int $id, Utils $ltiUtil): Response
+    #[Route(path: '/launch/{id}', name: 'chamilo_lti_launch', requirements: ['id' => '\d+'])]
+    public function launch(int $id, Utils $ltiUtil): Response
     {
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->managerRegistry->getManager();
+
         /** @var null|ExternalTool $tool */
         $tool = $em->find(ExternalTool::class, $id);
 
@@ -139,8 +133,7 @@ class CourseController extends ToolBaseController
 
         $settingsManager = $this->get('chamilo.settings.manager');
 
-        /** @var User $user */
-        $user = $this->getUser();
+        $user = $this->userHelper->getCurrent();
         $course = $this->getCourse();
         $session = $this->getCourseSession();
 
@@ -165,13 +158,13 @@ class CourseController extends ToolBaseController
             );
             $params['accept_media_types'] = '*/*';
             $params['accept_presentation_document_targets'] = 'iframe';
-            $params['title'] = $tool->getName();
+            $params['title'] = $tool->getTitle();
             $params['text'] = $tool->getDescription();
             $params['data'] = 'tool:'.$tool->getId();
         } else {
             $params['lti_message_type'] = 'basic-lti-launch-request';
             $params['resource_link_id'] = $tool->getId();
-            $params['resource_link_title'] = $tool->getName();
+            $params['resource_link_title'] = $tool->getTitle();
             $params['resource_link_description'] = $tool->getDescription();
 
             $toolEval = $tool->getGradebookEval();
@@ -218,7 +211,7 @@ class CourseController extends ToolBaseController
             $params['lis_person_contact_email_primary'] = $user->getEmail();
         }
 
-        if ($user->hasRole('ROLE_RRHH')) {
+        if ($user->hasRole('ROLE_HR')) {
             $scopeMentor = $ltiUtil->generateRoleScopeMentor($user);
 
             if (!empty($scopeMentor)) {
@@ -283,10 +276,8 @@ class CourseController extends ToolBaseController
         );
     }
 
-    /**
-     * @Route("/item_return", name="chamilo_lti_return_item")
-     */
-    public function returnItemAction(Request $request): Response
+    #[Route(path: '/item_return', name: 'chamilo_lti_return_item')]
+    public function returnItem(Request $request): Response
     {
         $contentItems = $request->get('content_items');
         $data = $request->get('data');
@@ -295,7 +286,7 @@ class CourseController extends ToolBaseController
             throw $this->createAccessDeniedException();
         }
 
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->managerRegistry->getManager();
 
         /** @var ExternalTool $tool */
         $tool = $em->find(ExternalTool::class, str_replace('tool:', '', $data));
@@ -338,9 +329,9 @@ class CourseController extends ToolBaseController
 
                 $this->addFlash(
                     'success',
-                    sprintf(
+                    \sprintf(
                         $this->trans('External tool added: %s'),
-                        $newTool->getName()
+                        $newTool->getTitle()
                     )
                 );
             }
@@ -354,16 +345,12 @@ class CourseController extends ToolBaseController
         );
     }
 
-    /**
-     * @Route("/{id}", name="chamilo_lti_show", requirements={"id"="\d+"})
-     *
-     * @param string $id
-     */
-    public function showAction($id): Response
+    #[Route(path: '/{id}', name: 'chamilo_lti_show', requirements: ['id' => '\d+'])]
+    public function show(int $id): Response
     {
         $course = $this->getCourse();
 
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->managerRegistry->getManager();
 
         /** @var null|ExternalTool $externalTool */
         $externalTool = $em->find(ExternalTool::class, $id);
@@ -386,14 +373,13 @@ class CourseController extends ToolBaseController
     }
 
     /**
-     * @Route("/", name="chamilo_lti_configure")
-     * @Route("/add/{id}", name="chamilo_lti_configure_global", requirements={"id"="\d+"})
-     *
      * @Security("is_granted('ROLE_TEACHER')")
      */
-    public function courseConfigureAction(?int $id, Request $request): Response
+    #[Route(path: '/', name: 'chamilo_lti_configure')]
+    #[Route(path: '/add/{id}', name: 'chamilo_lti_configure_global', requirements: ['id' => '\d+'])]
+    public function courseConfigure(?int $id, Request $request): Response
     {
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->managerRegistry->getManager();
         $repo = $em->getRepository(ExternalTool::class);
 
         $externalTool = new ExternalTool();
@@ -421,12 +407,12 @@ class CourseController extends ToolBaseController
         $form->handleRequest($request);
 
         if (!$form->isSubmitted() || !$form->isValid()) {
-            $categories = Category::load(null, null, $course->getCode());
+            $categories = Category::load(null, null, $course->getId());
             $actions = '';
 
             if (!empty($categories)) {
                 $actions .= Display::url(
-                    Display::return_icon('gradebook.png', get_lang('Add to gradebook'), [], ICON_SIZE_MEDIUM),
+                    Display::getMdiIcon(ToolIcon::GRADEBOOK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Add to gradebook')),
                     $this->generateUrl(
                         'chamilo_lti_grade',
                         [
@@ -448,7 +434,7 @@ class CourseController extends ToolBaseController
                         'parent' => null,
                         'course' => null,
                     ]),
-                    'form' => $form->createView(),
+                    'form' => $form,
                     'course' => $course,
                     'actions' => $actions,
                 ]
@@ -467,8 +453,8 @@ class CourseController extends ToolBaseController
         $em->flush();
 
         $this->addFlash('success', $this->trans('External tool added'));
-        /** @var User $user */
-        $user = $this->getUser();
+
+        $user = $this->userHelper->getCurrent();
 
         if (!$externalTool->isActiveDeepLinking()) {
             $this->shortcutRepository->addShortCut($externalTool, $user, $course);
@@ -490,23 +476,22 @@ class CourseController extends ToolBaseController
     }
 
     /**
-     * @Route("/grade/{catId}", name="chamilo_lti_grade", requirements={"catId"="\d+"})
-     *
      * @Security("is_granted('ROLE_TEACHER')")
      *
      * @param string $catId
      *
      * @throws Exception
      */
-    public function gradeAction($catId)
+    #[Route(path: '/grade/{catId}', name: 'chamilo_lti_grade', requirements: ['catId' => '\d+'])]
+    public function grade(int $catId): Response
     {
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->managerRegistry->getManager();
         $toolRepo = $em->getRepository(ExternalTool::class);
         $course = $this->getCourse();
-        /** @var User $user */
-        $user = $this->getUser();
 
-        $categories = Category::load(null, null, $course->getCode());
+        $user = $this->userHelper->getCurrent();
+
+        $categories = Category::load(null, null, $course->getId());
 
         if (empty($categories)) {
             throw $this->createNotFoundException();
@@ -538,6 +523,7 @@ class CourseController extends ToolBaseController
         );
         $form->removeElement('name');
         $form->removeElement('addresult');
+
         /** @var HTML_QuickForm_select $slcLtiTools */
         $slcLtiTools = $form->createElement('select', 'name', $this->trans('External tool'));
         $form->insertElementBefore($slcLtiTools, 'hid_category_id');
@@ -550,7 +536,7 @@ class CourseController extends ToolBaseController
 
         /** @var ExternalTool $tool */
         foreach ($tools as $tool) {
-            $slcLtiTools->addOption($tool->getName(), $tool->getId());
+            $slcLtiTools->addOption($tool->getTitle(), $tool->getId());
         }
 
         if (!$form->validate()) {
@@ -571,7 +557,7 @@ class CourseController extends ToolBaseController
         }
 
         $eval = new Evaluation();
-        $eval->set_name($tool->getName());
+        $eval->set_name($tool->getTitle());
         $eval->set_description($values['description']);
         $eval->set_user_id($values['hid_user_id']);
 
@@ -606,7 +592,7 @@ class CourseController extends ToolBaseController
         array &$customParams,
         User $user,
         Course $course,
-        Session $session = null
+        ?Session $session = null
     ): void {
         $replaceable = self::getReplaceableVariables($user, $course, $session);
         $variables = array_keys($replaceable);
@@ -639,10 +625,7 @@ class CourseController extends ToolBaseController
         }
     }
 
-    /**
-     * @return array
-     */
-    private static function getReplaceableVariables(User $user, Course $course, Session $session = null)
+    private static function getReplaceableVariables(User $user, Course $course, ?Session $session = null): array
     {
         return [
             '$User.id' => $user->getId(),
@@ -665,7 +648,7 @@ class CourseController extends ToolBaseController
             '$Person.address.country' => false,
             '$Person.address.postcode' => false,
             '$Person.address.timezone' => false,
-            //$user->getTimezone(),
+            // $user->getTimezone(),
             '$Person.phone.mobile' => false,
             '$Person.phone.primary' => $user->getPhone(),
             '$Person.phone.home' => false,
@@ -673,7 +656,7 @@ class CourseController extends ToolBaseController
             '$Person.email.primary' => $user->getEmail(),
             '$Person.email.personal' => false,
             '$Person.webaddress' => false,
-            //$user->getWebsite(),
+            // $user->getWebsite(),
             '$Person.sms' => false,
 
             '$CourseTemplate.sourcedId' => false,
@@ -764,7 +747,7 @@ class CourseController extends ToolBaseController
         $newTool->setActiveDeepLinking(false);
 
         if (!empty($contentItem['title'])) {
-            $newTool->setName($contentItem['title']);
+            $newTool->setTitle($contentItem['title']);
         }
 
         if (!empty($contentItem['text'])) {
@@ -781,7 +764,7 @@ class CourseController extends ToolBaseController
             );
         }
 
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->managerRegistry->getManager();
 
         $course = $newTool->getCourse();
 
@@ -790,8 +773,7 @@ class CourseController extends ToolBaseController
         $em->persist($newTool);
         $em->flush();
 
-        /** @var User $user */
-        $user = $this->getUser();
+        $user = $this->userHelper->getCurrent();
         $this->shortcutRepository->addShortCut($newTool, $user, $course);
 
         return $newTool;

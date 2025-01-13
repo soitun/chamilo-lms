@@ -10,208 +10,165 @@ use Chamilo\CoreBundle\Entity\AbstractResource;
 use Chamilo\CoreBundle\Entity\ResourceInterface;
 use Chamilo\CoreBundle\Entity\ResourceShowCourseResourcesInSessionInterface;
 use Chamilo\CoreBundle\Entity\TrackEExercise;
+use Chamilo\CourseBundle\Repository\CQuizRepository;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Stringable;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * Course quizzes.
- *
- * @ORM\Table(
- *     name="c_quiz",
- *     indexes={
- *     }
- * )
- * @ORM\Entity(repositoryClass="Chamilo\CourseBundle\Repository\CQuizRepository")
  */
-class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowCourseResourcesInSessionInterface
+#[ORM\Table(name: 'c_quiz')]
+#[ORM\Entity(repositoryClass: CQuizRepository::class)]
+class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowCourseResourcesInSessionInterface, Stringable
 {
     public const ALL_ON_ONE_PAGE = 1;
     public const ONE_PER_PAGE = 2;
 
-    /**
-     * @ORM\Column(name="iid", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     */
     #[Groups(['track_e_exercise:read'])]
-    protected int $iid;
+    #[ORM\Column(name: 'iid', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    protected ?int $iid = null;
 
-    /**
-     * @ORM\Column(name="title", type="text", nullable=false)
-     */
     #[Assert\NotBlank]
+    #[ORM\Column(name: 'title', type: 'text', nullable: false)]
     protected string $title;
 
-    /**
-     * @ORM\Column(name="description", type="text", nullable=true)
-     */
+    #[ORM\Column(name: 'description', type: 'text', nullable: true)]
     protected ?string $description = null;
 
-    /**
-     * @ORM\Column(name="sound", type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(name: 'sound', type: 'string', length: 255, nullable: true)]
     protected ?string $sound = null;
 
-    /**
-     * @ORM\Column(name="type", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'type', type: 'integer', nullable: false)]
     protected int $type;
 
-    /**
-     * @ORM\Column(name="random", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'random', type: 'integer', nullable: false)]
     protected int $random;
 
-    /**
-     * @ORM\Column(name="random_answers", type="boolean", nullable=false)
-     */
+    #[ORM\Column(name: 'random_answers', type: 'boolean', nullable: false)]
     protected bool $randomAnswers;
 
-    /**
-     * @ORM\Column(name="active", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'active', type: 'integer', nullable: false)]
     protected int $active;
 
-    /**
-     * @ORM\Column(name="results_disabled", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'results_disabled', type: 'integer', nullable: false)]
     protected int $resultsDisabled;
 
-    /**
-     * @ORM\Column(name="access_condition", type="text", nullable=true)
-     */
+    #[ORM\Column(name: 'access_condition', type: 'text', nullable: true)]
     protected ?string $accessCondition = null;
 
-    /**
-     * @ORM\Column(name="max_attempt", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'max_attempt', type: 'integer', nullable: false)]
     protected int $maxAttempt;
 
-    /**
-     * @ORM\Column(name="start_time", type="datetime", nullable=true)
-     */
+    #[ORM\Column(name: 'start_time', type: 'datetime', nullable: true)]
     protected ?DateTime $startTime = null;
 
-    /**
-     * @ORM\Column(name="end_time", type="datetime", nullable=true)
-     */
+    #[ORM\Column(name: 'end_time', type: 'datetime', nullable: true)]
     protected ?DateTime $endTime = null;
 
-    /**
-     * @ORM\Column(name="feedback_type", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'feedback_type', type: 'integer', nullable: false)]
     protected int $feedbackType;
 
-    /**
-     * @ORM\Column(name="expired_time", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'expired_time', type: 'integer', nullable: false)]
     protected int $expiredTime;
 
-    /**
-     * @ORM\Column(name="propagate_neg", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'propagate_neg', type: 'integer', nullable: false)]
     protected int $propagateNeg;
 
-    /**
-     * @ORm\Column(name="save_correct_answers", type="integer", nullable=true)
-     */
+    #[ORM\Column(name: 'save_correct_answers', type: 'integer', nullable: true)]
     protected ?int $saveCorrectAnswers;
 
-    /**
-     * @ORM\Column(name="review_answers", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'review_answers', type: 'integer', nullable: false)]
     protected int $reviewAnswers;
 
-    /**
-     * @ORM\Column(name="random_by_category", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'random_by_category', type: 'integer', nullable: false)]
     protected int $randomByCategory;
 
-    /**
-     * @ORM\Column(name="text_when_finished", type="text", nullable=true)
-     */
+    #[ORM\Column(name: 'text_when_finished', type: 'text', nullable: true)]
     protected ?string $textWhenFinished = null;
 
-    /**
-     * @ORM\Column(name="display_category_name", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'text_when_finished_failure', type: 'text', nullable: true)]
+    protected ?string $textWhenFinishedFailure = null;
+
+    #[ORM\Column(name: 'display_category_name', type: 'integer', nullable: false)]
     protected int $displayCategoryName;
 
-    /**
-     * @ORM\Column(name="pass_percentage", type="integer", nullable=true)
-     */
+    #[ORM\Column(name: 'pass_percentage', type: 'integer', nullable: true)]
     protected ?int $passPercentage = null;
 
-    /**
-     * @ORM\Column(name="prevent_backwards", type="integer", nullable=false, options={"default":0})
-     */
+    #[ORM\Column(name: 'prevent_backwards', type: 'integer', nullable: false, options: ['default' => 0])]
     protected int $preventBackwards;
 
-    /**
-     * @ORM\Column(name="question_selection_type", type="integer", nullable=true)
-     */
+    #[ORM\Column(name: 'question_selection_type', type: 'integer', nullable: true)]
     protected ?int $questionSelectionType = null;
 
-    /**
-     * @ORM\Column(name="hide_question_number", type="integer", nullable=false, options={"default":0})
-     */
+    #[ORM\Column(name: 'hide_question_number', type: 'integer', nullable: false, options: ['default' => 0])]
     protected int $hideQuestionNumber;
 
-    /**
-     * @ORM\Column(name="hide_question_title", type="boolean", nullable=false)
-     */
+    #[ORM\Column(name: 'hide_question_title', type: 'boolean', nullable: false)]
     protected bool $hideQuestionTitle;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CourseBundle\Entity\CExerciseCategory", cascade={"persist"})
-     * @ORM\JoinColumn(name="exercise_category_id", referencedColumnName="id", onDelete="SET NULL")
-     */
-    protected ?CExerciseCategory $exerciseCategory = null;
+    #[ORM\ManyToOne(targetEntity: CQuizCategory::class, cascade: ['persist'])]
+    #[ORM\JoinColumn(name: 'quiz_category_id', referencedColumnName: 'id', onDelete: 'SET NULL')]
+    protected ?CQuizCategory $quizCategory = null;
 
-    /**
-     * @ORM\Column(name="show_previous_button", type="boolean", nullable=false, options={"default":1})
-     */
+    #[ORM\Column(name: 'show_previous_button', type: 'boolean', nullable: false, options: ['default' => 1])]
     protected bool $showPreviousButton;
 
-    /**
-     * @ORM\Column(name="notifications", type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(name: 'notifications', type: 'string', length: 255, nullable: true)]
     protected ?string $notifications;
 
-    /**
-     * @ORM\Column(name="autolaunch", type="boolean", nullable=true, options={"default":0})
-     */
+    #[ORM\Column(name: 'autolaunch', type: 'boolean', nullable: true, options: ['default' => 0])]
     protected ?bool $autoLaunch;
 
-    /**
-     * @ORM\Column(name="page_result_configuration", type="array")
-     */
+    #[ORM\Column(name: 'hide_attempts_table', type: 'boolean', nullable: false, options: ['default' => 0])]
+    protected bool $hideAttemptsTable;
+
+    #[ORM\Column(name: 'page_result_configuration', type: 'array')]
     protected array $pageResultConfiguration = [];
 
+    #[ORM\Column(name: 'display_chart_degree_certainty', type: 'integer', options: ['default' => 0])]
+    protected int $displayChartDegreeCertainty = 0;
+
+    #[ORM\Column(name: 'send_email_chart_degree_certainty', type: 'integer', options: ['default' => 0])]
+    protected int $sendEmailChartDegreeCertainty = 0;
+
+    #[ORM\Column(name: 'not_display_balance_percentage_categorie_question', type: 'integer', options: ['default' => 0])]
+    protected int $notDisplayBalancePercentageCategorieQuestion = 0;
+
+    #[ORM\Column(name: 'display_chart_degree_certainty_category', type: 'integer', options: ['default' => 0])]
+    protected int $displayChartDegreeCertaintyCategory = 0;
+
+    #[ORM\Column(name: 'gather_questions_categories', type: 'integer', options: ['default' => 0])]
+    protected int $gatherQuestionsCategories = 0;
+
     /**
-     * @var Collection|CQuizRelQuestion[]
-     *
-     * @ORM\OneToMany(targetEntity="Chamilo\CourseBundle\Entity\CQuizRelQuestion", mappedBy="quiz", cascade={"persist"}, orphanRemoval=true))
+     * @var Collection<int, CQuizRelQuestion>
      */
+    #[ORM\OneToMany(mappedBy: 'quiz', targetEntity: CQuizRelQuestion::class, cascade: ['persist'], orphanRemoval: true)]
     protected Collection $questions;
 
     /**
-     * @var Collection|CQuizRelQuestionCategory[]
-     *
-     * @ORM\OneToMany(targetEntity="Chamilo\CourseBundle\Entity\CQuizRelQuestionCategory", mappedBy="quiz", cascade={"persist"}))
+     * @var Collection<int, CQuizRelQuestionCategory>
      */
+    #[ORM\OneToMany(mappedBy: 'quiz', targetEntity: CQuizRelQuestionCategory::class, cascade: ['persist'])]
     protected Collection $questionsCategories;
 
     /**
      * @var Collection<int, TrackEExercise>
-     *
-     * @ORM\OneToMany(targetEntity="Chamilo\CoreBundle\Entity\TrackEExercise", mappedBy="quiz")
      */
+    #[ORM\OneToMany(mappedBy: 'quiz', targetEntity: TrackEExercise::class)]
     protected Collection $attempts;
+
+    #[ORM\Column(name: 'duration', type: 'integer', nullable: true)]
+    protected ?int $duration = null;
 
     public function __construct()
     {
@@ -236,8 +193,10 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
         $this->reviewAnswers = 0;
         $this->randomByCategory = 0;
         $this->displayCategoryName = 0;
+        $this->hideAttemptsTable = false;
         $this->pageResultConfiguration = [];
         $this->attempts = new ArrayCollection();
+        $this->hideAttemptsTable = false;
     }
 
     public function __toString(): string
@@ -246,11 +205,13 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
     }
 
     /**
-     * @return Collection|CQuizRelQuestion[]
+     * @return ArrayCollection<int, CQuizRelQuestion>
      */
-    public function getQuestions()
+    public function getQuestions(): Collection
     {
-        return $this->questions;
+        return $this->questions instanceof ArrayCollection ?
+            $this->questions :
+            new ArrayCollection($this->questions->toArray());
     }
 
     public function setTitle(string $title): self
@@ -289,12 +250,7 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
         return $this;
     }
 
-    /**
-     * Get sound.
-     *
-     * @return string
-     */
-    public function getSound()
+    public function getSound(): ?string
     {
         return $this->sound;
     }
@@ -335,12 +291,7 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
         return $this;
     }
 
-    /**
-     * Get randomAnswers.
-     *
-     * @return bool
-     */
-    public function getRandomAnswers()
+    public function getRandomAnswers(): bool
     {
         return $this->randomAnswers;
     }
@@ -364,12 +315,7 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
         return $this;
     }
 
-    /**
-     * Get resultsDisabled.
-     *
-     * @return int
-     */
-    public function getResultsDisabled()
+    public function getResultsDisabled(): int
     {
         return $this->resultsDisabled;
     }
@@ -381,12 +327,7 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
         return $this;
     }
 
-    /**
-     * Get accessCondition.
-     *
-     * @return string
-     */
-    public function getAccessCondition()
+    public function getAccessCondition(): ?string
     {
         return $this->accessCondition;
     }
@@ -398,12 +339,7 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
         return $this;
     }
 
-    /**
-     * Get maxAttempt.
-     *
-     * @return int
-     */
-    public function getMaxAttempt()
+    public function getMaxAttempt(): int
     {
         return $this->maxAttempt;
     }
@@ -415,12 +351,7 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
         return $this;
     }
 
-    /**
-     * Get startTime.
-     *
-     * @return DateTime
-     */
-    public function getStartTime()
+    public function getStartTime(): ?DateTime
     {
         return $this->startTime;
     }
@@ -432,12 +363,7 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
         return $this;
     }
 
-    /**
-     * Get endTime.
-     *
-     * @return DateTime
-     */
-    public function getEndTime()
+    public function getEndTime(): ?DateTime
     {
         return $this->endTime;
     }
@@ -449,12 +375,7 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
         return $this;
     }
 
-    /**
-     * Get feedbackType.
-     *
-     * @return int
-     */
-    public function getFeedbackType()
+    public function getFeedbackType(): int
     {
         return $this->feedbackType;
     }
@@ -466,12 +387,7 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
         return $this;
     }
 
-    /**
-     * Get expiredTime.
-     *
-     * @return int
-     */
-    public function getExpiredTime()
+    public function getExpiredTime(): int
     {
         return $this->expiredTime;
     }
@@ -485,10 +401,8 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
 
     /**
      * Get propagateNeg.
-     *
-     * @return int
      */
-    public function getPropagateNeg()
+    public function getPropagateNeg(): int
     {
         return $this->propagateNeg;
     }
@@ -500,10 +414,7 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
         return $this;
     }
 
-    /**
-     * @return int
-     */
-    public function getSaveCorrectAnswers()
+    public function getSaveCorrectAnswers(): ?int
     {
         return $this->saveCorrectAnswers;
     }
@@ -517,10 +428,8 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
 
     /**
      * Get reviewAnswers.
-     *
-     * @return int
      */
-    public function getReviewAnswers()
+    public function getReviewAnswers(): int
     {
         return $this->reviewAnswers;
     }
@@ -534,14 +443,16 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
 
     /**
      * Get randomByCategory.
-     *
-     * @return int
      */
-    public function getRandomByCategory()
+    public function getRandomByCategory(): int
     {
         return $this->randomByCategory;
     }
 
+    /**
+     * Set text to display to user when they succeed to the test or, when no pass percentage has been set, when the
+     * test is finished.
+     */
     public function setTextWhenFinished(string $textWhenFinished): self
     {
         $this->textWhenFinished = $textWhenFinished;
@@ -550,13 +461,34 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
     }
 
     /**
-     * Get textWhenFinished.
-     *
-     * @return string
+     * Get text to display to user when they succeed to the test or, when no pass percentage has been set, when the
+     * test is finished.
      */
-    public function getTextWhenFinished()
+    public function getTextWhenFinished(): ?string
     {
         return $this->textWhenFinished;
+    }
+
+    /**
+     * Set text to display to user when they fail to the test (when pass percentage has been set).
+     */
+    public function setTextWhenFinishedFailure(?string $textWhenFinished): self
+    {
+        $this->textWhenFinishedFailure = $textWhenFinished;
+
+        return $this;
+    }
+
+    /**
+     * Get text to display to user when they fail to the test (when pass percentage has been set).
+     */
+    public function getTextWhenFinishedFailure(): ?string
+    {
+        if (empty($this->textWhenFinishedFailure)) {
+            return '';
+        }
+
+        return $this->textWhenFinishedFailure;
     }
 
     public function setDisplayCategoryName(int $displayCategoryName): self
@@ -568,10 +500,8 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
 
     /**
      * Get displayCategoryName.
-     *
-     * @return int
      */
-    public function getDisplayCategoryName()
+    public function getDisplayCategoryName(): int
     {
         return $this->displayCategoryName;
     }
@@ -585,30 +515,25 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
 
     /**
      * Get passPercentage.
-     *
-     * @return int
      */
-    public function getPassPercentage()
+    public function getPassPercentage(): ?int
     {
         return $this->passPercentage;
     }
 
-    public function getExerciseCategory(): ?CExerciseCategory
+    public function getQuizCategory(): ?CQuizCategory
     {
-        return $this->exerciseCategory;
+        return $this->quizCategory;
     }
 
-    public function setExerciseCategory(CExerciseCategory $exerciseCategory): self
+    public function setQuizCategory(CQuizCategory $quizCategory): self
     {
-        $this->exerciseCategory = $exerciseCategory;
+        $this->quizCategory = $quizCategory;
 
         return $this;
     }
 
-    /**
-     * @return int
-     */
-    public function getQuestionSelectionType()
+    public function getQuestionSelectionType(): ?int
     {
         return $this->questionSelectionType;
     }
@@ -656,7 +581,7 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
         return $this;
     }
 
-    public function getIid(): int
+    public function getIid(): ?int
     {
         return $this->iid;
     }
@@ -697,6 +622,66 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
         return $this;
     }
 
+    public function getDisplayChartDegreeCertainty(): int
+    {
+        return $this->displayChartDegreeCertainty;
+    }
+
+    public function setDisplayChartDegreeCertainty(int $displayChartDegreeCertainty): self
+    {
+        $this->displayChartDegreeCertainty = $displayChartDegreeCertainty;
+
+        return $this;
+    }
+
+    public function getSendEmailChartDegreeCertainty(): int
+    {
+        return $this->sendEmailChartDegreeCertainty;
+    }
+
+    public function setSendEmailChartDegreeCertainty(int $sendEmailChartDegreeCertainty): self
+    {
+        $this->sendEmailChartDegreeCertainty = $sendEmailChartDegreeCertainty;
+
+        return $this;
+    }
+
+    public function getNotDisplayBalancePercentageCategorieQuestion(): int
+    {
+        return $this->notDisplayBalancePercentageCategorieQuestion;
+    }
+
+    public function setNotDisplayBalancePercentageCategorieQuestion(int $notDisplayBalancePercentageCategorieQuestion): self
+    {
+        $this->notDisplayBalancePercentageCategorieQuestion = $notDisplayBalancePercentageCategorieQuestion;
+
+        return $this;
+    }
+
+    public function getDisplayChartDegreeCertaintyCategory(): int
+    {
+        return $this->displayChartDegreeCertaintyCategory;
+    }
+
+    public function setDisplayChartDegreeCertaintyCategory(int $displayChartDegreeCertaintyCategory): self
+    {
+        $this->displayChartDegreeCertaintyCategory = $displayChartDegreeCertaintyCategory;
+
+        return $this;
+    }
+
+    public function getGatherQuestionsCategories(): int
+    {
+        return $this->gatherQuestionsCategories;
+    }
+
+    public function setGatherQuestionsCategories(int $gatherQuestionsCategories): self
+    {
+        $this->gatherQuestionsCategories = $gatherQuestionsCategories;
+
+        return $this;
+    }
+
     /**
      * Returns the sum of question's ponderation.
      */
@@ -727,15 +712,41 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
         return $this;
     }
 
-    /**
-     * @return CQuizRelQuestionCategory[]|Collection
-     */
-    public function getQuestionsCategories()
+    public function isHideAttemptsTable(): bool
     {
-        return $this->questionsCategories;
+        return $this->hideAttemptsTable;
     }
 
-    public function getResourceIdentifier(): int
+    public function setHideAttemptsTable(bool $hideAttemptsTable): self
+    {
+        $this->hideAttemptsTable = $hideAttemptsTable;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, CQuizRelQuestionCategory>
+     */
+    public function getQuestionsCategories(): Collection
+    {
+        return $this->questionsCategories instanceof ArrayCollection ?
+            $this->questionsCategories :
+            new ArrayCollection($this->questionsCategories->toArray());
+    }
+
+    public function getDuration(): ?int
+    {
+        return $this->duration;
+    }
+
+    public function setDuration(?int $duration): self
+    {
+        $this->duration = $duration;
+
+        return $this;
+    }
+
+    public function getResourceIdentifier(): int|Uuid
     {
         return $this->getIid();
     }
@@ -748,5 +759,13 @@ class CQuiz extends AbstractResource implements ResourceInterface, ResourceShowC
     public function setResourceName(string $name): self
     {
         return $this->setTitle($name);
+    }
+
+    /**
+     * @return Collection<int, TrackEExercise>
+     */
+    public function getAttempts(): Collection
+    {
+        return $this->attempts;
     }
 }

@@ -6,55 +6,74 @@ declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\DataProvider\Extension;
 
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Extension\QueryCollectionExtensionInterface;
-//use ApiPlatform\Core\Bridge\Doctrine\Orm\Extension\QueryItemExtensionInterface;
-//use ApiPlatform\Core\Bridge\Doctrine\Orm\Extension\QueryItemExtensionInterface;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Util\QueryNameGeneratorInterface;
+use ApiPlatform\Doctrine\Orm\Extension\QueryCollectionExtensionInterface;
+use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
+use ApiPlatform\Metadata\Operation;
+use Chamilo\CoreBundle\Component\Utils\CreateDefaultPages;
 use Chamilo\CoreBundle\Entity\Page;
+use Chamilo\CoreBundle\ServiceHelper\AccessUrlHelper;
 use Doctrine\ORM\QueryBuilder;
-use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\Security\Core\Security;
+use Symfony\Bundle\SecurityBundle\Security;
 
-final class PageExtension implements QueryCollectionExtensionInterface //, QueryItemExtensionInterface
+final class PageExtension implements QueryCollectionExtensionInterface // , QueryItemExtensionInterface
 {
-    private Security $security;
-    private RequestStack $requestStack;
+    public function __construct(
+        private readonly Security $security,
+        private readonly AccessUrlHelper $accessUrlHelper,
+    ) {}
 
-    public function __construct(Security $security, RequestStack $request)
-    {
-        $this->security = $security;
-        $this->requestStack = $request;
-    }
-
-    public function applyToCollection(QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, string $resourceClass, string $operationName = null): void
-    {
-        $this->addWhere($queryBuilder, $resourceClass);
-    }
-
-    public function applyToItem(QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, string $resourceClass, array $identifiers, string $operationName = null, array $context = []): void
-    {
-        //$this->addWhere($queryBuilder, $resourceClass);
-    }
-
-    private function addWhere(QueryBuilder $qb, string $resourceClass): void
-    {
+    public function applyToCollection(
+        QueryBuilder $queryBuilder,
+        QueryNameGeneratorInterface $queryNameGenerator,
+        string $resourceClass,
+        ?Operation $operation = null,
+        array $context = []
+    ): void {
         if (Page::class !== $resourceClass) {
             return;
         }
 
-        $alias = $qb->getRootAliases()[0];
+        $alias = $queryBuilder->getRootAliases()[0];
 
-        $request = $this->requestStack->getCurrentRequest();
-        $urlId = $request->getSession()->get('access_url_id');
+        $url = $this->accessUrlHelper->getCurrent();
 
         // Url filter by default.
-        $qb
+        $queryBuilder
             ->andWhere("$alias.url = :url")
-            ->setParameter('url', $urlId)
+            ->setParameter('url', $url->getId())
+            ->innerJoin(
+                "$alias.category",
+                'category',
+            )
         ;
 
         if (!$this->security->isGranted('ROLE_ADMIN')) {
-            $qb->andWhere("$alias.enabled = 1");
+            $queryBuilder->andWhere("$alias.enabled = 1")
+                ->andWhere(
+                    $queryBuilder->expr()->notIn(
+                        'category.title',
+                        CreateDefaultPages::getCategoriesForAdminBlocks()
+                    )
+                )
+            ;
+        }
+
+        if (!$this->security->isGranted('IS_AUTHENTICATED')) {
+            $queryBuilder
+                ->andWhere(
+                    $queryBuilder->expr()->in('category.title', ':anon_categories')
+                )
+                ->setParameter(
+                    'anon_categories',
+                    [
+                        'faq',
+                        'demo',
+                        'home',
+                        'public',
+                        'footer_public',
+                    ]
+                )
+            ;
         }
     }
 }

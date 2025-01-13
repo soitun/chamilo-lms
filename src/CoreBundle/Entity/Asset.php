@@ -11,6 +11,7 @@ use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
+use Stringable;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Serializer\Annotation\Groups;
@@ -20,48 +21,36 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
 /**
  * @Vich\Uploadable
- * @ORM\Entity
- * @ORM\Table(name="asset")
  */
-class Asset
+#[ORM\Table(name: 'asset')]
+#[ORM\Entity]
+class Asset implements Stringable
 {
     use TimestampableEntity;
 
     public const SCORM = 'scorm';
     public const WATERMARK = 'watermark';
-    //public const CSS = 'css';
+    // public const CSS = 'css';
     public const EXTRA_FIELD = 'ef';
     public const COURSE_CATEGORY = 'course_category';
     public const SKILL = 'skill';
     public const EXERCISE_ATTEMPT = 'exercise_attempt';
     public const EXERCISE_FEEDBACK = 'exercise_feedback';
+    public const SYSTEM_TEMPLATE = 'system_template';
+    public const TEMPLATE = 'template';
+    public const SESSION = 'session';
 
-    /**
-     * @ORM\Id
-     * @ORM\Column(type="uuid")
-     */
+    #[ORM\Id]
+    #[ORM\Column(type: 'uuid')]
     protected Uuid $id;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
     #[Assert\NotBlank]
+    #[ORM\Column(type: 'string', length: 255)]
     protected ?string $title = null;
 
-    /**
-     * @Assert\Choice({
-     *     Asset::SCORM,
-     *     Asset::WATERMARK,
-     *     Asset::EXTRA_FIELD,
-     *     Asset::COURSE_CATEGORY,
-     *     Asset::SKILL,
-     * },
-     * message="Choose a valid category."
-     * )
-     *
-     * @ORM\Column(type="string", length=255)
-     */
     #[Assert\NotBlank]
+    #[Assert\Choice([self::SCORM, self::WATERMARK, self::EXTRA_FIELD, self::COURSE_CATEGORY, self::SKILL], message: 'Choose a valid category.')]
+    #[ORM\Column(type: 'string', length: 255)]
     protected ?string $category = null;
 
     /**
@@ -74,64 +63,48 @@ class Asset
      *     dimensions="dimensions"
      * )
      */
-//    #[Vich\UploadableField(
-//        mapping: 'assets',
-//        fileNameProperty: 'title',
-//        size: 'size',
-//        mimeType: 'mimeType',
-//        originalName: 'originalName',
-//        dimensions: 'dimensions'
-//    )]
+    //    #[Vich\UploadableField(
+    //        mapping: 'assets',
+    //        fileNameProperty: 'title',
+    //        size: 'size',
+    //        mimeType: 'mimeType',
+    //        originalName: 'originalName',
+    //        dimensions: 'dimensions'
+    //    )]
     #[Assert\NotNull]
     protected File $file;
 
-    /**
-     * @ORM\Column(type="boolean")
-     */
+    #[ORM\Column(type: 'boolean')]
     protected bool $compressed;
 
-    /**
-     * @Groups({"resource_file:read", "resource_node:read", "document:read"})
-     * @ORM\Column(type="text", nullable=true)
-     */
+    #[Groups(['resource_file:read', 'resource_node:read', 'document:read'])]
+    #[ORM\Column(type: 'text', nullable: true)]
     protected ?string $mimeType = null;
 
-    /**
-     * @ORM\Column(type="text", nullable=true)
-     */
+    #[ORM\Column(type: 'text', nullable: true)]
     protected ?string $originalName = null;
 
-    /**
-     * @Groups({"resource_file:read", "resource_node:read", "document:read"})
-     * @ORM\Column(type="simple_array", nullable=true)
-     */
+    #[Groups(['resource_file:read', 'resource_node:read', 'document:read'])]
+    #[ORM\Column(type: 'simple_array', nullable: true)]
     protected ?array $dimensions;
 
-    /**
-     * @ORM\Column(type="integer")
-     */
+    #[ORM\Column(type: 'integer')]
     protected ?int $size = null;
 
-    /**
-     * @ORM\Column(name="crop", type="string", length=255, nullable=true)
-     */
+    #[ORM\Column(name: 'crop', type: 'string', length: 255, nullable: true)]
     protected ?string $crop = null;
 
-    /**
-     * @ORM\Column(type="array", nullable=true)
-     */
+    #[ORM\Column(type: 'array', nullable: true)]
     protected ?array $metadata;
 
-    /**
-     * @ORM\Column(name="description", type="text", nullable=true)
-     */
+    #[ORM\Column(name: 'description', type: 'text', nullable: true)]
     protected ?string $description = null;
 
     /**
      * @var DateTime|DateTimeImmutable
-     * @Gedmo\Timestampable(on="update")
-     * @ORM\Column(type="datetime")
      */
+    #[Gedmo\Timestampable(on: 'update')]
+    #[ORM\Column(type: 'datetime')]
     protected $updatedAt;
 
     public function __construct()
@@ -149,14 +122,21 @@ class Asset
         return $this->getOriginalName();
     }
 
+    public function getOriginalName(): string
+    {
+        return (string) $this->originalName;
+    }
+
+    public function setOriginalName(?string $originalName): self
+    {
+        $this->originalName = $originalName;
+
+        return $this;
+    }
+
     public function getId(): Uuid
     {
         return $this->id;
-    }
-
-    public function getFolder(): string
-    {
-        return $this->category.'/'.$this->getOriginalName();
     }
 
     public function getFileUrl(): string
@@ -164,11 +144,28 @@ class Asset
         return $this->getFolder().'/'.$this->getOriginalName();
     }
 
+    public function getFolder(): string
+    {
+        return $this->category.'/'.$this->getOriginalName();
+    }
+
     public function isImage(): bool
     {
         $mimeType = $this->getMimeType();
 
         return str_contains($mimeType, 'image');
+    }
+
+    public function getMimeType(): ?string
+    {
+        return $this->mimeType;
+    }
+
+    public function setMimeType(?string $mimeType): self
+    {
+        $this->mimeType = $mimeType;
+
+        return $this;
     }
 
     public function isVideo(): bool
@@ -202,31 +199,19 @@ class Asset
         return $this;
     }
 
-    public function getMimeType(): ?string
+    public function getWidth(): int
     {
-        return $this->mimeType;
+        $data = $this->getDimensions();
+        if ([] !== $data) {
+            // $data = explode(',', $data);
+
+            return (int) $data[0];
+        }
+
+        return 0;
     }
 
-    public function setMimeType(?string $mimeType): self
-    {
-        $this->mimeType = $mimeType;
-
-        return $this;
-    }
-
-    public function getOriginalName(): string
-    {
-        return (string) $this->originalName;
-    }
-
-    public function setOriginalName(?string $originalName): self
-    {
-        $this->originalName = $originalName;
-
-        return $this;
-    }
-
-    public function getDimensions(): array
+    public function getDimensions(): ?array
     {
         return $this->dimensions;
     }
@@ -238,24 +223,12 @@ class Asset
         return $this;
     }
 
-    public function getWidth(): int
-    {
-        $data = $this->getDimensions();
-        if ([] !== $data) {
-            //$data = explode(',', $data);
-
-            return (int) $data[0];
-        }
-
-        return 0;
-    }
-
     public function getHeight(): int
     {
         $data = $this->getDimensions();
 
         if ([] !== $data) {
-            //$data = explode(',', $data);
+            // $data = explode(',', $data);
 
             return (int) $data[1];
         }
@@ -263,7 +236,7 @@ class Asset
         return 0;
     }
 
-    public function getMetadata(): array
+    public function getMetadata(): ?array
     {
         return $this->metadata;
     }
@@ -275,7 +248,7 @@ class Asset
         return $this;
     }
 
-    public function getDescription(): string
+    public function getDescription(): ?string
     {
         return $this->description;
     }
@@ -287,20 +260,12 @@ class Asset
         return $this;
     }
 
-    public function getFile(): ?File
+    public function getFile(): File
     {
         return $this->file;
     }
 
-    public function hasFile(): bool
-    {
-        return null !== $this->file;
-    }
-
-    /**
-     * @param File|UploadedFile $file
-     */
-    public function setFile(File $file = null): self
+    public function setFile(File|UploadedFile|null $file = null): self
     {
         $this->file = $file;
 
@@ -313,7 +278,12 @@ class Asset
         return $this;
     }
 
-    public function getTitle(): string
+    public function hasFile(): bool
+    {
+        return !empty($this->file);
+    }
+
+    public function getTitle(): ?string
     {
         return $this->title;
     }
@@ -325,7 +295,7 @@ class Asset
         return $this;
     }
 
-    public function getCategory(): string
+    public function getCategory(): ?string
     {
         return $this->category;
     }

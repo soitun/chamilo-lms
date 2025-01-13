@@ -6,19 +6,41 @@ declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Put;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
+use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
-/**
- * @ORM\Entity
- * @ORM\Table(name="extra_field")
- *
- * @ORM\MappedSuperclass
- */
+#[ApiResource(
+    operations: [
+        new Get(security: "is_granted('ROLE_ADMIN')"),
+        new Put(security: "is_granted('ROLE_ADMIN')"),
+        new GetCollection(security: "is_granted('ROLE_ADMIN')"),
+        new Post(security: "is_granted('ROLE_ADMIN')"),
+    ],
+    normalizationContext: [
+        'groups' => ['extra_field:read'],
+    ],
+    denormalizationContext: [
+        'groups' => ['extra_field:write'],
+    ],
+    security: "is_granted('ROLE_ADMIN')"
+),
+]
+#[ORM\Table(name: 'extra_field')]
+#[ORM\Entity]
+#[ORM\MappedSuperclass]
+#[ApiFilter(filterClass: SearchFilter::class, properties: ['variable'])]
 class ExtraField
 {
     public const USER_FIELD_TYPE = 1;
@@ -41,101 +63,104 @@ class ExtraField
     public const TRACK_EXERCISE_FIELD_TYPE = 18;
     public const PORTFOLIO_TYPE = 19;
     public const LP_VIEW_TYPE = 20;
+    public const COURSE_ANNOUNCEMENT = 21;
+    public const MESSAGE_TYPE = 22;
+    public const DOCUMENT_TYPE = 23;
+    public const ATTENDANCE_CALENDAR_TYPE = 24;
 
-    /**
-     * @ORM\Column(name="id", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     */
-    protected int $id;
+    public const USER_FIELD_TYPE_RADIO = 3;
+    public const USER_FIELD_TYPE_SELECT_MULTIPLE = 5;
+    public const USER_FIELD_TYPE_TAG = 10;
+    public const FIELD_TYPE_TEXT = 1;
+    public const FIELD_TYPE_TEXTAREA = 2;
+    public const FIELD_TYPE_RADIO = 3;
+    public const FIELD_TYPE_SELECT = 4;
+    public const FIELD_TYPE_SELECT_MULTIPLE = 5;
+    public const FIELD_TYPE_DATE = 6;
+    public const FIELD_TYPE_DATETIME = 7;
+    public const FIELD_TYPE_DOUBLE_SELECT = 8;
+    public const FIELD_TYPE_TAG = 10;
+    public const FIELD_TYPE_SOCIAL_PROFILE = 12;
+    public const FIELD_TYPE_CHECKBOX = 13;
+    public const FIELD_TYPE_INTEGER = 15;
+    public const FIELD_TYPE_FILE_IMAGE = 16;
+    public const FIELD_TYPE_FLOAT = 17;
+    public const FIELD_TYPE_FILE = 18;
+    public const FIELD_TYPE_GEOLOCALIZATION = 24;
+    public const FIELD_TYPE_GEOLOCALIZATION_COORDINATES = 25;
 
-    /**
-     * @ORM\Column(name="extra_field_type", type="integer")
-     */
-    protected int $extraFieldType;
+    #[Groups(['extra_field:read'])]
+    #[ORM\Column(name: 'id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    protected ?int $id = null;
 
-    /**
-     * @ORM\Column(name="field_type", type="integer")
-     */
-    protected int $fieldType;
+    #[Groups(['extra_field:read', 'extra_field:write'])]
+    #[ORM\Column(name: 'item_type', type: 'integer')]
+    protected int $itemType;
 
-    /**
-     * @ORM\Column(name="variable", type="string", length=255)
-     */
+    #[Groups(['extra_field:read', 'extra_field:write'])]
+    #[ORM\Column(name: 'value_type', type: 'integer')]
+    protected int $valueType;
+
     #[Assert\NotBlank]
+    #[Groups(['extra_field:read', 'extra_field:write'])]
+    #[ORM\Column(name: 'variable', type: 'string', length: 255)]
     protected string $variable;
 
-    /**
-     * @ORM\Column(name="description", type="text", nullable=true)
-     */
+    #[Groups(['extra_field:read', 'extra_field:write'])]
+    #[ORM\Column(name: 'description', type: 'text', nullable: true)]
     protected ?string $description;
 
-    /**
-     * @Gedmo\Translatable
-     * @ORM\Column(name="display_text", type="string", length=255, nullable=true, unique=false)
-     */
     #[Assert\NotBlank]
+    #[Groups(['extra_field:read', 'extra_field:write'])]
+    #[Gedmo\Translatable]
+    #[ORM\Column(name: 'display_text', type: 'string', length: 255, unique: false, nullable: true)]
     protected ?string $displayText = null;
 
-    /**
-     * @Gedmo\Locale
-     */
-    protected ?string $locale = null;
-
-    /**
-     * @ORM\Column(name="helper_text", type="text", nullable=true, unique=false)
-     */
+    #[ORM\Column(name: 'helper_text', type: 'text', unique: false, nullable: true)]
     protected ?string $helperText = null;
 
-    /**
-     * @ORM\Column(name="default_value", type="text", nullable=true, unique=false)
-     */
+    #[ORM\Column(name: 'default_value', type: 'text', unique: false, nullable: true)]
     protected ?string $defaultValue = null;
 
-    /**
-     * @ORM\Column(name="field_order", type="integer", nullable=true, unique=false)
-     */
+    #[ORM\Column(name: 'field_order', type: 'integer', unique: false, nullable: true)]
     protected ?int $fieldOrder = null;
 
-    /**
-     * @ORM\Column(name="visible_to_self", type="boolean", nullable=true, unique=false)
-     */
-    protected ?bool $visibleToSelf;
+    #[ORM\Column(name: 'visible_to_self', type: 'boolean', options: ['default' => false])]
+    protected ?bool $visibleToSelf = false;
+    #[ORM\Column(name: 'visible_to_others', type: 'boolean', options: ['default' => false])]
+    protected ?bool $visibleToOthers = false;
+
+    #[ORM\Column(name: 'changeable', type: 'boolean', options: ['default' => false])]
+    protected ?bool $changeable = false;
+
+    #[ORM\Column(name: 'filter', type: 'boolean', options: ['default' => false])]
+    protected ?bool $filter = false;
 
     /**
-     * @ORM\Column(name="visible_to_others", type="boolean", nullable=true, unique=false)
+     * @var Collection<int, ExtraFieldOptions>
      */
-    protected ?bool $visibleToOthers;
-
-    /**
-     * @ORM\Column(name="changeable", type="boolean", nullable=true, unique=false)
-     */
-    protected ?bool $changeable = null;
-
-    /**
-     * @ORM\Column(name="filter", type="boolean", nullable=true, unique=false)
-     */
-    protected ?bool $filter = null;
-
-    /**
-     * @ORM\OneToMany(targetEntity="Chamilo\CoreBundle\Entity\ExtraFieldOptions", mappedBy="field")
-     *
-     * @var ExtraFieldOptions[]|Collection
-     */
+    #[Groups(['extra_field:read'])]
+    #[ORM\OneToMany(mappedBy: 'field', targetEntity: ExtraFieldOptions::class)]
     protected Collection $options;
 
     /**
-     * @ORM\OneToMany(targetEntity="Chamilo\CoreBundle\Entity\Tag", mappedBy="field")
-     *
-     * @var Tag[]|Collection
+     * @var Collection<int, Tag>
      */
+    #[ORM\OneToMany(mappedBy: 'field', targetEntity: Tag::class)]
     protected Collection $tags;
 
-    /**
-     * @Gedmo\Timestampable(on="create")
-     * @ORM\Column(name="created_at", type="datetime")
-     */
+    #[Gedmo\Timestampable(on: 'create')]
+    #[ORM\Column(name: 'created_at', type: 'datetime')]
     protected DateTime $createdAt;
+
+    #[Groups(['extra_field:read'])]
+    #[ORM\Column(name: 'auto_remove', type: 'boolean', options: ['default' => false])]
+    protected bool $autoRemove = false;
+
+    #[Gedmo\Locale]
+    private ?string $locale = null;
 
     public function __construct()
     {
@@ -146,46 +171,39 @@ class ExtraField
         $this->visibleToSelf = false;
         $this->changeable = false;
         $this->filter = false;
+        $this->autoRemove = false;
     }
 
-    /**
-     * Get id.
-     *
-     * @return int
-     */
-    public function getId()
+    public function getId(): ?int
     {
         return $this->id;
     }
 
-    public function getExtraFieldType(): int
+    public function getItemType(): int
     {
-        return $this->extraFieldType;
+        return $this->itemType;
     }
 
-    public function setExtraFieldType(int $extraFieldType): self
+    public function setItemType(int $itemType): self
     {
-        $this->extraFieldType = $extraFieldType;
+        $this->itemType = $itemType;
 
         return $this;
     }
 
-    public function getFieldType(): int
+    public function getValueType(): int
     {
-        return $this->fieldType;
+        return $this->valueType;
     }
 
-    public function setFieldType(int $fieldType): self
+    public function setValueType(int $valueType): self
     {
-        $this->fieldType = $fieldType;
+        $this->valueType = $valueType;
 
         return $this;
     }
 
-    /**
-     * @return string
-     */
-    public function getVariable()
+    public function getVariable(): string
     {
         return $this->variable;
     }
@@ -197,10 +215,7 @@ class ExtraField
         return $this;
     }
 
-    /**
-     * @return string
-     */
-    public function getDisplayText()
+    public function getDisplayText(): ?string
     {
         return $this->displayText;
     }
@@ -212,10 +227,7 @@ class ExtraField
         return $this;
     }
 
-    /**
-     * @return string
-     */
-    public function getDefaultValue()
+    public function getDefaultValue(): ?string
     {
         return $this->defaultValue;
     }
@@ -227,10 +239,7 @@ class ExtraField
         return $this;
     }
 
-    /**
-     * @return int
-     */
-    public function getFieldOrder()
+    public function getFieldOrder(): ?int
     {
         return $this->fieldOrder;
     }
@@ -242,10 +251,7 @@ class ExtraField
         return $this;
     }
 
-    /**
-     * @return bool
-     */
-    public function isChangeable()
+    public function isChangeable(): ?bool
     {
         return $this->changeable;
     }
@@ -306,9 +312,9 @@ class ExtraField
     }
 
     /**
-     * @return ExtraFieldOptions[]|Collection
+     * @return Collection<int, ExtraFieldOptions>
      */
-    public function getOptions()
+    public function getOptions(): Collection
     {
         return $this->options;
     }
@@ -321,9 +327,9 @@ class ExtraField
     }
 
     /**
-     * @return Tag[]|Collection
+     * @return Collection<int, Tag>
      */
-    public function getTags()
+    public function getTags(): Collection
     {
         return $this->tags;
     }
@@ -334,29 +340,21 @@ class ExtraField
 
         return $this;
     }
-
     public function hasTag(string $tagName): bool
     {
         if (0 === $this->tags->count()) {
             return false;
         }
 
-        return $this->tags->exists(function ($key, Tag $tag) use ($tagName) {
-            return $tagName === $tag->getTag();
-        });
+        return $this->tags->exists(fn ($key, Tag $tag) => $tagName === $tag->getTag());
     }
 
     public function getTypeToString(): string
     {
-        switch ($this->getExtraFieldType()) {
-            case \ExtraField::FIELD_TYPE_RADIO:
-            case \ExtraField::FIELD_TYPE_SELECT:
-                return 'choice';
-            case \ExtraField::FIELD_TYPE_TEXT:
-            case \ExtraField::FIELD_TYPE_TEXTAREA:
-            default:
-                return 'text';
-        }
+        return match ($this->getItemType()) {
+            \ExtraField::FIELD_TYPE_RADIO, \ExtraField::FIELD_TYPE_SELECT => 'choice',
+            default => 'text',
+        };
     }
 
     public function getHelperText(): string
@@ -371,15 +369,27 @@ class ExtraField
         return $this;
     }
 
-    public function setTranslatableLocale($locale)
+    public function getAutoRemove(): bool
     {
-        $this->locale = $locale;
+        return $this->autoRemove;
+    }
+
+    public function setAutoRemove(bool $autoRemove): self
+    {
+        $this->autoRemove = $autoRemove;
 
         return $this;
     }
 
-    public function getTranslatableLocale()
+    public function getLocale(): string
     {
         return $this->locale;
+    }
+
+    public function setLocale(string $locale): self
+    {
+        $this->locale = $locale;
+
+        return $this;
     }
 }

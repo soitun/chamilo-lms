@@ -1,154 +1,70 @@
 <template>
-  <q-form>
-    <TinyEditor
-        id="introText"
-        v-model="item.introText"
-        required
-        :init="{
-          skin_url: '/build/libs/tinymce/skins/ui/oxide',
-          content_css: '/build/libs/tinymce/skins/content/default/content.css',
-          branding: false,
-          relative_urls: false,
-          height: 500,
-          toolbar_mode: 'sliding',
-          file_picker_callback : browser,
-          autosave_ask_before_unload: true,
-          plugins: [
-            'fullpage advlist autolink lists link image charmap print preview anchor',
-            'searchreplace visualblocks code fullscreen',
-            'insertdatetime media table paste wordcount emoticons ' + extraPlugins
-          ],
-          toolbar: 'undo redo | bold italic underline strikethrough | insertfile image media template link | fontselect fontsizeselect formatselect | alignleft aligncenter alignright alignjustify | outdent indent |  numlist bullist | forecolor backcolor removeformat | pagebreak | charmap emoticons | fullscreen  preview save print | code codesample | ltr rtl | ' + extraPlugins,
-        }
-        "
+  <form>
+    <BaseTinyEditor
+      v-model="item.introText"
+      :full-page="false"
+      editor-id="introText"
+      required
     />
     <!-- For extra content-->
     <slot></slot>
-  </q-form>
+  </form>
 </template>
 
-<script>
-import useVuelidate from '@vuelidate/core';
-import { required } from '@vuelidate/validators';
-import {ref} from "vue";
-import isEmpty from "lodash/isEmpty";
+<script setup>
+import useVuelidate from "@vuelidate/core"
+import { computed, ref } from "vue"
+import { usePlatformConfig } from "../../store/platformConfig"
+import { useRoute } from "vue-router"
+import BaseTinyEditor from "../basecomponents/BaseTinyEditor.vue"
 
-export default {
-  name: 'ToolIntroForm',
-  setup () {
-    const config = ref([]);
-    const extraPlugins = ref('');
-
-    if (!isEmpty(window.config)) {
-      config.value = window.config;
-      if (config.value['editor.translate_html']) {
-        extraPlugins.value = 'translatehtml';
-      }
-    }
-
-    return { v$: useVuelidate(), extraPlugins }
+const props = defineProps({
+  values: {
+    type: Object,
+    required: true,
   },
-  props: {
-    values: {
-      type: Object,
-      required: true
-    },
-    errors: {
-      type: Object,
-      default: () => {}
-    },
-    initialValues: {
-      type: Object,
-      default: () => {}
-    },
+  errors: {
+    type: Object,
+    default: () => {},
   },
-  data() {
-    return {
-      introText: null,
-      parentResourceNodeId: null,
-      resourceNode: null,
-    };
+  initialValues: {
+    type: Object,
+    default: () => {},
   },
-  computed: {
-    item() {
-      return this.initialValues || this.values;
+})
+
+const route = useRoute()
+const introText = ref(null)
+const parentResourceNodeId = ref(route.query.parentResourceNodeId)
+const resourceNode = ref(null)
+
+const item = computed(() => {
+  return props.initialValues || props.values
+})
+
+const violations = computed(() => {
+  return props.errors || {}
+})
+
+const extraPlugins = ref("")
+
+const platformConfigStore = usePlatformConfig()
+
+if ("true" === platformConfigStore.getSetting("editor.translate_html")) {
+  extraPlugins.value = "translatehtml"
+}
+
+const validations = {
+  item: {
+    introText: {
+      //required,
     },
-    violations() {
-      return this.errors || {};
-    }
+    parentResourceNodeId: {},
+    resourceNode: {},
   },
-  methods: {
-    browser (callback, value, meta) {
-      //const route = useRoute();
-      let nodeId = this.$route.params['node'];
-      let folderParams = this.$route.query;
-      let url = this.$router.resolve({ name: 'DocumentForHtmlEditor', params: { id: nodeId }, query: folderParams })
-      url = url.fullPath;
-      console.log(url);
+}
 
-      if (meta.filetype === 'image') {
-        url = url + "&type=images";
-      } else {
-        url = url + "&type=files";
-      }
+const v$ = useVuelidate(validations, { item })
 
-      console.log(url);
-
-      window.addEventListener('message', function (event) {
-        var data = event.data;
-        if (data.url) {
-          url = data.url;
-          console.log(meta); // {filetype: "image", fieldname: "src"}
-          callback(url);
-        }
-      });
-
-
-      tinymce.activeEditor.windowManager.openUrl({
-        url: url,// use an absolute path!
-        title: 'file manager',
-        /*width: 900,
-        height: 450,
-        resizable: 'yes'*/
-      }, {
-        oninsert: function (file, fm) {
-          var url, reg, info;
-
-          // URL normalization
-          url = fm.convAbsUrl(file.url);
-
-          // Make file info
-          info = file.name + ' (' + fm.formatSize(file.size) + ')';
-
-          // Provide file and text for the link dialog
-          if (meta.filetype === 'file') {
-            callback(url, {text: info, title: info});
-          }
-
-          // Provide image and alt text for the image dialog
-          if (meta.filetype === 'image') {
-            callback(url, {alt: info});
-          }
-
-          // Provide alternative source and posted for the media dialog
-          if (meta.filetype === 'media') {
-            callback(url);
-          }
-        }
-      });
-      return false;
-    },
-  },
-  validations: {
-    item: {
-      introText: {
-        //required,
-      },
-      parentResourceNodeId: {
-      },
-      resourceNode:{
-      }
-    }
-  }
-};
+defineExpose({ v$: v$ })
 </script>

@@ -1,6 +1,8 @@
 <?php
 /* For licensing terms, see /license.txt */
 
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+
 $cidReset = true;
 
 require_once __DIR__.'/../inc/global.inc.php';
@@ -87,6 +89,7 @@ switch ($action) {
                     break;
             }
 
+            $values['sent'] = isset($values['sent']) ? (int) $values['sent'] : 0;
             $res = $object->save($values);
 
             if ($res) {
@@ -105,7 +108,7 @@ switch ($action) {
         } else {
             $content = '<div class="actions">';
             $content .= Display::url(
-                Display::return_icon('back.png', get_lang('Back'), '', ICON_SIZE_MEDIUM),
+                Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back')),
                 api_get_self().'?session_id='.$sessionId
             );
             $content .= '</div>';
@@ -127,7 +130,7 @@ switch ($action) {
         if ($form->validate()) {
             $values = $form->getSubmitValues();
             $values['id'] = $id;
-            $values['sent'] = isset($values['sent']) ? 1 : '';
+            $values['sent'] = isset($values['sent']) ? (int)$values['sent'] : 0;
             $values['date'] = api_get_utc_datetime($values['date']);
             $res = $object->update($values);
 
@@ -139,13 +142,15 @@ switch ($action) {
                 get_lang('Update successful'),
                 'confirmation'
             ));
-            header("Location: $url");
-            exit;
+
+            $content = $object->getGrid($sessionId);
+        } else {
+            $item = $object->get($id);
+            $item['date'] = api_get_local_time($item['date']);
+            $form->setDefaults($item);
+            $content = $form->returnForm();
         }
-        $item = $object->get($id);
-        $item['date'] = api_get_local_time($item['date']);
-        $form->setDefaults($item);
-        $content = $form->returnForm();
+
         break;
     case 'delete':
         $object->delete($id);
@@ -169,27 +174,25 @@ $columnModel = [
     [
         'name' => 'subject',
         'index' => 'subject',
-        'width' => '250',
+        'width' => '350',
         'align' => 'left',
     ],
     [
         'name' => 'date',
         'index' => 'date',
-        //'width' => '90',
-        //'align' => 'left',
+        'width' => '190',
+        'align' => 'left',
         'sortable' => 'true',
     ],
     [
         'name' => 'sent',
         'index' => 'sent',
-        //'width' => '90',
-        //'align' => 'left',
         'sortable' => 'true',
     ],
     [
         'name' => 'actions',
         'index' => 'actions',
-        'width' => '100',
+        'width' => '200',
         'align' => 'left',
         'formatter' => 'action_formatter',
         'sortable' => 'false',
@@ -197,8 +200,8 @@ $columnModel = [
 ];
 
 $actionLinks = 'function action_formatter(cellvalue, options, rowObject) {
-    return \'<a href="?action=edit&session_id='.$sessionId.'&id=\'+options.rowId+\'">'.Display::return_icon('edit.png', get_lang('Edit'), '', ICON_SIZE_SMALL).'</a>'.
-    '&nbsp;<a onclick="javascript:if(!confirm('."\'".addslashes(api_htmlentities(get_lang("Please confirm your choice"), ENT_QUOTES))."\'".')) return false;"  href="?action=delete&session_id='.$sessionId.'&id=\'+options.rowId+\'">'.Display::return_icon('delete.png', get_lang('Delete'), '', ICON_SIZE_SMALL).'</a>'.
+    return \'<a href="?action=edit&session_id='.$sessionId.'&id=\'+options.rowId+\'">'.Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Edit')).'</a>'.
+    '&nbsp;<a onclick="javascript:if(!confirm('."\'".addslashes(api_htmlentities(get_lang("Please confirm your choice"), ENT_QUOTES))."\'".')) return false;"  href="?action=delete&session_id='.$sessionId.'&id=\'+options.rowId+\'">'.Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Delete')).'</a>'.
     '\';
 }';
 

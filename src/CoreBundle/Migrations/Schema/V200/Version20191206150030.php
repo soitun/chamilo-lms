@@ -22,11 +22,9 @@ class Version20191206150030 extends AbstractMigrationChamilo
 
     public function up(Schema $schema): void
     {
-        $container = $this->getContainer();
-        $doctrine = $container->get('doctrine');
-        $em = $doctrine->getManager();
+        $em = $this->entityManager;
 
-        $kernel = $container->get('kernel');
+        $kernel = $this->container->get('kernel');
         $rootPath = $kernel->getProjectDir();
 
         $batchSize = self::BATCH_SIZE;
@@ -37,12 +35,13 @@ class Version20191206150030 extends AbstractMigrationChamilo
 
         /** @var ExtraFieldValues $item */
         foreach ($q->toIterable() as $item) {
-            if (\in_array($item->getField()->getFieldType(), $fieldWithFiles, true)) {
-                $path = $item->getValue();
+            if (\in_array($item->getField()->getValueType(), $fieldWithFiles, true)) {
+                $path = $item->getFieldValue();
                 if (empty($path)) {
                     continue;
                 }
-                $filePath = $rootPath.'/app/upload/'.$path;
+                $filePath = $this->getUpdateRootPath().'/app/upload/'.$path;
+                error_log('MIGRATIONS :: $filePath -- '.$filePath.' ...');
                 if ($this->fileExists($filePath)) {
                     $fileName = basename($path);
                     $mimeType = mime_content_type($filePath);
@@ -55,7 +54,7 @@ class Version20191206150030 extends AbstractMigrationChamilo
                     $em->persist($asset);
                     $em->flush();
                     $item->setAsset($asset);
-                    //$item->setValue((string) $asset->getId());
+                    // $item->setValue((string) $asset->getId());
                     $em->persist($item);
                 }
             }

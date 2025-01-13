@@ -26,16 +26,17 @@ class UsergroupRepositoryTest extends KernelTestCase
         self::bootKernel();
         $repo = self::getContainer()->get(UsergroupRepository::class);
 
+        $admin_user = $this->getUser('admin');
         $group = (new Usergroup())
-            ->setName('test')
+            ->setTitle('test')
             ->setDescription('desc')
             ->setGroupType(1)
             ->setUrl('url')
-            ->setAuthorId('')
+            ->setAuthorId($admin_user->getId())
             ->setAllowMembersToLeaveGroup(1)
             ->setVisibility(GROUP_PERMISSION_OPEN)
             ->addAccessUrl($this->getAccessUrl())
-            ->setCreator($this->getUser('admin'))
+            ->setCreator($admin_user)
         ;
 
         $this->assertHasNoEntityViolations($group);
@@ -46,7 +47,7 @@ class UsergroupRepositoryTest extends KernelTestCase
         $this->assertSame('/img/icons/64/group_na.png', $group->getDefaultIllustration(64));
         $this->assertSame(1, $repo->count([]));
 
-        $group->setName('test2');
+        $group->setTitle('test2');
         $repo->update($group);
 
         $this->assertSame(1, $repo->count([]));
@@ -62,7 +63,7 @@ class UsergroupRepositoryTest extends KernelTestCase
         $em = $this->getEntityManager();
 
         $group = (new Usergroup())
-            ->setName('test')
+            ->setTitle('test')
             ->addAccessUrl($this->getAccessUrl())
             ->setCreator($this->getUser('admin'))
         ;
@@ -115,7 +116,7 @@ class UsergroupRepositoryTest extends KernelTestCase
         ;
         $em->persist($userGroupRelUser);
 
-        //UserGroupRelUserGroup.php
+        // UserGroupRelUserGroup.php
 
         $group->getCourses()->add($userGroupRelCourse);
         $group->getQuestions()->add($userGroupRelQuestion);

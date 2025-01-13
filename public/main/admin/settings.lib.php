@@ -5,6 +5,11 @@ use Chamilo\CoreBundle\Component\Utils\ChamiloApi;
 use Chamilo\CoreBundle\Entity\SystemTemplate;
 use ChamiloSession as Session;
 use Symfony\Component\Filesystem\Filesystem;
+use Chamilo\CoreBundle\Framework\Container;
+use Chamilo\CoreBundle\Entity\Asset;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
+use Chamilo\CoreBundle\Component\Utils\StateIcon;
 
 /**
  * Library of the settings.php file.
@@ -14,7 +19,7 @@ use Symfony\Component\Filesystem\Filesystem;
  *
  * @since Chamilo 1.8.7
  */
-define('CSS_UPLOAD_PATH', api_get_path(SYS_PATH).'Resources/public/css/themes/');
+define('CSS_UPLOAD_PATH', api_get_path(SYMFONY_SYS_PATH).'var/themes/');
 
 /**
  * This function allows easy activating and inactivating of regions.
@@ -106,13 +111,13 @@ function handleRegions()
     }
     echo '</table>';
     echo '<br />';
-    echo '<button class="btn btn-success" type="submit" name="submit_plugins">'.get_lang('Enable the selected plugins').'</button></form>';
+    echo '<button class="btn btn--success" type="submit" name="submit_plugins">'.get_lang('Enable the selected plugins').'</button></form>';
 }
 
 function handleExtensions()
 {
     echo Display::page_subheader(get_lang('Configure extensions'));
-    echo '<a class="btn btn-success" href="configure_extensions.php?display=ppt2lp" role="button">'.get_lang('Chamilo RAPID').'</a>';
+    echo '<a class="btn btn--success" href="configure_extensions.php?display=ppt2lp" role="button">'.get_lang('Chamilo RAPID').'</a>';
 }
 
 /**
@@ -197,12 +202,12 @@ function handlePlugins()
                 $pluginRow .= Display::url(
                     '<em class="fa fa-cogs"></em> '.get_lang('Configure'),
                     'configure_plugin.php?name='.$pluginName,
-                    ['class' => 'btn btn-primary']
+                    ['class' => 'btn btn--primary']
                 );
                 $pluginRow .= Display::url(
                     '<em class="fa fa-th-large"></em> '.get_lang('Regions'),
                     'settings.php?category=Regions&name='.$pluginName,
-                    ['class' => 'btn btn-primary']
+                    ['class' => 'btn btn--primary']
                 );
             }
 
@@ -250,256 +255,11 @@ function handlePlugins()
     echo '</table>';
 
     echo '<div class="form-actions bottom_actions">';
-    echo '<button class="btn btn-primary" type="submit" name="submit_plugins">';
+    echo '<button class="btn btn--primary" type="submit" name="submit_plugins">';
     echo '<i class="fa fa-check" aria-hidden="true"></i> ';
     echo get_lang('Enable the selected plugins').'</button>';
     echo '</div>';
     echo '</form>';
-}
-
-/**
- * This function allows the platform admin to choose the default stylesheet.
- *
- * @author Patrick Cool <patrick.cool@UGent.be>, Ghent University
- * @author Julio Montoya <gugli100@gmail.com>, Chamilo
- */
-function handleStylesheets()
-{
-    $is_style_changeable = isStyleChangeable();
-    $allowedFileTypes = ['png'];
-
-    $form = new FormValidator(
-        'stylesheet_upload',
-        'post',
-        'settings.php?category=Stylesheets#tabs-3'
-    );
-    $form->addElement(
-        'text',
-        'name_stylesheet',
-        get_lang('Name of the stylesheet'),
-        ['size' => '40', 'maxlength' => '40']
-    );
-    $form->addRule(
-        'name_stylesheet',
-        get_lang('Required field'),
-        'required'
-    );
-    $form->addElement(
-        'file',
-        'new_stylesheet',
-        get_lang('New stylesheet file')
-    );
-    $allowed_file_types = getAllowedFileTypes();
-
-    $form->addRule(
-        'new_stylesheet',
-        get_lang('Invalid extension').' ('.implode(',', $allowed_file_types).')',
-        'filetype',
-        $allowed_file_types
-    );
-    $form->addRule(
-        'new_stylesheet',
-        get_lang('Required field'),
-        'required'
-    );
-    $form->addButtonUpload(get_lang('Upload'), 'stylesheet_upload');
-
-    $show_upload_form = false;
-    $urlId = api_get_current_access_url_id();
-
-    if (!is_writable(CSS_UPLOAD_PATH)) {
-        echo Display::return_message(
-            CSS_UPLOAD_PATH.get_lang('is not writeable'),
-            'error',
-            false
-        );
-    } else {
-        // Uploading a new stylesheet.
-        if (1 == $urlId) {
-            $show_upload_form = true;
-        } else {
-            if ($is_style_changeable) {
-                $show_upload_form = true;
-            }
-        }
-    }
-
-    // Stylesheet upload.
-    if (isset($_POST['stylesheet_upload'])) {
-        if ($form->validate()) {
-            $values = $form->exportValues();
-            $picture_element = $form->getElement('new_stylesheet');
-            $picture = $picture_element->getValue();
-            $result = uploadStylesheet($values, $picture);
-
-            // Add event to the system log.
-            $user_id = api_get_user_id();
-            $category = $_GET['category'];
-            Event::addEvent(
-                LOG_CONFIGURATION_SETTINGS_CHANGE,
-                LOG_CONFIGURATION_SETTINGS_CATEGORY,
-                $category,
-                api_get_utc_datetime(),
-                $user_id
-            );
-
-            if ($result) {
-                echo Display::return_message(get_lang('The stylesheet has been added'));
-            }
-        }
-    }
-
-    // Current style.
-    $selected = $currentStyle = api_get_setting('stylesheets');
-    $styleFromDatabase = api_get_settings_params_simple(
-        ['variable = ? AND access_url = ?' => ['stylesheets', api_get_current_access_url_id()]]
-    );
-    if ($styleFromDatabase) {
-        $selected = $currentStyle = $styleFromDatabase['selected_value'];
-    }
-
-    if (isset($_POST['preview'])) {
-        $selected = $currentStyle = Security::remove_XSS($_POST['style']);
-    }
-
-    $themeDir = Template::getThemeDir($selected);
-    $dir = api_get_path(SYS_PUBLIC_PATH).'css/'.$themeDir.'/images/';
-    $url = api_get_path(WEB_CSS_PATH).'/'.$themeDir.'/images/';
-    $logoFileName = 'header-logo.png';
-    $newLogoFileName = 'header-logo-custom'.api_get_current_access_url_id().'.png';
-    $webPlatformLogoPath = ChamiloApi::getPlatformLogoPath($selected);
-
-    $logoForm = new FormValidator(
-        'logo_upload',
-        'post',
-        'settings.php?category=Stylesheets#tabs-2'
-    );
-
-    $logoForm->addHtml(
-        Display::return_message(
-            sprintf(
-                get_lang('The logo must be of %s px in size and in %s format'),
-                '250 x 70',
-                'PNG'
-            ),
-            'info'
-        )
-    );
-
-    if (null !== $webPlatformLogoPath) {
-        $logoForm->addLabel(
-            get_lang('Current logo'),
-            '<img id="header-logo-custom" src="'.$webPlatformLogoPath.'?'.time().'">'
-        );
-    }
-    $logoForm->addFile('new_logo', get_lang('Update logo'));
-    if ($is_style_changeable) {
-        $logoGroup = [
-            $logoForm->addButtonUpload(get_lang('Upload'), 'logo_upload', true),
-            $logoForm->addButtonCancel(get_lang('Reset'), 'logo_reset', true),
-        ];
-
-        $logoForm->addGroup($logoGroup);
-    }
-
-    if (isset($_POST['logo_reset'])) {
-        if (is_file($dir.$newLogoFileName)) {
-            unlink($dir.$newLogoFileName);
-            echo Display::return_message(get_lang('Original logo recovered'));
-            echo '<script>'
-                .'$("#header-logo").attr("src","'.$url.$logoFileName.'");'
-            .'</script>';
-        }
-    } elseif (isset($_POST['logo_upload'])) {
-        $logoForm->addRule(
-            'new_logo',
-            get_lang('Invalid extension').' ('.implode(',', $allowedFileTypes).')',
-            'filetype',
-            $allowedFileTypes
-        );
-        $logoForm->addRule(
-            'new_logo',
-            get_lang('Required field'),
-            'required'
-        );
-
-        if ($logoForm->validate()) {
-            $imageInfo = getimagesize($_FILES['new_logo']['tmp_name']);
-            $width = $imageInfo[0];
-            $height = $imageInfo[1];
-            if ($width <= 250 && $height <= 70) {
-                if (is_file($dir.$newLogoFileName)) {
-                    unlink($dir.$newLogoFileName);
-                }
-
-                $status = move_uploaded_file(
-                    $_FILES['new_logo']['tmp_name'],
-                    $dir.$newLogoFileName
-                );
-
-                if ($status) {
-                    echo Display::return_message(get_lang('New logo uploaded'));
-                    echo '<script>'
-                         .'$("#header-logo").attr("src","'.$url.$newLogoFileName.'");'
-                         .'</script>';
-                } else {
-                    echo Display::return_message('Error - '.get_lang('No file was uploaded.'), 'error');
-                }
-            } else {
-                Display::return_message('Error - '.get_lang('Image dimensions do not match the requirements. Please check the suggestions next to the image field.'), 'error');
-            }
-        }
-    }
-
-    if (isset($_POST['download'])) {
-        generateCSSDownloadLink($selected);
-    }
-
-    $form_change = new FormValidator(
-        'stylesheet_upload',
-        'post',
-        api_get_self().'?category=Stylesheets',
-        null,
-        ['id' => 'stylesheets_id']
-    );
-
-    $styles = $form_change->addSelectTheme(
-        'style',
-        get_lang('Name of the stylesheet')
-    );
-    $styles->setSelected($currentStyle);
-
-    if ($is_style_changeable) {
-        $group = [
-            $form_change->addButtonSave(get_lang('Save settings'), 'save', true),
-            $form_change->addButtonPreview(get_lang('Preview'), 'preview', true),
-            $form_change->addButtonDownload(get_lang('Download'), 'download', true),
-        ];
-
-        $form_change->addGroup($group);
-
-        if ($show_upload_form) {
-            echo Display::tabs(
-                [get_lang('Update'), get_lang('Update logo'), get_lang('New stylesheet file')],
-                [$form_change->returnForm(), $logoForm->returnForm(), $form->returnForm()]
-            );
-        } else {
-            $form_change->display();
-        }
-
-        // Little hack to update the logo image in update form when submiting
-        if (isset($_POST['logo_reset'])) {
-            echo '<script>'
-                    .'$("#header-logo-custom").attr("src","'.$url.$logoFileName.'");'
-                .'</script>';
-        } elseif (isset($_POST['logo_upload']) && is_file($dir.$newLogoFileName)) {
-            echo '<script>'
-                    .'$("#header-logo-custom").attr("src","'.$url.$newLogoFileName.'");'
-                .'</script>';
-        }
-    } else {
-        $form_change->freeze();
-    }
 }
 
 /**
@@ -629,7 +389,7 @@ function uploadStylesheet($values, $picture)
         $fs = new Filesystem();
         $fs->mirror(
             CSS_UPLOAD_PATH,
-            api_get_path(SYS_PATH).'web/css/themes/',
+            api_get_path(SYMFONY_SYS_PATH).'var/themes/',
             null,
             ['override' => true]
         );
@@ -701,27 +461,6 @@ function storePlugins()
     foreach ($remove_plugins as $plugin) {
         $appPlugin->uninstall($plugin);
     }
-}
-
-/**
- * This function allows the platform admin to choose which should be the default stylesheet.
- *
- * @author Patrick Cool <patrick.cool@UGent.be>, Ghent University
- */
-function storeStylesheets()
-{
-    // Insert the stylesheet.
-    if (isStyle($_POST['style'])) {
-        api_set_setting(
-            'stylesheets',
-            $_POST['style'],
-            null,
-            'stylesheets',
-            api_get_current_access_url_id()
-        );
-    }
-
-    return true;
 }
 
 /**
@@ -860,29 +599,27 @@ function handleSearch()
         }
         */
 
-        $xapianLoaded = Display::return_icon('bullet_green.png', get_lang('Validate'));
-        $dir_exists = Display::return_icon('bullet_green.png', get_lang('Validate'));
-        $dir_is_writable = Display::return_icon('bullet_green.png', get_lang('Validate'));
-        $specific_fields_exists = Display::return_icon('bullet_green.png', get_lang('Validate'));
+        $xapianLoaded = Display::getMdiIcon(StateIcon::OPEN_VISIBILITY, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Validate'));
+        $dir_exists = Display::getMdiIcon(StateIcon::OPEN_VISIBILITY, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Validate'));
+        $dir_is_writable = Display::getMdiIcon(StateIcon::OPEN_VISIBILITY, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Validate'));
+        $specific_fields_exists = Display::getMdiIcon(StateIcon::OPEN_VISIBILITY, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Validate'));
 
         //Testing specific fields
         if (empty($specific_fields)) {
-            $specific_fields_exists = Display::return_icon(
-                'bullet_red.png',
-                get_lang('Add a specific search field')
+            $specific_fields_exists = Display::getMdiIcon(StateIcon::CLOSED_VISIBILITY, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Add a specific search field')
             );
         }
         //Testing xapian extension
         if (!extension_loaded('xapian')) {
-            $xapianLoaded = Display::return_icon('bullet_red.png', get_lang('Error'));
+            $xapianLoaded = Display::getMdiIcon(StateIcon::CLOSED_VISIBILITY, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Error'));
         }
         //Testing xapian searchdb path
         if (!is_dir($xapianPath)) {
-            $dir_exists = Display::return_icon('bullet_red.png', get_lang('Error'));
+            $dir_exists = Display::getMdiIcon(StateIcon::CLOSED_VISIBILITY, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Error'));
         }
         //Testing xapian searchdb path is writable
         if (!is_writable($xapianPath)) {
-            $dir_is_writable = Display::return_icon('bullet_red.png', get_lang('Error'));
+            $dir_is_writable = Display::getMdiIcon(StateIcon::CLOSED_VISIBILITY, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Error'));
         }
 
         $data = [];
@@ -915,7 +652,7 @@ function handleTemplates()
     if ('add' != $action) {
         echo '<div class="actions" style="margin-left: 1px;">';
         echo '<a href="settings.php?category=Templates&action=add">'.
-                Display::return_icon('new_template.png', get_lang('Add a template'), '', ICON_SIZE_MEDIUM).'</a>';
+                Display::getMdiIcon(ObjectIcon::TEMPLATE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Add a template')).'</a>';
         echo '</div>';
     }
 
@@ -1030,7 +767,7 @@ function getTemplateData($from, $number_of_items, $column, $direction)
     $column = (int) $column;
     $direction = !in_array(strtolower(trim($direction)), ['asc', 'desc']) ? 'asc' : $direction;
     // The sql statement.
-    $sql = "SELECT image as col0, title as col1, id as col2 FROM $table_system_template";
+    $sql = "SELECT id as col0, title as col1, id as col2 FROM $table_system_template";
     $sql .= " ORDER BY col$column $direction ";
     $sql .= " LIMIT $from,$number_of_items";
     $result = Database::query($sql);
@@ -1058,29 +795,24 @@ function getTemplateData($from, $number_of_items, $column, $direction)
  */
 function actionsFilter($id)
 {
-    $return = '<a href="settings.php?category=Templates&action=edit&id='.Security::remove_XSS($id).'">'.Display::return_icon('edit.png', get_lang('Edit'), '', ICON_SIZE_SMALL).'</a>';
-    $return .= '<a href="settings.php?category=Templates&action=delete&id='.Security::remove_XSS($id).'" onClick="javascript:if(!confirm('."'".get_lang('Please confirm your choice')."'".')) return false;">'.Display::return_icon('delete.png', get_lang('Delete'), '', ICON_SIZE_SMALL).'</a>';
+    $return = '<a href="settings.php?category=Templates&action=edit&id='.Security::remove_XSS($id).'">'.Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Edit')).'</a>';
+    $return .= '<a href="settings.php?category=Templates&action=delete&id='.Security::remove_XSS($id).'" onClick="javascript:if(!confirm('."'".get_lang('Please confirm your choice')."'".')) return false;">'.Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Delete')).'</a>';
 
     return $return;
 }
 
-/**
- * Display the image of the template in the sortable table.
- *
- * @param string $image the image
- *
- * @return string code for the image
- *
- * @author Patrick Cool <patrick.cool@UGent.be>, Ghent University, Belgium
- *
- * @version August 2008
- *
- * @since v1.8.6
- */
-function searchImageFilter($image)
+function searchImageFilter(int $id): string
 {
-    if (!empty($image)) {
-        return '<img src="'.api_get_path(WEB_PUBLIC_PATH).'img/template_thumb/'.$image.'" alt="'.get_lang('Template preview').'"/>';
+    $em = Database::getManager();
+
+    /** @var SystemTemplate $template */
+    $template = $em->find(SystemTemplate::class, $id);
+
+    if (null !== $template->getImage()) {
+        $assetRepo = Container::getAssetRepository();
+        $imageUrl = $assetRepo->getAssetUrl($template->getImage());
+
+        return '<img src="'.$imageUrl.'" alt="'.get_lang('Template preview').'"/>';
     } else {
         return '<img src="'.api_get_path(WEB_PUBLIC_PATH).'img/template_thumb/noimage.gif" alt="'.get_lang('NoTemplate preview').'"/>';
     }
@@ -1101,8 +833,10 @@ function addEditTemplate()
     $em = Database::getManager();
     $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
+    $assetRepo = Container::getAssetRepository();
+
     /** @var SystemTemplate $template */
-    $template = $id ? $em->find('ChamiloCoreBundle:SystemTemplate', $id) : new SystemTemplate();
+    $template = $id ? $em->find(SystemTemplate::class, $id) : new SystemTemplate();
 
     $form = new FormValidator(
         'template',
@@ -1132,11 +866,18 @@ function addEditTemplate()
     );
 
     // Setting the form elements: the form to upload an image to be used with the template.
-    if (empty($template->getImage())) {
-        $form->addElement('file', 'template_image', get_lang('Image'), '');
+    if (!$template->hasImage()) {
+        // Picture
+        $form->addFile(
+            'template_image',
+            get_lang('Add image'),
+            ['id' => 'picture', 'class' => 'picture-form', 'crop_image' => true, 'crop_ratio' => '1 / 1']
+        );
+        $allowedPictureTypes = api_get_supported_image_extensions(false);
+        $form->addRule('template_image', get_lang('Only PNG, JPG or GIF images allowed').' ('.implode(',', $allowedPictureTypes).')', 'filetype', $allowedPictureTypes);
     }
 
-    // Setting the form elements: a little bit information about the template image.
+    // Setting the form elements: a little bit of information about the template image.
     $form->addElement('static', 'file_comment', '', get_lang('This image will represent the template in the templates list. It should be no larger than 100x70 pixels'));
 
     // Getting all the information of the template when editing a template.
@@ -1152,12 +893,13 @@ function addEditTemplate()
 
         // Adding an extra field: a preview of the image that is currently used.
 
-        if (!empty($template->getImage())) {
+        if ($template->hasImage()) {
+            $imageUrl = $assetRepo->getAssetUrl($template->getImage());
             $form->addElement(
                 'static',
                 'template_image_preview',
                 '',
-                '<img src="'.api_get_path(WEB_PUBLIC_PATH).'img/template_thumb/'.$template->getImage()
+                '<img src="'.$imageUrl
                     .'" alt="'.get_lang('Template preview')
                     .'"/>'
             );
@@ -1178,7 +920,7 @@ function addEditTemplate()
     $form->addButtonSave(get_lang('Validate'), 'submit');
 
     // Setting the rules: the required fields.
-    if (empty($template->getImage())) {
+    if (!$template->hasImage()) {
         $form->addRule(
             'template_image',
             get_lang('Required field'),
@@ -1195,38 +937,23 @@ function addEditTemplate()
         if ($check) {
             // Exporting the values.
             $values = $form->exportValues();
-            $isDelete = null;
-            if (isset($values['delete_image'])) {
-                $isDelete = $values['delete_image'];
+            $asset = null;
+            if (isset($values['delete_image']) && !empty($id)) {
+                deleteTemplateImage($id);
             }
 
             // Upload the file.
             if (!empty($_FILES['template_image']['name'])) {
-                $upload_ok = process_uploaded_file($_FILES['template_image']);
-
-                if ($upload_ok) {
-                    // Try to add an extension to the file if it hasn't one.
-                    $new_file_name = add_ext_on_mime(stripslashes($_FILES['template_image']['name']), $_FILES['template_image']['type']);
-
-                    // The upload directory.
-                    // todo
-
-                    $upload_dir = api_get_path(SYS_PATH).'home/default_platform_document/template_thumb/';
-
-                    // Create the directory if it does not exist.
-                    if (!is_dir($upload_dir)) {
-                        mkdir($upload_dir, api_get_permissions_for_new_directories());
+                $picture = $_FILES['template_image'];
+                if (!empty($picture['name'])) {
+                    $asset = (new Asset())
+                        ->setCategory(Asset::SYSTEM_TEMPLATE)
+                        ->setTitle($picture['name'])
+                    ;
+                    if (!empty($values['picture_crop_result'])) {
+                        $asset->setCrop($values['picture_crop_result']);
                     }
-
-                    // Resize the preview image to max default and upload.
-                    $temp = new Image($_FILES['template_image']['tmp_name']);
-                    $picture_info = $temp->get_image_info();
-
-                    $max_width_for_picture = 100;
-                    if ($picture_info['width'] > $max_width_for_picture) {
-                        $temp->resize($max_width_for_picture);
-                    }
-                    $temp->send_image($upload_dir.$new_file_name);
+                    $asset = $assetRepo->createFromRequest($asset, $picture);
                 }
             }
 
@@ -1241,7 +968,7 @@ function addEditTemplate()
                     ->setTitle($values['title'])
                     ->setComment(Security::remove_XSS($values['comment']))
                     ->setContent(Security::remove_XSS($templateContent, COURSEMANAGERLOWSECURITY))
-                    ->setImage($new_file_name);
+                    ->setImage($asset);
                 $em->persist($template);
                 $em->flush();
 
@@ -1251,7 +978,7 @@ function addEditTemplate()
                     'confirm'
                 );
                 echo '<a href="settings.php?category=Templates&action=add">'.
-                    Display::return_icon('new_template.png', get_lang('Add a template'), '', ICON_SIZE_MEDIUM).
+                    Display::getMdiIcon(ObjectIcon::TEMPLATE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Add a template')).
                     '</a>';
             } else {
                 $templateContent = '<head>'.$viewport.'<title>'.$values['title'].'</title>'.$bootstrap.'</head>'
@@ -1261,8 +988,8 @@ function addEditTemplate()
                     ->setTitle($values['title'])
                     ->setContent(Security::remove_XSS($templateContent, COURSEMANAGERLOWSECURITY));
 
-                if (!empty($new_file_name)) {
-                    $template->setImage($new_file_name);
+                if ($asset) {
+                    $template->setImage($asset);
                 }
 
                 $em->persist($template);
@@ -1280,6 +1007,25 @@ function addEditTemplate()
         $form->setConstants(['sec_token' => $token]);
         // Display the form.
         $form->display();
+    }
+}
+
+/**
+ * Deletes the template picture as asset.
+ *
+ * @param int $id
+ */
+function deleteTemplateImage($id)
+{
+    $em = Database::getManager();
+
+    /** @var SystemTemplate $template */
+    $template = $em->find(SystemTemplate::class, $id);
+
+    if ($template && $template->hasImage()) {
+        $image = $template->getImage();
+        $em->remove($image);
+        $em->flush();
     }
 }
 
@@ -1310,6 +1056,8 @@ function deleteTemplate($id)
     $sql = "DELETE FROM $table WHERE id = $id";
     Database::query($sql);
 
+    deleteTemplateImage($id);
+
     // Display a feedback message.
     echo Display::return_message(get_lang('Template deleted'), 'confirm');
 }
@@ -1328,7 +1076,7 @@ function generateSettingsForm($settings, $settings_by_access_list)
 {
     global $_configuration, $settings_to_avoid, $convert_byte_to_mega_list;
     $em = Database::getManager();
-    $table_settings_current = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+    $table_settings_current = Database::get_main_table(TABLE_MAIN_SETTINGS);
 
     $form = new FormValidator(
         'settings',
@@ -1343,13 +1091,6 @@ function generateSettingsForm($settings, $settings_by_access_list)
     );
 
     $url_id = api_get_current_access_url_id();
-    /*
-    if (!empty($_configuration['multiple_access_urls']) && api_is_global_platform_admin() && $url_id == 1) {
-        $group = array();
-        $group[] = $form->createElement('button', 'mark_all', get_lang('Select all'));
-        $group[] = $form->createElement('button', 'unmark_all', get_lang('Unselect all'));
-        $form->addGroup($group, 'buttons_in_action_right');
-    }*/
 
     $default_values = [];
     $url_info = api_get_access_url($url_id);
@@ -1366,7 +1107,7 @@ function generateSettingsForm($settings, $settings_by_access_list)
 
         $addedSettings[] = $row['variable'];
 
-        if (!empty($_configuration['multiple_access_urls'])) {
+        if (api_get_multiple_access_url()) {
             if (api_is_global_platform_admin()) {
                 if (0 == $row['access_url_locked']) {
                     if (1 == $url_id) {
@@ -1374,13 +1115,13 @@ function generateSettingsForm($settings, $settings_by_access_list)
                             $form->addElement(
                                 'html',
                                 '<div class="float-right"><a class="share_this_setting" data_status = "0"  data_to_send = "'.$row['variable'].'" href="javascript:void(0);">'.
-                                Display::return_icon('shared_setting.png', get_lang('Change setting visibility for the other portals'), null, ICON_SIZE_MEDIUM).'</a></div>'
+                                Display::getMdiIcon(StateIcon::SHARED_VISIBILITY, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Change setting visibility for the other portals')).'</a></div>'
                             );
                         } else {
                             $form->addElement(
                                 'html',
                                 '<div class="float-right"><a class="share_this_setting" data_status = "1" data_to_send = "'.$row['variable'].'" href="javascript:void(0);">'.
-                                Display::return_icon('shared_setting_na.png', get_lang('Change setting visibility for the other portals'), null, ICON_SIZE_MEDIUM).'</a></div>'
+                                Display::getMdiIcon(StateIcon::SHARED_VISIBILITY, 'ch-tool-icon-disabled', null, ICON_SIZE_MEDIUM, get_lang('Change setting visibility for the other portals')).'</a></div>'
                             );
                         }
                     } else {
@@ -1388,13 +1129,13 @@ function generateSettingsForm($settings, $settings_by_access_list)
                             $form->addElement(
                                 'html',
                                 '<div class="float-right">'.
-                                Display::return_icon('shared_setting.png', get_lang('Change setting visibility for the other portals'), null, ICON_SIZE_MEDIUM).'</div>'
+                                Display::getMdiIcon(StateIcon::SHARED_VISIBILITY, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Change setting visibility for the other portals')).'</div>'
                             );
                         } else {
                             $form->addElement(
                                 'html',
                                 '<div class="float-right">'.
-                                Display::return_icon('shared_setting_na.png', get_lang('Change setting visibility for the other portals'), null, ICON_SIZE_MEDIUM).'</div>'
+                                Display::getMdiIcon(StateIcon::SHARED_VISIBILITY, 'ch-tool-icon-disabled', null, ICON_SIZE_MEDIUM, get_lang('Change setting visibility for the other portals')).'</div>'
                             );
                         }
                     }
@@ -1661,7 +1402,7 @@ function generateSettingsForm($settings, $settings_by_access_list)
                 $url = PDF::get_watermark(null);
 
                 if (false != $url) {
-                    $delete_url = '<a href="?delete_watermark">'.get_lang('Remove picture').' '.Display::return_icon('delete.png', get_lang('Remove picture')).'</a>';
+                    $delete_url = '<a href="?delete_watermark">'.get_lang('Remove picture').' '.Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Remove picture')).'</a>';
                     $form->addElement('html', '<div style="max-height:100px; max-width:100px; margin-left:162px; margin-bottom:10px; clear:both;"><img src="'.$url.'" style="margin-bottom:10px;" />'.$delete_url.'</div>');
                 }
 
@@ -1707,7 +1448,7 @@ function searchSetting($search)
     if (empty($search)) {
         return [];
     }
-    $table_settings_current = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+    $table_settings_current = Database::get_main_table(TABLE_MAIN_SETTINGS);
     $sql = "SELECT * FROM $table_settings_current
             WHERE category <> 'Plugins' ORDER BY id ASC ";
     $result = Database::store_result(Database::query($sql), 'ASSOC');
@@ -1835,9 +1576,9 @@ function showSearchToolsStatusTable()
                 $output[] = '';
             }
 
-            $icon = Display::return_icon('bullet_red.png', get_lang('Not installed'));
+            $icon = Display::getMdiIcon(StateIcon::CLOSED_VISIBILITY, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Not installed'));
             if (!empty($output[0])) {
-                $icon = Display::return_icon('bullet_green.png', get_lang('Installed'));
+                $icon = Display::getMdiIcon(StateIcon::OPEN_VISIBILITY, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Installed'));
             }
             $data2[] = [$program, $output[0], $icon];
         }
@@ -1875,33 +1616,11 @@ function generateCSSDownloadLink($style)
         $url = api_get_path(WEB_CODE_PATH).'course_info/download.php?archive_path=&archive='.str_replace(api_get_path(SYS_ARCHIVE_PATH), '', $arch);
 
         //@TODO: use more generic script to download.
-        $str = '<a class="btn btn-primary btn-large" href="'.$url.'">'.get_lang('Download the file').'</a>';
+        $str = '<a class="btn btn--primary btn-large" href="'.$url.'">'.get_lang('Download the file').'</a>';
         echo Display::return_message($str, 'normal', false);
     } else {
         echo Display::return_message(get_lang('The file was not found'), 'warning');
     }
-}
-
-/**
- * Helper function to tell if the style is changeable in the current URL.
- *
- * @return bool $changeable Whether the style can be changed in this URL or not
- */
-function isStyleChangeable()
-{
-    $changeable = false;
-    $urlId = api_get_current_access_url_id();
-    if ($urlId) {
-        $style_info = api_get_settings('stylesheets', '', 1, 0);
-        $url_info = api_get_access_url($urlId);
-        if (1 == $style_info[0]['access_url_changeable'] && 1 == $url_info['active']) {
-            $changeable = true;
-        }
-    } else {
-        $changeable = true;
-    }
-
-    return $changeable;
 }
 
 /**

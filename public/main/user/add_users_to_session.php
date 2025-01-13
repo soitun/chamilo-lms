@@ -117,7 +117,7 @@ if ('true' === $allowTutors) {
                     // search users where username or firstname or lastname begins likes $needle
                     $sql = 'SELECT user.user_id, username, lastname, firstname
                             FROM '.$tbl_user.' user
-                            WHERE (username LIKE "'.$needle.'%" OR firstname LIKE "'.$needle.'%"
+                            WHERE user.active <> '.USER_SOFT_DELETED.' AND (username LIKE "'.$needle.'%" OR firstname LIKE "'.$needle.'%"
                                 OR lastname LIKE "'.$needle.'%") AND user.status<>6 AND user.status<>'.DRH.''.
                                 $order_clause.
                                 ' LIMIT 11';
@@ -125,7 +125,7 @@ if ('true' === $allowTutors) {
                 case 'multiple':
                     $sql = 'SELECT user.user_id, username, lastname, firstname
                             FROM '.$tbl_user.' user
-                            WHERE '.(api_sort_by_first_name() ? 'firstname' : 'lastname').'
+                            WHERE user.active <> '.USER_SOFT_DELETED.' AND '.(api_sort_by_first_name() ? 'firstname' : 'lastname').'
                             LIKE "'.$needle.'%" AND
                             user.status<>'.DRH.' AND
                             user.status<>6 '.$cond_user_id.
@@ -136,6 +136,7 @@ if ('true' === $allowTutors) {
                             FROM '.$tbl_user.' user
                             LEFT OUTER JOIN '.$tbl_session_rel_user.' s ON (s.user_id = user.user_id)
                             WHERE
+                                user.active <> '.USER_SOFT_DELETED.' AND
                                 s.user_id IS NULL AND
                                 user.status <>'.DRH.' AND
                                 user.status <> 6 '.$cond_user_id.
@@ -154,6 +155,7 @@ if ('true' === $allowTutors) {
                                     INNER JOIN '.$tbl_user_rel_access_url.' url_user
                                     ON (url_user.user_id=user.user_id)
                                     WHERE
+                                        user.active <> '.USER_SOFT_DELETED.' AND
                                         access_url_id = '.$access_url_id.' AND
                                         (username LIKE "'.$needle.'%" OR firstname LIKE "'.$needle.'%" OR lastname LIKE "'.$needle.'%") AND
                                         user.status<>6 AND
@@ -166,7 +168,7 @@ if ('true' === $allowTutors) {
                                     FROM '.$tbl_user.' user
                                     INNER JOIN '.$tbl_user_rel_access_url.' url_user
                                     ON (url_user.user_id=user.user_id)
-                                    WHERE access_url_id = '.$access_url_id.' AND
+                                    WHERE user.active <> '.USER_SOFT_DELETED.' AND access_url_id = '.$access_url_id.' AND
                                     '.(api_sort_by_first_name() ? 'firstname' : 'lastname').' LIKE "'.$needle.'%" AND user.status<>'.DRH.' AND user.status<>6 '.$cond_user_id.
                                     $order_clause;
                             break;
@@ -178,6 +180,7 @@ if ('true' === $allowTutors) {
                                     INNER JOIN '.$tbl_user_rel_access_url.' url_user
                                     ON (url_user.user_id=user.user_id)
                                     WHERE
+                                        user.active <> '.USER_SOFT_DELETED.' AND
                                         access_url_id = '.$access_url_id.' AND
                                         s.user_id IS null AND
                                         user.status<>'.DRH.' AND
@@ -296,7 +299,7 @@ if ('true' === $allowTutors) {
                     $tbl_session_rel_user.user_id = u.id AND
                     $tbl_session_rel_user.relation_type = ".Session::STUDENT." AND
                     $tbl_session_rel_user.session_id = ".intval($id_session)."
-                WHERE u.status <> ".DRH." AND u.status<>6 $order_clause";
+                WHERE u.active <> ".USER_SOFT_DELETED." AND u.status <> ".DRH." AND u.status<>6 $order_clause";
 
         if (api_is_multiple_url_enabled()) {
             $tbl_user_rel_access_url = Database::get_main_table(TABLE_MAIN_ACCESS_URL_REL_USER);
@@ -311,7 +314,7 @@ if ('true' === $allowTutors) {
                             $tbl_session_rel_user.session_id = ".intval($id_session)."
                         INNER JOIN $tbl_user_rel_access_url url_user
                         ON (url_user.user_id=u.user_id)
-                        WHERE access_url_id = $access_url_id AND u.status<>".DRH." AND u.status<>6
+                        WHERE u.active <> ".USER_SOFT_DELETED." AND access_url_id = $access_url_id AND u.status<>".DRH." AND u.status<>6
                     $order_clause";
             }
         }
@@ -382,7 +385,7 @@ if ('true' === $allowTutors) {
                     ON $tbl_session_rel_user.user_id = u.id AND
                     $tbl_session_rel_user.session_id = '$id_session' AND
                     $tbl_session_rel_user.relation_type = ".Session::STUDENT."
-                    $where_filter AND u.status<>".DRH." AND u.status<>6
+                    $where_filter AND u.status<>".DRH." AND u.status<>6 AND u.active <> ".USER_SOFT_DELETED."
                     $order_clause";
         } else {
             $sql = "SELECT u.id as user_id, lastname, firstname, username, session_id
@@ -391,7 +394,7 @@ if ('true' === $allowTutors) {
                     ON $tbl_session_rel_user.user_id = u.id AND
                     $tbl_session_rel_user.session_id = '$id_session' AND
                     $tbl_session_rel_user.relation_type = ".Session::STUDENT."
-                    WHERE u.status <> ".DRH." AND u.status<>6
+                    WHERE u.status <> ".DRH." AND u.status<>6 AND u.active <> ".USER_SOFT_DELETED."
                     $order_clause";
         }
 
@@ -407,7 +410,7 @@ if ('true' === $allowTutors) {
                             $tbl_session_rel_user.session_id = '$id_session' AND
                             $tbl_session_rel_user.relation_type = ".Session::STUDENT."
                         INNER JOIN $tbl_user_rel_access_url url_user ON (url_user.user_id=u.user_id)
-                        WHERE access_url_id = $access_url_id  $where_filter AND u.status<>".DRH." AND u.status<>6
+                        WHERE access_url_id = $access_url_id  $where_filter AND u.status<>".DRH." AND u.status<>6 AND u.active <> ".USER_SOFT_DELETED."
                         $order_clause";
             }
         }
@@ -435,7 +438,7 @@ if ('true' === $allowTutors) {
                     $tbl_session_rel_user.user_id = u.id AND
                     $tbl_session_rel_user.session_id = '$id_session' AND
                     $tbl_session_rel_user.relation_type = ".Session::STUDENT."
-                WHERE u.status <> ".DRH." AND u.status<>6 $order_clause";
+                WHERE u.active <> ".USER_SOFT_DELETED." AND u.status <> ".DRH." AND u.status<>6 $order_clause";
 
         if (api_is_multiple_url_enabled()) {
             $tbl_user_rel_access_url = Database::get_main_table(TABLE_MAIN_ACCESS_URL_REL_USER);
@@ -449,7 +452,7 @@ if ('true' === $allowTutors) {
                             $tbl_session_rel_user.session_id = '$id_session' AND
                             $tbl_session_rel_user.relation_type = ".Session::STUDENT."
                         INNER JOIN $tbl_user_rel_access_url url_user ON (url_user.user_id=u.user_id)
-                        WHERE access_url_id = $access_url_id AND u.status<>".DRH." AND u.status<>6
+                        WHERE u.active <> ".USER_SOFT_DELETED." AND access_url_id = $access_url_id AND u.status<>".DRH." AND u.status<>6
                     $order_clause";
             }
         }
@@ -469,15 +472,15 @@ if ('true' === $allowTutors) {
 
     if ('multiple' === $add_type) {
         $link_add_type_unique = '<a href="'.api_get_self().'?id_session='.$id_session.'&add='.Security::remove_XSS($_GET['add']).'&add_type=unique">'.
-            Display::return_icon('single.gif').get_lang('Single registration').'</a>';
-        $link_add_type_multiple = Display::return_icon('multiple.gif').get_lang('Multiple registration');
+            Display::getMdiIcon('note-outline', 'ch-tool-icon', null, ICON_SIZE_SMALL).get_lang('Single registration').'</a>';
+        $link_add_type_multiple = Display::getMdiIcon('note-multiple-outline', 'ch-tool-icon', null, ICON_SIZE_SMALL).get_lang('Multiple registration');
     } else {
-        $link_add_type_unique = Display::return_icon('single.gif').get_lang('Single registration');
+        $link_add_type_unique = Display::getMdiIcon('note-outline', 'ch-tool-icon', null, ICON_SIZE_SMALL).get_lang('Single registration');
         $link_add_type_multiple = '<a href="'.api_get_self().'?id_session='.$id_session.'&add='.Security::remove_XSS($_GET['add']).'&add_type=multiple">'.
-            Display::return_icon('multiple.gif').get_lang('Multiple registration').'</a>';
+            Display::getMdiIcon('note-multiple-outline', 'ch-tool-icon', null, ICON_SIZE_SMALL).get_lang('Multiple registration').'</a>';
     }
     $link_add_group = '<a href="usergroups.php">'.
-            Display::return_icon('multiple.gif', get_lang('Enrolment by classes')).get_lang('Enrolment by classes').'</a>'; ?>
+            Display::getMdiIcon('note-multiple-outline', 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Enrolment by classes')).get_lang('Enrolment by classes').'</a>'; ?>
     <div class="actions">
         <?php echo $link_add_type_unique; ?>&nbsp;|&nbsp;<?php echo $link_add_type_multiple; ?>&nbsp;|&nbsp;<?php echo $link_add_group; ?>
     </div>
@@ -487,7 +490,7 @@ if ('true' === $allowTutors) {
             } ?>" style="margin:0px;" <?php if ($ajax_search) {
                 echo ' onsubmit="valide();"';
             } ?>>
-    <?php echo '<legend>'.$tool_name.' ('.$session->getName().') </legend>'; ?>
+    <?php echo '<legend>'.$tool_name.' ('.$session->getTitle().') </legend>'; ?>
     <?php
     if ('multiple' === $add_type) {
         if (is_array($extra_field_list)) {
@@ -566,15 +569,15 @@ if ('true' === $allowTutors) {
             <?php
                 if ($ajax_search) {
                     ?>
-                  <button class="btn btn-default" type="button" onclick="remove_item(document.getElementById('destination_users'))" ><em class="fa fa-arrow-left"></em></button>
+                  <button class="btn btn--plain" type="button" onclick="remove_item(document.getElementById('destination_users'))" ><em class="fa fa-arrow-left"></em></button>
                 <?php
                 } else {
                     ?>
-                    <button class="btn btn-default" type="button" onclick="moveItem(document.getElementById('origin_users'), document.getElementById('destination_users'))" onclick="moveItem(document.getElementById('origin_users'), document.getElementById('destination_users'))">
+                    <button class="btn btn--plain" type="button" onclick="moveItem(document.getElementById('origin_users'), document.getElementById('destination_users'))" onclick="moveItem(document.getElementById('origin_users'), document.getElementById('destination_users'))">
                         <em class="fa fa-arrow-right"></em>
                     </button>
                     <br /><br />
-                    <button class="btn btn-default" type="button" onclick="moveItem(document.getElementById('destination_users'), document.getElementById('origin_users'))" onclick="moveItem(document.getElementById('destination_users'), document.getElementById('origin_users'))">
+                    <button class="btn btn--plain" type="button" onclick="moveItem(document.getElementById('destination_users'), document.getElementById('origin_users'))" onclick="moveItem(document.getElementById('destination_users'), document.getElementById('origin_users'))">
                         <em class="fa fa-arrow-left"></em>
                     </button>
                   <?php
@@ -584,7 +587,7 @@ if ('true' === $allowTutors) {
             <br />
             <?php
             if (isset($_GET['add'])) {
-                echo '<button class="btn btn-primary" type="button" value="" onclick="valide()" >'.get_lang('Finish session creation').'</button>';
+                echo '<button class="btn btn--primary" type="button" value="" onclick="valide()" >'.get_lang('Finish session creation').'</button>';
             } else {
                 //@todo see that the call to "valide()" doesn't duplicate the onsubmit of the form (necessary to avoid delete on "enter" key pressed)
                 echo '<button class="save" type="button" value="" onclick="valide()" >'.get_lang('Subscribe users to this session').'</button>';

@@ -41,11 +41,11 @@ if ((isset($_POST['action']) && 'course_select_form' == $_POST['action']) ||
     if (isset($_POST['action']) && 'course_select_form' == $_POST['action']) {
         $FileZip = create_zip();
         $to_group_id = 0;
-        $sql_session = "SELECT id, name FROM $tbl_session ";
+        $sql_session = "SELECT id, title FROM $tbl_session ";
         $query_session = Database::query($sql_session);
         $ListSession = [];
         while ($rows_session = Database::fetch_assoc($query_session)) {
-            $ListSession[$rows_session['id']] = $rows_session['name'];
+            $ListSession[$rows_session['id']] = $rows_session['title'];
         }
 
         $groupCondition = " props.to_group_id = $to_group_id";
@@ -122,7 +122,7 @@ if ((isset($_POST['action']) && 'course_select_form' == $_POST['action']) ||
 
 if ($export && $name) {
     echo Display::return_message(get_lang('The backup has been created. The download of this file will start in a few moments. If your download does not start, click the following link'), 'confirm');
-    echo '<br /><a class="btn btn-default" href="'.api_get_path(WEB_CODE_PATH).'course_info/download.php?archive_path=&archive='.urlencode($name).'">'.get_lang('Download').'</a>';
+    echo '<br /><a class="btn btn--plain" href="'.api_get_path(WEB_CODE_PATH).'course_info/download.php?archive_path=&archive='.urlencode($name).'">'.get_lang('Download').'</a>';
 } else {
     // Display forms especial export
     if (isset($_POST['backup_option']) && 'select_items' == $_POST['backup_option']) {
@@ -258,7 +258,7 @@ function fullexportspecial()
             }
 
             //Add tem to the zip file session course
-            $sql = "SELECT s.id, name, c_id
+            $sql = "SELECT s.id, title, c_id
                     FROM $tbl_session_course sc
                     INNER JOIN $tbl_session s
                     ON sc.session_id = s.id
@@ -266,7 +266,7 @@ function fullexportspecial()
             $query_session = Database::query($sql);
             while ($rows_session = Database::fetch_assoc($query_session)) {
                 $session_id = $rows_session['id'];
-                $sql_session_doc = "SELECT path 
+                $sql_session_doc = "SELECT path
                     FROM $tbl_document AS docs, $tbl_property AS props
                     WHERE props.tool='".TOOL_DOCUMENT."'
                         AND docs.id=props.ref
@@ -282,7 +282,7 @@ function fullexportspecial()
                     $zip_folder->add(
                         $FileZip['PATH_COURSE'].$_course['directory'].'/document'.$rows_course_session_file['path'],
                         PCLZIP_OPT_ADD_PATH,
-                        $_course['directory']."/".$rows_session['name'],
+                        $_course['directory']."/".$rows_session['title'],
                         PCLZIP_OPT_REMOVE_PATH,
                         $FileZip['PATH_COURSE'].$_course['directory'].'/document'.$FileZip['PATH_REMOVE']
                     );

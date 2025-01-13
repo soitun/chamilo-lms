@@ -3,6 +3,9 @@
 /* For licensing terms, see /license.txt */
 
 use ChamiloSession as Session;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\StateIcon;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
 
 /**
  * @author Bart Mollet
@@ -75,7 +78,7 @@ function prepare_user_sql_query($getCount)
               ON (
                     u.id = v.item_id AND
                     (field_id = $extraFieldId OR field_id = $extraFieldIdDeleteAccount) AND
-                    v.value = 1
+                    v.field_value = 1
               ) ";
 
     $keywordList = [
@@ -170,6 +173,8 @@ function prepare_user_sql_query($getCount)
         $sql .= " AND url_rel_user.access_url_id = ".api_get_current_access_url_id();
     }
 
+    $sql .= !str_contains($sql, 'WHERE') ? ' WHERE u.active <> '.USER_SOFT_DELETED : ' AND u.active <> '.USER_SOFT_DELETED;
+
     return $sql;
 }
 
@@ -262,7 +267,7 @@ function get_user_data($from, $number_of_items, $column, $direction)
  *
  * @return string HTML-code with a mailto-link
  */
-function email_filter($email)
+function email_filter($email): string
 {
     return Display::encrypted_mailto_link($email, $email);
 }
@@ -275,12 +280,12 @@ function email_filter($email)
  *
  * @return string HTML-code with a mailto-link
  */
-function user_filter($name, $params, $row)
+function user_filter($name, $params, $row): string
 {
     return '<a href="'.api_get_path(WEB_PATH).'whoisonline.php?origin=user_list&id='.$row[0].'">'.$name.'</a>';
 }
 
-function requestTypeFilter($fieldId, $url_params, $row)
+function requestTypeFilter($fieldId, $url_params, $row): string
 {
     $extraFields = Session::read('data_privacy_extra_fields');
     $extraFieldId = $extraFields['delete_legal'];
@@ -303,18 +308,18 @@ function requestTypeFilter($fieldId, $url_params, $row)
  *
  * @return string Some HTML-code with modify-buttons
  */
-function modify_filter($user_id, $url_params, $row)
+function modify_filter($user_id, $url_params, $row): string
 {
     $_admins_list = Session::read('admin_list', []);
     $is_admin = in_array($user_id, $_admins_list);
     $token = Security::getTokenFromSession();
     $result = '';
     $result .= '<a href="user_information.php?user_id='.$user_id.'">'.
-        Display::return_icon('info2.png', get_lang('Information')).'</a>&nbsp;&nbsp;';
+        Display::getMdiIcon(ActionIcon::INFORMATION, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Information')).'</a>&nbsp;&nbsp;';
 
     $result .= Display::url(
-        Display::return_icon('message_new.png', get_lang('Send message')),
-        api_get_path(WEB_CODE_PATH).'messages/new_message.php?send_to_user='.$user_id
+        Display::getMdiIcon(ActionIcon::SEND_MESSAGE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Send message')),
+        api_get_path(WEB_PATH).'resources/messages/new'
     );
     $result .= '&nbsp;&nbsp;';
     $extraFields = Session::read('data_privacy_extra_fields');
@@ -322,7 +327,7 @@ function modify_filter($user_id, $url_params, $row)
 
     if ($row[10] == $extraFieldId) {
         $result .= Display::url(
-            Display::return_icon('delete_terms.png', get_lang('Remove legal agreement')),
+            Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Remove legal agreement')),
             api_get_self().'?user_id='.$user_id.'&action=delete_terms&sec_token='.$token
         );
         $result .= '&nbsp;&nbsp;';
@@ -332,47 +337,26 @@ function modify_filter($user_id, $url_params, $row)
         $result .= ' <a href="'.api_get_self().'?action=anonymize&user_id='.$user_id.'&'.$url_params.'&sec_token='.$token.'"  onclick="javascript:if(!confirm('."'".addslashes(
                 api_htmlentities(get_lang('Please confirm your choice'))
             )."'".')) return false;">'.
-            Display::return_icon(
-                'anonymous.png',
-                get_lang('Anonymize'),
-                [],
-                ICON_SIZE_SMALL
-            ).
+            Display::getMdiIcon(ObjectIcon::ANONYMOUS, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Anonymize')).
             '</a>';
 
         $result .= ' <a href="'.api_get_self().'?action=delete_user&user_id='.$user_id.'&'.$url_params.'&sec_token='.$token.'"  onclick="javascript:if(!confirm('."'".addslashes(
             api_htmlentities(get_lang('Please confirm your choice'))
         )."'".')) return false;">'.
-        Display::return_icon(
-            'delete.png',
-            get_lang('Delete'),
-            [],
-            ICON_SIZE_SMALL
-        ).
+        Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Delete')).
         '</a>';
     }
 
     $editProfileUrl = Display::getProfileEditionLink($user_id, true);
 
     $result .= '<a href="'.$editProfileUrl.'">'.
-        Display::return_icon(
-            'edit.png',
-            get_lang('Edit'),
-            [],
-            ICON_SIZE_SMALL
-        ).
+        Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Edit')).
         '</a>&nbsp;';
 
     if ($is_admin) {
-        $result .= Display::return_icon(
-            'admin_star.png',
-            get_lang('Is administrator'),
-            ['width' => ICON_SIZE_SMALL, 'heigth' => ICON_SIZE_SMALL]
-        );
+        $result .= Display::getMdiIcon(ObjectIcon::STAR, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Is administrator'));
     } else {
-        $result .= Display::return_icon(
-            'admin_star_na.png',
-            get_lang('Is not administrator')
+        $result .= Display::getMdiIcon(ObjectIcon::STAR, 'ch-tool-icon-disabled', null, ICON_SIZE_SMALL, get_lang('Is not administrator')
         );
     }
 
@@ -391,39 +375,41 @@ function modify_filter($user_id, $url_params, $row)
  *
  * @return string Some HTML-code with the lock/unlock button
  */
-function active_filter($active, $params, $row)
+function active_filter($active, $params, $row): string
 {
     $_user = api_get_user_info();
 
+    $action = 'Unlock';
+    $image = StateIcon::WARNING;
     if ('1' == $active) {
         $action = 'Lock';
-        $image = 'accept';
+        $image = StateIcon::COMPLETE;
     } elseif ('-1' == $active) {
         $action = 'edit';
-        $image = 'warning';
-    } elseif ('0' == $active) {
-        $action = 'Unlock';
-        $image = 'error';
+        $image = StateIcon::EXPIRED;
     }
 
     $result = '';
 
     if ('edit' === $action) {
-        $result = Display::return_icon(
-            $image.'.png',
+        $result = Display::getMdiIcon(
+            $image,
+            'ch-tool-icon',
+            null,
+            ICON_SIZE_TINY,
             get_lang('Account expired'),
-            [],
-            16
         );
     } elseif ($row['0'] != $_user['user_id']) {
         // you cannot lock yourself out otherwise you could disable all the
         // accounts including your own => everybody is locked out and nobody
         // can change it anymore.
-        $result = Display::return_icon(
-            $image.'.png',
+        $result = Display::getMdiIcon(
+            $image,
+            'ch-tool-icon',
+            null,
+            ICON_SIZE_TINY,
             get_lang(ucfirst($action)),
-            ['onclick' => 'active_user(this);', 'id' => 'img_'.$row['0']],
-            16
+            ['onclick' => 'active_user(this);', 'id' => 'img_'.$row['0']]
         );
     }
 
@@ -627,7 +613,7 @@ $table->set_column_filter(10, 'requestTypeFilter');
 // Only show empty actions bar if delete users has been blocked
 $actionsList = [];
 if (api_is_platform_admin() &&
-    !api_get_configuration_value('deny_delete_users')
+    !api_get_env_variable('DENY_DELETE_USERS', false)
 ) {
     $actionsList['delete'] = get_lang('Remove from portal');
 }

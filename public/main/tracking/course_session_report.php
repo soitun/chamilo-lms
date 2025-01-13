@@ -31,10 +31,10 @@ if (empty($session_id)) {
 $form = new FormValidator('search_simple', 'POST', '', '', null, false);
 
 //Get session list
-$session_list = SessionManager::get_sessions_list([], ['name']);
+$session_list = SessionManager::get_sessions_list([], ['title']);
 $my_session_list = [];
 foreach ($session_list as $sesion_item) {
-    $my_session_list[$sesion_item['id']] = $sesion_item['name'];
+    $my_session_list[$sesion_item['id']] = $sesion_item['title'];
 }
 if (0 == count($session_list)) {
     $my_session_list[0] = get_lang('none');
@@ -99,7 +99,7 @@ foreach ($course_list as $current_course) {
 
     // Looping LPs
     foreach ($lp_list as $lp_id => $lp) {
-        $exercise_list = Event::get_all_exercises_from_lp($lp_id, $course_info['real_id']);
+        $exercise_list = Event::get_all_exercises_from_lp($lp_id);
         // Looping Chamilo Exercises in LP
         foreach ($exercise_list as $exercise) {
             $exercise_stats = Event::get_all_exercise_event_from_lp(
@@ -157,7 +157,13 @@ if (!empty($users) && is_array($users)) {
                     );
                     $total_course += $result;
                     $total_result_by_user += $result;
+                    if (!isset($course_average[$current_course['code']])) {
+                        $course_average[$current_course['code']] = 0;
+                    }
                     $course_average[$current_course['code']] += $total_course;
+                    if (!isset($course_average_counter[$current_course['code']])) {
+                        $course_average_counter[$current_course['code']] = 0;
+                    }
                     $course_average_counter[$current_course['code']]++;
                     $result = $result.' ('.$user_info_stat['attempts'].' '.get_lang('Attempts').')';
                     $counter++;

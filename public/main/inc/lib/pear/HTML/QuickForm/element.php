@@ -26,7 +26,7 @@ class HTML_QuickForm_element extends HTML_Common
     private $icon;
     private $template;
     private $customFrozenTemplate = '';
-    protected $inputSize;
+    protected ?int $inputSize = null;
 
     /**
      * Label of the field
@@ -559,18 +559,12 @@ class HTML_QuickForm_element extends HTML_Common
         return $this;
     }
 
-    /**
-     * @return null
-     */
-    public function getInputSize()
+    public function getInputSize(): ?int
     {
         return $this->inputSize;
     }
 
-    /**
-     * @param null $inputSize
-     */
-    public function setInputSize($inputSize)
+    public function setInputSize(?int $inputSize)
     {
         $this->inputSize = $inputSize;
     }
@@ -644,33 +638,26 @@ class HTML_QuickForm_element extends HTML_Common
                 break;
             case FormValidator::LAYOUT_HORIZONTAL:
                 $template = '
-                <div class="mb-6 '.$size[0].' {error_class}">
-                    <label {label-for} class="
-                        '.$height.'
-                        block
-                        text-sm
-                        font-medium
-                        text-gray-700
-                        mb-2
-                    " >
-                        <!-- BEGIN required --><span class="form_required">*</span><!-- END required -->
-                        {label}
-                    </label>
-                    <div class=" '.$size[1].'">
+                <div class="field '.$size[0].'">
+                    <div class="'.$size[1].'">
                         {icon}
+                        <label {label-for} class="'.$height.' {error_class}">
+                            <!-- BEGIN required --><span class="form_required">*</span><!-- END required -->
+                            {label}
+                        </label>
                         {element}
-                        <!-- BEGIN label_2 -->
-                            <p class="help-block">{label_2}</p>
-                        <!-- END label_2 -->
-
-                         <!-- BEGIN label_3 -->
-                            <p class="help-block">{label_3}</p>
-                        <!-- END label_3 -->
-
-                        <!-- BEGIN error -->
-                            <span class="help-inline help-block">{error}</span>
-                        <!-- END error -->
                     </div>
+                    <!-- BEGIN label_2 -->
+                        <small>{label_2}</small>
+                    <!-- END label_2 -->
+
+                     <!-- BEGIN label_3 -->
+                        <small>{label_3}</small>
+                    <!-- END label_3 -->
+
+                    <!-- BEGIN error -->
+                        <small class="p-error">{error}</small>
+                    <!-- END error -->
                 </div>';
                 break;
             case FormValidator::LAYOUT_BOX_NO_LABEL:
@@ -680,7 +667,7 @@ class HTML_QuickForm_element extends HTML_Common
                             {icon}
                             {element}
                             <div class="input-group-btn">
-                                <button class="btn btn-default" type="submit">
+                                <button class="btn btn--plain" type="submit">
                                     <em class="fa fa-search"></em>
                                 </button>
                             </div>

@@ -45,7 +45,7 @@ if (isset($_POST['form_sent']) && $_POST['form_sent']) {
 $session_list = SessionManager::get_sessions_list([], ['name']);
 $sessionList = [];
 foreach ($session_list as $session) {
-    $sessionList[$session['id']] = $session['name'];
+    $sessionList[$session['id']] = $session['title'];
 }
 
 $courseList = CourseManager::get_courses_list(0, 0, 'title');
@@ -101,7 +101,7 @@ echo Display::input('hidden', 'form_sent', '1');
         <td colspan="3" align="center">
             <br />
             <?php
-            echo '<button class="btn btn-success" type="submit">'.
+            echo '<button class="btn btn--success" type="submit">'.
                 get_lang('Subscribe teachers to session(s)').'</button>';
             ?>
         </td>

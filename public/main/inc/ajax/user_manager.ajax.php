@@ -118,7 +118,7 @@ switch ($action) {
             echo '
                 <div class="row">
                     <div class="col-sm-10 col-sm-offset-2">
-                        <a class="btn btn-primary" id="send_message_link">
+                        <a class="btn btn--primary" id="send_message_link">
                             <em class="fa fa-envelope"></em> '.get_lang('Send message').'
                         </a>
                     </div>
@@ -174,7 +174,7 @@ switch ($action) {
         }
         break;
     case 'active_user':
-        $allow = api_get_configuration_value('allow_disable_user_for_session_admin');
+        $allow = ('true' === api_get_setting('session.allow_disable_user_for_session_admin'));
         if ((api_is_platform_admin() && api_global_admin_can_edit_admin($_GET['user_id'])) ||
             (
                 $allow &&
@@ -289,6 +289,36 @@ switch ($action) {
         $items = [];
 
         /** @var User $user */
+        foreach ($users as $user) {
+            $items[] = [
+                'id' => $user->getId(),
+                'text' => UserManager::formatUserFullName($user, true),
+            ];
+        }
+
+        header('Content-Type: application/json');
+        echo json_encode(['items' => $items]);
+        break;
+    case 'user_by_all_roles':
+        api_block_anonymous_users(false);
+
+        $urlId = api_get_current_access_url_id();
+
+        $roleList = ['ROLE_STUDENT', 'ROLE_TEACHER', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN'];
+
+        $users = Container::getUserRepository()->findByRoleList(
+            $roleList,
+            $_REQUEST['q'],
+            $urlId
+        );
+
+        if (!$users) {
+            echo json_encode([]);
+            break;
+        }
+
+        $items = [];
+
         foreach ($users as $user) {
             $items[] = [
                 'id' => $user->getId(),

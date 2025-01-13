@@ -12,11 +12,11 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 final class HTTPExceptionListener
 {
-    public function onKernelException(ExceptionEvent $event): void
+    public function __invoke(ExceptionEvent $event): void
     {
         $exception = $event->getThrowable();
-        if (!($exception instanceof HttpException) ||
-            false === strpos($event->getRequest()->getRequestUri(), '/api/')
+        if (!($exception instanceof HttpException)
+              || !str_contains($event->getRequest()->getRequestUri(), '/api/')
         ) {
             return;
         }

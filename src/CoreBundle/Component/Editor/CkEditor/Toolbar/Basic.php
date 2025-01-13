@@ -15,8 +15,8 @@ class Basic extends Toolbar
      * In order to add a new plugin you have to load it in default/layout/head.tpl.
      */
     public array $defaultPlugins = [
-        //'adobeair',
-        //'ajax',
+        // 'adobeair',
+        // 'ajax',
         'audio',
         'image2_chamilo',
         'bidi',
@@ -25,14 +25,14 @@ class Basic extends Toolbar
         'dialogui',
         'dialogadvtab',
         'div',
-        //if you activate this plugin the html, head tags will not be saved
-        //'divarea',
-        //'docprops',
+        // if you activate this plugin the html, head tags will not be saved
+        // 'divarea',
+        // 'docprops',
         'find',
         'flash',
         'font',
         'iframe',
-        //'iframedialog',
+        // 'iframedialog',
         'indentblock',
         'justify',
         'language',
@@ -45,20 +45,20 @@ class Basic extends Toolbar
         'print',
         'save',
         'selectall',
-        //'sharedspace',
+        // 'sharedspace',
         'showblocks',
         'smiley',
-        //'sourcedialog',
-        //'stylesheetparser',
-        //'tableresize',
+        // 'sourcedialog',
+        // 'stylesheetparser',
+        // 'tableresize',
         'templates',
-        //'uicolor',
+        // 'uicolor',
         'video',
         'widget',
         'wikilink',
         'wordcount',
         'inserthtml',
-        //'xml',
+        // 'xml',
         'qmarkersrolls',
     ];
 
@@ -133,7 +133,7 @@ class Basic extends Toolbar
             $plugins[] = 'ckeditor_vimeo_embed';
         }
 
-        if (api_get_configuration_value('ck_editor_block_image_copy_paste')) {
+        if ('true' === api_get_setting('editor.ck_editor_block_image_copy_paste')) {
             $plugins[] = 'blockimagepaste';
         }
         $this->defaultPlugins = array_unique(array_merge($this->defaultPlugins, $plugins));
@@ -173,24 +173,28 @@ class Basic extends Toolbar
             $config['external_plugins'] = $customPluginsPath;
         }
 
-        $config['skin_url'] = '/build/libs/tinymce/skins/ui/oxide';
-        $config['content_css'] = '/build/libs/tinymce/skins/content/default/content.css';
+        $config['skin'] = false;
+        $config['content_css'] = false;
         $config['branding'] = false;
         $config['relative_urls'] = false;
         $config['toolbar_mode'] = 'sliding';
         $config['autosave_ask_before_unload'] = true;
         $config['toolbar_mode'] = 'sliding';
 
-        //file_picker_callback : browser,
+        // enable title field in the Image dialog
+        $config['image_title'] = true;
+        // enable automatic uploads of images represented by blob or data URIs
+        $config['automatic_uploads'] = true;
+        // custom filepicker only to Image dialog
+        $config['file_picker_types'] = 'file image media';
+
+        $config['file_picker_callback'] = '[browser]';
 
         $iso = api_get_language_isocode();
-        $url = api_get_path(WEB_PATH);
+        $languageConfig = $this->getLanguageConfig($iso);
 
-        // Language list: https://www.tiny.cloud/get-tiny/language-packages/
-        if ('en_US' !== $iso) {
-            $config['language'] = $iso;
-            $config['language_url'] = "$url/libs/editor/langs/$iso.js";
-        }
+        // Merge the language configuration
+        $config = array_merge($config, $languageConfig);
 
         /*if (isset($this->config)) {
             $this->config = array_merge($config, $this->config);
@@ -200,8 +204,8 @@ class Basic extends Toolbar
 
         $this->config = $config;
 
-        //$config['width'] = '100';
-        $config['height'] = '300';
+        // $config['width'] = '100';
+        $this->config['height'] = '300';
 
         return $this->config;
     }
@@ -293,5 +297,49 @@ class Basic extends Toolbar
             'true' === api_get_setting('enabled_wiris') ? ['ckeditor_wiris_formulaEditor', 'ckeditor_wiris_CAS'] : [''],
             ['Toolbarswitch', 'Source'],
         ];
+    }
+
+    /**
+     * Determines the appropriate language configuration for the editor.
+     * Tries to load a specific language file based on the ISO code. If not found, it attempts to load a general language file.
+     * Falls back to English if neither specific nor general language files are available.
+     */
+    private function getLanguageConfig(string $iso): array
+    {
+        $url = api_get_path(WEB_PATH);
+        $sysUrl = api_get_path(SYS_PATH);
+        $defaultLang = 'en';
+        $defaultLangFile = "libs/editor/langs/{$defaultLang}.js";
+        $specificLangFile = "libs/editor/langs/{$iso}.js";
+        $generalLangFile = null;
+
+        // Default configuration set to English
+        $config = [
+            'language' => $defaultLang,
+            'language_url' => $defaultLangFile,
+        ];
+
+        if ('en_US' !== $iso) {
+            // Check for a specific variant of the language (e.g., de_german2)
+            if (str_contains($iso, '_')) {
+                // Extract the general language code (e.g., de)
+                list($generalLangCode) = explode('_', $iso, 2);
+                $generalLangFile = "libs/editor/langs/{$generalLangCode}.js";
+            }
+
+            // Attempt to load the specific language file
+            if (file_exists($sysUrl.$specificLangFile)) {
+                $config['language'] = $iso;
+                $config['language_url'] = $url.$specificLangFile;
+            }
+
+            // Fallback to the general language file if specific is not available
+            elseif (null !== $generalLangFile && file_exists($sysUrl.$generalLangFile)) {
+                $config['language'] = $generalLangCode;
+                $config['language_url'] = $url.$generalLangFile;
+            }
+        }
+
+        return $config;
     }
 }

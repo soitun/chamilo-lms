@@ -54,9 +54,13 @@ class Version20180319145700 extends AbstractMigrationChamilo
         }
 
         if (false === $survey->hasColumn('resource_node_id')) {
-            $this->addSql('ALTER TABLE c_survey ADD resource_node_id BIGINT DEFAULT NULL');
+            $this->addSql('ALTER TABLE c_survey ADD resource_node_id INT DEFAULT NULL');
             $this->addSql('ALTER TABLE c_survey ADD CONSTRAINT FK_F246DB301BAD783F FOREIGN KEY (resource_node_id) REFERENCES resource_node (id) ON DELETE CASCADE');
             $this->addSql('CREATE UNIQUE INDEX UNIQ_F246DB301BAD783F ON c_survey (resource_node_id);');
+        }
+
+        if (!$survey->hasColumn('display_question_number')) {
+            $this->addSql('ALTER TABLE c_survey ADD display_question_number TINYINT(1) DEFAULT 1 NOT NULL');
         }
 
         $this->addSql('ALTER TABLE c_survey CHANGE avail_from avail_from DATETIME DEFAULT NULL;');
@@ -72,7 +76,7 @@ class Version20180319145700 extends AbstractMigrationChamilo
         $this->addSql('ALTER TABLE c_survey_answer CHANGE question_id question_id INT DEFAULT NULL');
         $this->addSql('DELETE FROM c_survey_answer WHERE question_id NOT IN (select iid from c_survey_question)');
 
-        //$this->addSql('ALTER TABLE c_survey_answer CHANGE option_id option_id INT DEFAULT NULL');
+        // $this->addSql('ALTER TABLE c_survey_answer CHANGE option_id option_id INT DEFAULT NULL');
 
         if (!$table->hasForeignKey('FK_8A897DDB3FE509D')) {
             $this->addSql('ALTER TABLE c_survey_answer ADD CONSTRAINT FK_8A897DDB3FE509D FOREIGN KEY (survey_id) REFERENCES c_survey (iid);');
@@ -107,7 +111,7 @@ class Version20180319145700 extends AbstractMigrationChamilo
 
         $this->addSql('ALTER TABLE c_survey_invitation CHANGE reminder_date reminder_date DATETIME DEFAULT NULL');
         $this->addSql(
-            'UPDATE c_survey_invitation SET reminder_date = NULL WHERE CAST(reminder_date AS CHAR(20)) = "0000-00-00 00:00:00"'
+            'UPDATE c_survey_invitation SET reminder_date = NULL WHERE reminder_date = "0000-00-00 00:00:00"'
         );
 
         // c_survey_invitation.user_id
@@ -244,9 +248,8 @@ class Version20180319145700 extends AbstractMigrationChamilo
             $this->addSql('CREATE INDEX IDX_C4B6F5FB3FE509D ON c_survey_question_option (survey_id);');
         }
 
-        $em = $this->getEntityManager();
         $sql = 'SELECT * FROM c_survey ';
-        $result = $em->getConnection()->executeQuery($sql);
+        $result = $this->connection->executeQuery($sql);
         $data = $result->fetchAllAssociative();
         $surveyList = [];
         if ($data) {
@@ -257,7 +260,7 @@ class Version20180319145700 extends AbstractMigrationChamilo
 
         // Replace survey_code with new survey_id.
         $sql = 'SELECT * FROM c_survey_invitation ';
-        $result = $em->getConnection()->executeQuery($sql);
+        $result = $this->connection->executeQuery($sql);
         $data = $result->fetchAllAssociative();
         if ($data) {
             foreach ($data as $item) {
@@ -281,11 +284,11 @@ class Version20180319145700 extends AbstractMigrationChamilo
                 ON efv.field_id = ef.id
                 WHERE
                     ef.variable = "is_mandatory" AND
-                    ef.extra_field_type = '.ExtraField::SURVEY_FIELD_TYPE.' AND
-                    efv.value = 1
+                    ef.item_type = '.ExtraField::SURVEY_FIELD_TYPE.' AND
+                    efv.field_value = 1
         ';
 
-        $result = $em->getConnection()->executeQuery($sql);
+        $result = $this->connection->executeQuery($sql);
         $data = $result->fetchAllAssociative();
         if ($data) {
             foreach ($data as $item) {
@@ -295,7 +298,5 @@ class Version20180319145700 extends AbstractMigrationChamilo
         }
     }
 
-    public function down(Schema $schema): void
-    {
-    }
+    public function down(Schema $schema): void {}
 }

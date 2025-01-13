@@ -14,21 +14,16 @@ use Symfony\Component\HttpFoundation\RequestStack;
 
 class SessionAccessListener
 {
-    protected EntityManager $em;
-
     protected ?Request $request = null;
 
-    public function __construct(EntityManager $em)
-    {
-        $this->em = $em;
-    }
-
-    public function setRequest(RequestStack $requestStack): void
-    {
+    public function __construct(
+        private readonly EntityManager $em,
+        RequestStack $requestStack
+    ) {
         $this->request = $requestStack->getCurrentRequest();
     }
 
-    public function onSessionAccessEvent(SessionAccess $event): void
+    public function __invoke(SessionAccess $event): void
     {
         $user = $event->getUser();
         $course = $event->getCourse();

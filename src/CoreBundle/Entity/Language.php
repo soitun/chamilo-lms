@@ -6,61 +6,61 @@ declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\Entity;
 
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\OrderFilter;
+use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
+use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiResource;
+use Chamilo\CoreBundle\Repository\LanguageRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * Platform languages.
- *
- * @ORM\Table(
- *     name="language",
- *     options={"row_format"="DYNAMIC"}
- * )
- * @ORM\Entity(repositoryClass="Chamilo\CoreBundle\Repository\LanguageRepository")
  */
+#[ApiResource(paginationEnabled: false)]
+#[ApiFilter(BooleanFilter::class, properties: ['available'])]
+#[ApiFilter(OrderFilter::class, properties: ['english_name' => 'DESC'])]
+#[ORM\Table(name: 'language', options: ['row_format' => 'DYNAMIC'])]
+#[ORM\Entity(repositoryClass: LanguageRepository::class)]
 class Language
 {
-    /**
-     * @ORM\Column(name="id", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     */
-    protected int $id;
+    #[Groups(['language:read'])]
+    #[ORM\Column(name: 'id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    protected ?int $id = null;
 
-    /**
-     * @ORM\Column(name="original_name", type="string", length=255, nullable=true)
-     */
+    #[Groups(['language:read', 'language:write'])]
     #[Assert\NotBlank]
+    #[ORM\Column(name: 'original_name', type: 'string', length: 255, nullable: true)]
     protected ?string $originalName = null;
 
-    /**
-     * @ORM\Column(name="english_name", type="string", length=255)
-     */
+    #[Groups(['language:read', 'language:write'])]
     #[Assert\NotBlank]
+    #[ORM\Column(name: 'english_name', type: 'string', length: 255)]
     protected string $englishName;
 
-    /**
-     * @ORM\Column(name="isocode", type="string", length=10)
-     */
+    #[Groups(['language:read', 'language:write'])]
     #[Assert\NotBlank]
+    #[ORM\Column(name: 'isocode', type: 'string', length: 10)]
     protected string $isocode;
 
-    /**
-     * @ORM\Column(name="available", type="boolean", nullable=false)
-     */
+    #[Groups(['language:read', 'language:write'])]
+    #[ORM\Column(name: 'available', type: 'boolean', nullable: false)]
     protected bool $available;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\Language", inversedBy="subLanguages")
-     * @ORM\JoinColumn(name="parent_id", referencedColumnName="id", nullable=true)
-     */
+    #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'subLanguages')]
+    #[ORM\JoinColumn(name: 'parent_id', referencedColumnName: 'id', nullable: true)]
     protected ?Language $parent = null;
 
     /**
-     * @ORM\OneToMany(targetEntity="Chamilo\CoreBundle\Entity\Language", mappedBy="parent")
+     * @var Collection<int, self>
      */
+    #[Groups(['language:read', 'language:write'])]
+    #[ORM\OneToMany(mappedBy: 'parent', targetEntity: self::class)]
     protected Collection $subLanguages;
 
     public function __construct()
@@ -116,18 +116,21 @@ class Language
         return $this->available;
     }
 
-    public function setParent(self $parent): self
+    public function setParent(?self $parent): static
     {
         $this->parent = $parent;
 
         return $this;
     }
 
-    public function getParent(): ?self
+    public function getParent(): ?static
     {
         return $this->parent;
     }
 
+    /**
+     * @return Collection<int, self>
+     */
     public function getSubLanguages(): Collection
     {
         return $this->subLanguages;
@@ -141,5 +144,27 @@ class Language
     public function getId()
     {
         return $this->id;
+    }
+
+    public function addSubLanguage(self $subLanguage): static
+    {
+        if (!$this->subLanguages->contains($subLanguage)) {
+            $this->subLanguages->add($subLanguage);
+            $subLanguage->setParent($this);
+        }
+
+        return $this;
+    }
+
+    public function removeSub(self $sub): static
+    {
+        if ($this->subLanguages->removeElement($sub)) {
+            // set the owning side to null (unless already changed)
+            if ($sub->getParent() === $this) {
+                $sub->setParent(null);
+            }
+        }
+
+        return $this;
     }
 }

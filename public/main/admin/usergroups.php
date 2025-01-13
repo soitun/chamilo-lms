@@ -3,6 +3,8 @@
 /* For licensing terms, see /license.txt */
 
 use Chamilo\CoreBundle\Framework\Container;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
 
 $cidReset = true;
 
@@ -25,7 +27,7 @@ $url = api_get_path(WEB_AJAX_PATH).'model.ajax.php?a=get_usergroups';
 
 //The order is important you need to check the the $column variable in the model.ajax.php file
 $columns = [
-    get_lang('Name'),
+    get_lang('Title'),
     get_lang('Users'),
     get_lang('Courses'),
     get_lang('Course sessions'),
@@ -35,15 +37,15 @@ $columns = [
 
 //Column config
 $column_model = [
-    ['name' => 'name', 'index' => 'name', 'width' => '35', 'align' => 'left'],
-    ['name' => 'users', 'index' => 'users', 'width' => '15', 'align' => 'left', 'search' => 'false'],
-    ['name' => 'courses', 'index' => 'courses', 'width' => '15', 'align' => 'left', 'search' => 'false'],
-    ['name' => 'sessions', 'index' => 'sessions', 'width' => '15', 'align' => 'left', 'search' => 'false'],
-    ['name' => 'group_type', 'index' => 'group_type', 'width' => '15', 'align' => 'center', 'search' => 'false'],
+    ['name' => 'title', 'index' => 'title', 'align' => 'left', 'width' => '400'],
+    ['name' => 'users', 'index' => 'users', 'align' => 'left', 'search' => 'false'],
+    ['name' => 'courses', 'index' => 'courses', 'align' => 'left', 'search' => 'false'],
+    ['name' => 'sessions', 'index' => 'sessions', 'align' => 'left', 'search' => 'false'],
+    ['name' => 'group_type', 'index' => 'group_type', 'align' => 'center', 'search' => 'false'],
     [
         'name' => 'actions',
         'index' => 'actions',
-        'width' => '20',
+        'width' => '250',
         'align' => 'center',
         'sortable' => 'false',
         'formatter' => 'action_formatter',
@@ -55,16 +57,16 @@ $column_model = [
 $extra_params['autowidth'] = 'true';
 // Height auto
 $extra_params['height'] = 'auto';
-$extra_params['sortname'] = 'name';
+$extra_params['sortname'] = 'title';
 $extra_params['sortorder'] = 'desc';
 // With this function we can add actions to the jgrid
 $action_links = 'function action_formatter (cellvalue, options, rowObject) {
     return \''
-    .' <a href="add_users_to_usergroup.php?id=\'+options.rowId+\'">'.Display::return_icon('user_to_class.png', get_lang('Subscribe users to class'), null, ICON_SIZE_MEDIUM).'</a>'
-    .' <a href="add_courses_to_usergroup.php?id=\'+options.rowId+\'">'.Display::return_icon('course_to_class.png', get_lang('Subscribe class to courses'), null, ICON_SIZE_MEDIUM).'</a>'
-    .' <a href="add_sessions_to_usergroup.php?id=\'+options.rowId+\'">'.Display::return_icon('sessions_to_class.png', get_lang('SubscribeClassToCourse sessions'), null, ICON_SIZE_MEDIUM).'</a>'
-    .' <a href="?action=edit&id=\'+options.rowId+\'">'.Display::return_icon('edit.png', get_lang('Edit'), null, ICON_SIZE_SMALL).'</a>'
-    .' <a onclick="javascript:if(!confirm('."\'".addslashes(api_htmlentities(get_lang("Please confirm your choice"), ENT_QUOTES))."\'".')) return false;"  href="?action=delete&id=\'+options.rowId+\'">'.Display::return_icon('delete.png', get_lang('Delete'), null, ICON_SIZE_SMALL).'</a>\';
+    .' <a href="add_users_to_usergroup.php?id=\'+options.rowId+\'">'.Display::getMdiIcon(ObjectIcon::USER, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Subscribe users to class')).'</a>'
+    .' <a href="add_courses_to_usergroup.php?id=\'+options.rowId+\'">'.Display::getMdiIcon(ObjectIcon::COURSE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Subscribe class to courses')).'</a>'
+    .' <a href="add_sessions_to_usergroup.php?id=\'+options.rowId+\'">'.Display::getMdiIcon(ObjectIcon::SESSION, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Subscribe class to sessions')).'</a>'
+    .' <a href="?action=edit&id=\'+options.rowId+\'">'.Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Edit')).'</a>'
+    .' <a onclick="javascript:if(!confirm('."\'".addslashes(api_htmlentities(get_lang("Please confirm your choice"), ENT_QUOTES))."\'".')) return false;"  href="?action=delete&id=\'+options.rowId+\'">'.Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Delete')).'</a>\';
 }';
 
 $usergroup->showGroupTypeSetting = true;
@@ -97,7 +99,7 @@ switch ($action) {
                 Display::addFlash(Display::return_message(get_lang('Item added'), 'confirmation'));
             } else {
                 Display::addFlash(Display::return_message(
-                    Security::remove_XSS($values['name']).': '.
+                    Security::remove_XSS($values['title']).': '.
                     get_lang('Already exists'),
                     'warning'
                 ));
@@ -106,7 +108,7 @@ switch ($action) {
             exit;
         } else {
             $actions = '<a href="'.api_get_self().'">'.
-                Display::return_icon('back.png', get_lang('Back'), '', ICON_SIZE_MEDIUM).'</a>';
+                Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back')).'</a>';
             $content .= Display::toolbarAction('toolbar', [$actions]);
             $token = Security::get_token();
             $form->addElement('hidden', 'sec_token');
@@ -148,7 +150,7 @@ switch ($action) {
                 Display::addFlash(Display::return_message(get_lang('Update successful'), 'confirmation'));
             } else {
                 Display::addFlash(Display::return_message(
-                    Security::remove_XSS($values['name']).': '.
+                    Security::remove_XSS($values['title']).': '.
                     get_lang('Already exists'),
                     'warning'
                 ));
@@ -156,11 +158,12 @@ switch ($action) {
             header('Location: '.api_get_self());
             exit;
         } else {
-            $actions = '<a href="'.api_get_self().'">'.Display::return_icon(
-                'back.png',
-                get_lang('Back'),
-                '',
-                ICON_SIZE_MEDIUM
+            $actions = '<a href="'.api_get_self().'">'.Display::getMdiIcon(
+                ActionIcon::BACK,
+                'ch-tool-icon',
+                null,
+                ICON_SIZE_MEDIUM,
+                get_lang('Back')
             ).'</a>';
             $content .= Display::toolbarAction('toolbar', [$actions]);
             $content .= $form->returnForm();

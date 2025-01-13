@@ -1,0 +1,216 @@
+.app-sidebar {
+  @apply block bg-white fixed left-0 transition-[width] duration-150 items-stretch w-full text-gray-50 z-10
+    sm:bg-gray-15 sm:border-r sm:border-solid sm:border-gray-25 sm:w-60;
+  height: calc(100vh - 4.5rem - 1px);
+  top: calc(4.5rem + 1px);
+
+  &__container {
+    @apply flex flex-col h-full;
+  }
+
+  &__top {
+    @apply sm:hidden font-bold pt-10 px-9 text-gray-90 text-[32px];
+  }
+
+  &__panel {
+    @apply pt-8 px-0 overflow-x-hidden overflow-y-auto flex-1 overscroll-none
+      sm:pt-5;
+  }
+
+  &__bottom {
+    @apply flex flex-col border-b border-solid border-gray-25 p-6 text-tiny font-semibold gap-2;
+  }
+
+  &__logout-link {
+    @apply block font-semibold whitespace-nowrap mt-5 mx-6 mb-3.5 px-4 py-2;
+
+    .mdi {
+      @apply leading-normal text-body-2;
+    }
+
+    .logout-text {
+      @apply ml-2 text-body-2;
+    }
+
+    &:hover {
+      @apply bg-primary text-white rounded-md;
+    }
+  }
+
+  &__button {
+    @apply bg-white border border-solid border-gray-25 rounded-full top-6 -right-4 text-primary p-1.5;
+    display: none !important;
+    font-size: 20px;
+    line-height: 20px;
+    position: absolute !important;
+    z-index: 11;
+
+    &:hover,
+    &:active {
+      @apply border-primary;
+    }
+
+    &.p-button.p-button-icon-only {
+      @apply h-8 p-0 w-8;
+    }
+
+    .p-button-label {
+      @apply hidden;
+    }
+
+    .p-togglebutton-input {
+      @apply appearance-none absolute top-0 left-0 w-full h-full p-0 m-0 opacity-0 outline-0 outline-none;
+      z-index: 1;
+    }
+
+    .p-button {
+      @apply bg-white p-0 text-primary;
+    }
+  }
+
+  .p-panelmenu {
+
+    .p-panelmenu-header-action {
+      @apply flex items-center gap-2 select-none cursor-pointer relative pl-9 py-3 pr-6 mb-1 overflow-hidden;
+    }
+
+    .p-menuitem-link {
+      @apply flex items-center select-none cursor-pointer relative overflow-hidden;
+    }
+
+    .p-panelmenu-header {
+      @apply outline-none;
+
+      &.p-highlight,
+      &:hover {
+        @apply bg-support-1 border-l-4 border-primary border-solid text-primary;
+
+        .p-panelmenu-header-action {
+          @apply pl-8;
+        }
+      }
+
+      .p-panelmenu-header-content {
+
+        .p-panelmenu-header-action {
+
+          .p-submenu-icon {
+            @apply order-3 text-body-2 font-semibold;
+          }
+
+          .p-menuitem-icon {
+            @apply order-1 text-body-2 font-semibold;
+          }
+        }
+      }
+
+      > .p-panelmenu-header-content a {
+        .p-menuitem-text {
+          @apply order-2 grow text-body-2 font-semibold;
+        }
+      }
+    }
+
+    .p-panelmenu-content {
+
+      .p-menuitem {
+
+        > .p-menuitem-content {
+
+          .p-menuitem-link {
+            @apply pl-8 py-3 pr-6;
+
+            .p-menuitem-icon {
+              @apply mr-2 leading-none;
+            }
+
+            .p-menuitem-text {
+              @apply text-body-2
+                hover:text-primary;
+            }
+          }
+        }
+
+        &.p-highlight,
+        &.p-focus {
+
+          > .p-menuitem-content {
+
+            .p-menuitem-link {
+
+              .p-menuitem-text {
+                @apply text-primary;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+.app-sidebar__topbar-button {
+  @apply text-center sm:hidden;
+}
+
+#app {
+  .app-main {
+     @apply overflow-hidden;
+  }
+
+  &.app--sidebar-inactive {
+    .app-sidebar {
+      @apply hidden
+        sm:block sm:w-[88px];
+
+      .p-panelmenu-header {
+        > .p-panelmenu-header-content a {
+          .p-submenu-icon {
+            @apply sm:hidden;
+          }
+
+          .p-menuitem-text {
+            @apply sm:hidden;
+          }
+        }
+      }
+
+      &__bottom {
+        @apply p-0;
+
+        * {
+          @apply hidden;
+        }
+      }
+
+      &__logout-link {
+        @apply sm:mx-5 sm:my-3 sm:py-3 sm:px-3 text-center;
+
+        .logout-text {
+          @apply sm:hidden sm:mr-0;
+        }
+      }
+    }
+
+    .app-sidebar__topbar-button {
+      .mdi.mdi-close {
+        &::before {
+          content: "\F035C";
+        }
+      }
+    }
+
+    .app-main {
+      @apply overflow-auto;
+    }
+  }
+}
+
+@media (min-width: 640px) {
+  .app-sidebar {
+    &__button {
+      display: inline-flex !important;
+      position: absolute !important;
+    }
+  }
+}

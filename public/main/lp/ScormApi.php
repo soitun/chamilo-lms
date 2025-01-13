@@ -474,7 +474,7 @@ class ScormApi
             }
         }
         $progressBarSpecial = false;
-        $scoreAsProgressSetting = api_get_configuration_value('lp_score_as_progress_enable');
+        $scoreAsProgressSetting = ('true' === api_get_setting('lp.lp_score_as_progress_enable'));
         if (true === $scoreAsProgressSetting) {
             $scoreAsProgress = $myLP->getUseScoreAsProgress();
             if ($scoreAsProgress) {
@@ -561,7 +561,7 @@ class ScormApi
             $return .= "updateGamification('$stars', '$score'); \n";
 
             $position = $myLP->isFirstOrLastItem($item_id);
-            $return .= "checkCurrentItemPosition('$position'); \n";
+            $return .= "checkCurrentItemPosition('$item_id'); \n";
 
             if ($mediaplayer) {
                 $return .= $mediaplayer;
@@ -643,13 +643,6 @@ class ScormApi
                     error_log('In {default} - next item is '.$new_item_id.'(current: '.$current_item.')');
                 }
                 break;
-        }
-
-        if (WhispeakAuthPlugin::isLpItemMarked($new_item_id)) {
-            ChamiloSession::write(
-                WhispeakAuthPlugin::SESSION_LP_ITEM,
-                ['lp' => $lpId, 'lp_item' => $new_item_id, 'src' => '']
-            );
         }
 
         $mylp->start_current_item(true);
@@ -824,6 +817,21 @@ class ScormApi
             update_progress_bar('$mycomplete','$mytotal','$myprogress_mode');
             $updateMinTime"
         ;
+
+        $lpItemParents = $mylp->getCurrentItemParentNames($mylp->get_current_item_id());
+        $titleItemParents = '';
+        if (!empty($lpItemParents)) {
+            // Escape HTML entities
+            $escapedParents = array_map(function($parentTitle) {
+                return htmlspecialchars($parentTitle, ENT_QUOTES, 'UTF-8');
+            }, $lpItemParents);
+
+            // Encode JSON without escaping Unicode characters
+            $titleItemParents = json_encode($escapedParents, JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT);
+        }
+        if (!empty($titleItemParents)) {
+            $return .= "olms.lms_lp_item_parents={$titleItemParents};";
+        }
 
         //$return .= 'updateGamificationValues(); ';
         $mylp->set_error_msg('');

@@ -5,6 +5,7 @@
 use Chamilo\CoreBundle\Framework\Container;
 use Chamilo\CourseBundle\Entity\CGlossary;
 use ChamiloSession as Session;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
 
 /**
  * @author Christian Fasanando, initial version
@@ -87,16 +88,16 @@ switch ($action) {
         );
         // Setting the form elements
         $form->addElement('header', get_lang('Add new glossary term'));
-        if (api_get_configuration_value('save_titles_as_html')) {
+        if ('true' === api_get_setting('editor.save_titles_as_html')) {
             $form->addHtmlEditor(
-                'name',
+                'title',
                 get_lang('Term'),
                 false,
                 false,
                 ['ToolbarSet' => 'TitleAsHtml']
             );
         } else {
-            $form->addElement('text', 'name', get_lang('Term'), ['id' => 'glossary_title']);
+            $form->addElement('text', 'title', get_lang('Term'), ['id' => 'glossary_title']);
         }
 
         $form->addHtmlEditor(
@@ -108,7 +109,7 @@ switch ($action) {
         );
         $form->addButtonCreate(get_lang('Save term'), 'SubmitGlossary');
         // setting the rules
-        $form->addRule('name', get_lang('Required field'), 'required');
+        $form->addRule('title', get_lang('Required field'), 'required');
         // The validation or display
         if ($form->validate()) {
             $check = Security::check_token('post');
@@ -127,7 +128,7 @@ switch ($action) {
                 'add_glossary',
                 [
                     Display::url(
-                        Display::return_icon('back.png', get_lang('Back'), [], ICON_SIZE_MEDIUM),
+                        Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back')),
                         api_get_self().'?'.api_get_cidreq()
                     ),
                 ]
@@ -152,16 +153,16 @@ switch ($action) {
             // Setting the form elements
             $form->addElement('header', get_lang('Edit term'));
             $form->addElement('hidden', 'glossary_id');
-            if (api_get_configuration_value('save_titles_as_html')) {
+            if ('true' === api_get_setting('editor.save_titles_as_html')) {
                 $form->addHtmlEditor(
-                    'name',
+                    'title',
                     get_lang('Term'),
                     false,
                     false,
                     ['ToolbarSet' => 'TitleAsHtml']
                 );
             } else {
-                $form->addElement('text', 'name', get_lang('Term'), ['id' => 'glossary_title']);
+                $form->addElement('text', 'title', get_lang('Term'), ['id' => 'glossary_title']);
             }
 
             $form->addElement(
@@ -199,13 +200,13 @@ switch ($action) {
             $form->addButtonUpdate(get_lang('Update term'), 'SubmitGlossary');
             $default = [
                 'glossary_id' => $glossaryData->getIid(),
-                'name' => $glossaryData->getName(),
+                'title' => $glossaryData->getTitle(),
                 'description' => $glossaryData->getDescription(),
             ];
             $form->setDefaults($default);
 
             // setting the rules
-            $form->addRule('name', get_lang('Required field'), 'required');
+            $form->addRule('title', get_lang('Required field'), 'required');
 
             // The validation or display
             if ($form->validate()) {
@@ -225,7 +226,7 @@ switch ($action) {
                     'edit_glossary',
                     [
                         Display::url(
-                            Display::return_icon('back.png', get_lang('Back'), [], ICON_SIZE_MEDIUM),
+                            Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back')),
                             api_get_self().'?'.api_get_cidreq()
                         ),
                     ]
@@ -308,7 +309,7 @@ switch ($action) {
                             Display::return_message(get_lang('Cannot delete glossary').':'.$term['id'], 'error')
                         );
                     } else {
-                        $termsDeleted[] = $term['name'];
+                        $termsDeleted[] = $term['title'];
                     }
                 }
             }
@@ -340,7 +341,7 @@ switch ($action) {
                         continue;
                     }
                     $items = [
-                        'name' => $item['term'],
+                        'title' => $item['term'],
                         'description' => $item['definition'],
                     ];
                     $termsToAdd[] = $items;
@@ -355,7 +356,7 @@ switch ($action) {
                     exit;
                 }
 
-                $repeatItems = array_count_values(array_column($termsToAdd, 'name'));
+                $repeatItems = array_count_values(array_column($termsToAdd, 'title'));
                 foreach ($repeatItems as $item => $count) {
                     if ($count > 1) {
                         $doubles[] = $item;
@@ -368,26 +369,26 @@ switch ($action) {
                     $item = $termsPerKey[$itemTerm];
 
                     if ($updateTerms) {
-                        $glossaryInfo = GlossaryManager::get_glossary_term_by_glossary_name($item['name']);
+                        $glossaryInfo = GlossaryManager::get_glossary_term_by_glossary_name($item['title']);
 
                         if (!empty($glossaryInfo)) {
                             $glossaryInfo['description'] = $item['description'];
                             GlossaryManager::update_glossary($glossaryInfo, false);
-                            $updatedList[] = $item['name'];
+                            $updatedList[] = $item['title'];
                         } else {
                             $result = GlossaryManager::save_glossary($item, false);
                             if ($result) {
-                                $addedList[] = $item['name'];
+                                $addedList[] = $item['title'];
                             } else {
-                                $badList[] = $item['name'];
+                                $badList[] = $item['title'];
                             }
                         }
                     } else {
                         $result = GlossaryManager::save_glossary($item, false);
                         if ($result) {
-                            $addedList[] = $item['name'];
+                            $addedList[] = $item['title'];
                         } else {
-                            $badList[] = $item['name'];
+                            $badList[] = $item['title'];
                         }
                     }
                 }
@@ -447,7 +448,7 @@ switch ($action) {
             Session::write('glossary_view', $_GET['view']);
         } else {
             $view = Session::read('glossary_view');
-            $defaultView = api_get_configuration_value('default_glossary_view');
+            $defaultView = api_get_setting('glossary.default_glossary_view');
             if (empty($defaultView)) {
                 $defaultView = 'table';
             }

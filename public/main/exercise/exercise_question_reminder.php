@@ -3,11 +3,12 @@
 /* For licensing terms, see /license.txt */
 
 use ChamiloSession as Session;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
 
 require_once __DIR__.'/../inc/global.inc.php';
 $current_course_tool = TOOL_QUIZ;
 
-if (false === api_get_configuration_value('block_category_questions')) {
+if ('false' === api_get_setting('exercise.block_category_questions')) {
     api_not_allowed(true);
 }
 
@@ -106,9 +107,9 @@ if (!$hideHeaderAndFooter) {
 // I'm in a preview mode as course admin. Display the action menu.
 if (!$hideHeaderAndFooter && api_is_course_admin()) {
     $actions = '<a href="admin.php?'.api_get_cidreq().'&exerciseId='.$objExercise->iId.'">'.
-        Display::return_icon('back.png', get_lang('GoBackToQuestionList'), [], 32).'</a>';
+        Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('GoBackToQuestionList')).'</a>';
     $actions .= '<a href="exercise_admin.php?'.api_get_cidreq().'&modifyExercise=yes&exerciseId='.$objExercise->iId.'">'.
-        Display::return_icon('edit.png', get_lang('ModifyExercise'), [], 32).'</a>';
+        Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('ModifyExercise')).'</a>';
     echo Display::toolbarAction('toolbar', [$actions]);
 }
 echo Display::page_header($categoryObj->name);
@@ -171,24 +172,24 @@ if (!in_array($categoryId, $blockedCategories)) {
     $exerciseActions = '&nbsp;'.Display::url(
         get_lang('GoBack'),
         'javascript://',
-        ['onclick' => 'goBack();', 'class' => 'btn btn-default']
+        ['onclick' => 'goBack();', 'class' => 'btn btn--plain']
     );
 }
 if ($objExercise->review_answers) {
     $exerciseActions .= Display::url(
         get_lang('ReviewQuestions'),
         'javascript://',
-        ['onclick' => 'reviewQuestions();', 'class' => 'btn btn-primary']
+        ['onclick' => 'reviewQuestions();', 'class' => 'btn btn--primary']
     );
     $exerciseActions .= '&nbsp;'.Display::url(
         get_lang('SelectAll'),
     'javascript://',
-        ['onclick' => 'selectAll();', 'class' => 'btn btn-default']
+        ['onclick' => 'selectAll();', 'class' => 'btn btn--plain']
 );
     $exerciseActions .= '&nbsp;'.Display::url(
         get_lang('UnSelectAll'),
         'javascript://',
-        ['onclick' => 'changeOptionStatus(0);', 'class' => 'btn btn-default']
+        ['onclick' => 'changeOptionStatus(0);', 'class' => 'btn btn--plain']
     );
 }
 
@@ -199,13 +200,13 @@ if (key($categoryList) === $categoryId) {
     $exerciseActions .= '&nbsp;'.Display::url(
     get_lang('EndTest'),
     'javascript://',
-    ['onclick' => 'final_submit();', 'class' => 'btn btn-warning']
+    ['onclick' => 'final_submit();', 'class' => 'btn btn--warning']
     );
 } else {
     $exerciseActions .= '&nbsp;'.Display::url(
         get_lang('ContinueTest'),
         'javascript://',
-        ['onclick' => 'continueExercise();', 'class' => 'btn btn-primary']
+        ['onclick' => 'continueExercise();', 'class' => 'btn btn--primary']
     );
 }
 

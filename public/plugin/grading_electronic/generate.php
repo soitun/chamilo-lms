@@ -79,7 +79,7 @@ try {
             $students[] = $subscription->getUser();
         }
     } else {
-        $subscriptions = $course->getStudents();
+        $subscriptions = $course->getStudentSubscriptions();
 
         /** @var CourseRelUser $subscription */
         foreach ($subscriptions as $subscription) {
@@ -90,11 +90,11 @@ try {
     $cats = Category::load(
         null,
         null,
-        $course->getCode(),
+        $course->getId(),
         null,
         null,
         $session ? $session->getId() : 0,
-        'ORDER By id'
+        'ORDER BY id'
     );
 
     /** @var \Category $gradebook */

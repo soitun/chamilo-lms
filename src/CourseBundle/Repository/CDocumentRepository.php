@@ -7,7 +7,6 @@ declare(strict_types=1);
 namespace Chamilo\CourseBundle\Repository;
 
 use Chamilo\CoreBundle\Entity\Course;
-use Chamilo\CoreBundle\Entity\ResourceLink;
 use Chamilo\CoreBundle\Entity\ResourceNode;
 use Chamilo\CoreBundle\Entity\Session;
 use Chamilo\CoreBundle\Entity\User;
@@ -39,7 +38,7 @@ final class CDocumentRepository extends ResourceRepository
         return null;
     }
 
-    public function getFolderSize(ResourceNode $resourceNode, Course $course, Session $session = null): int
+    public function getFolderSize(ResourceNode $resourceNode, Course $course, ?Session $session = null): int
     {
         return $this->getResourceNodeRepository()->getSize($resourceNode, $this->getResourceType(), $course, $session);
     }
@@ -54,10 +53,8 @@ final class CDocumentRepository extends ResourceRepository
             ->innerJoin('d.resourceNode', 'node')
             ->innerJoin('node.resourceLinks', 'l')
             ->where('l.user = :user')
-            ->andWhere('l.visibility <> :visibility')
             ->setParameters([
                 'user' => $userId,
-                'visibility' => ResourceLink::VISIBILITY_DELETED,
             ])
             ->getQuery()
         ;
@@ -65,7 +62,7 @@ final class CDocumentRepository extends ResourceRepository
         return $query->getResult();
     }
 
-    public function countUserDocuments(User $user, Course $course, Session $session = null, CGroup $group = null): int
+    public function countUserDocuments(User $user, Course $course, ?Session $session = null, ?CGroup $group = null): int
     {
         $qb = $this->getResourcesByCourseLinkedToUser($user, $course, $session, $group);
 
@@ -77,7 +74,7 @@ final class CDocumentRepository extends ResourceRepository
         return $this->getCount($qb);
     }
 
-    protected function addFileTypeQueryBuilder(string $fileType, QueryBuilder $qb = null): QueryBuilder
+    protected function addFileTypeQueryBuilder(string $fileType, ?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb);
         $qb

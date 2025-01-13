@@ -32,7 +32,7 @@ class ResourceNodeRepositoryTest extends AbstractApiTest
 
         $defaultCount = $repo->count([]);
 
-        $type = $repoType->findOneBy(['name' => 'illustrations']);
+        $type = $repoType->findOneBy(['title' => 'illustrations']);
         $resourceNode = (new ResourceNode())
             ->setContent('test')
             ->setTitle('test')
@@ -80,7 +80,7 @@ class ResourceNodeRepositoryTest extends AbstractApiTest
 
         $user = $this->createUser('julio');
 
-        $type = $repoType->findOneBy(['name' => 'illustrations']);
+        $type = $repoType->findOneBy(['title' => 'illustrations']);
         $resourceNode = (new ResourceNode())
             ->setContent('test')
             ->setTitle('test')
@@ -143,7 +143,7 @@ class ResourceNodeRepositoryTest extends AbstractApiTest
         $group = $this->createGroup('group', $course);
         $userGroup = $this->createUserGroup('group');
 
-        $type = $repoType->findOneBy(['name' => 'illustrations']);
+        $type = $repoType->findOneBy(['title' => 'illustrations']);
         $resourceNode = (new ResourceNode())
             ->setContent('test')
             ->setTitle('test')
@@ -156,7 +156,6 @@ class ResourceNodeRepositoryTest extends AbstractApiTest
 
         $link = (new ResourceLink())
             ->setVisibility(ResourceLink::VISIBILITY_PUBLISHED)
-            ->setResourceNode($resourceNode)
             ->setUser($student)
             ->setCourse($course)
             ->setSession($session)
@@ -167,7 +166,9 @@ class ResourceNodeRepositoryTest extends AbstractApiTest
             ->setStartVisibilityAt(new DateTime())
             ->setEndVisibilityAt(new DateTime())
         ;
-        $em->persist($link);
+
+        $resourceNode->addResourceLink($link);
+
         $em->flush();
         $em->clear();
 
@@ -175,6 +176,7 @@ class ResourceNodeRepositoryTest extends AbstractApiTest
         $resourceNode = $repo->find($resourceNode->getId());
 
         $this->assertSame(1, $resourceNode->getResourceLinks()->count());
+
         /** @var ResourceLink $link */
         $link = $resourceNode->getResourceLinks()->first();
 
@@ -198,7 +200,7 @@ class ResourceNodeRepositoryTest extends AbstractApiTest
         $repoType = $em->getRepository(ResourceType::class);
         $user = $this->createUser('julio');
 
-        $type = $repoType->findOneBy(['name' => 'illustrations']);
+        $type = $repoType->findOneBy(['title' => 'illustrations']);
 
         $resourceNode = (new ResourceNode())
             ->setContent('test')
@@ -217,7 +219,7 @@ class ResourceNodeRepositoryTest extends AbstractApiTest
         $uploadedFile = $this->getUploadedFile();
 
         $resourceFile = (new ResourceFile())
-            ->setName($uploadedFile->getFilename())
+            ->setTitle($uploadedFile->getFilename())
             ->setOriginalName($uploadedFile->getFilename())
             ->setFile($uploadedFile)
             ->setDescription('desc')
@@ -226,7 +228,7 @@ class ResourceNodeRepositoryTest extends AbstractApiTest
         ;
         $em->persist($resourceFile);
 
-        $resourceNode->setContent('')->setResourceFile($resourceFile);
+        $resourceNode->setContent('')->addResourceFile($resourceFile);
         $em->persist($resourceNode);
         $em->flush();
 

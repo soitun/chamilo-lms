@@ -15,12 +15,12 @@
             <div class="col-md-6">
                 <form method="post" action="{{ _p.web_self }}?action=display_sessions">
                     <div class="form-group">
-                        <label>{{ "ByDate"|get_lang }}</label>
+                        <label>{{ 'By date'|get_lang }}</label>
                         <div class="input-group">
                             <input type="date" name="date" id="date" title="{{ 'Date'|get_lang }}"
                                    class="form-control" value="{{ search_date }}" readonly>
                             <span class="input-group-btn">
-                                <button class="btn btn-default" type="submit">
+                                <button class="btn btn--plain" type="submit">
                                     <em class="fa fa-search"></em> {{ 'Search'|get_lang }}
                                 </button>
                             </span>
@@ -30,12 +30,12 @@
             </div>
             <div class="col-md-6">
                 <form method="post" action="{{ _p.web_self }}?action=search_tag">
-                    <label>{{ "ByTag"|get_lang }}</label>
+                    <label>{{ 'By tag'|get_lang }}</label>
                     <div class="input-group">
-                        <input type="text" name="search_tag" title="{{ 'ByTag'|get_lang }}" class="form-control"
+                        <input type="text" name="search_tag" title="{{ 'By tag'|get_lang }}" class="form-control"
                                value="{{ search_tag }}"/>
                         <span class="input-group-btn">
-                            <button class="btn btn-default" type="submit">
+                            <button class="btn btn--plain" type="submit">
                                 <em class="fa fa-search"></em> {{ 'Search'|get_lang }}
                             </button>
                         </span>
@@ -52,15 +52,15 @@
                             {{ item.category }}
                         </div>
                     {% endif %}
-                    <a href="{{ _p.web ~ 'session/' ~ item.id ~ '/about/' }}" title="{{ item.name }}">
+                    <a href="{{ _p.web ~ 'session/' ~ item.id ~ '/about/' }}" title="{{ item.title }}">
                         <img class="img-fluid" src="{{ item.image ? _p.web_upload ~ item.image : 'session_default.png'|icon() }}">
                     </a>
                 {% endset %}
                 {% set content %}
                     <div class="card-title">
                         <h5 class="title">
-                            <a href="{{ _p.web ~ 'session/' ~ item.id ~ '/about/' }}" title="{{ item.name }}">
-                                {{ item.name }}
+                            <a href="{{ _p.web ~ 'session/' ~ item.id ~ '/about/' }}" title="{{ item.title }}">
+                                {{ item.title }}
                             </a>
                         </h5>
                     </div>
@@ -72,7 +72,7 @@
                                 <a href="{{ coach.url }}" class="ajax" data-title="{{ coach.name }}">
                                     {{ coach.name }}
                                 </a>
-                                <p>{{ 'SessionGeneralCoach'|get_lang }}</p>
+                                <p>{{ 'Session general coach'|get_lang }}</p>
                             </div>
                         {% endfor %}
                     {% endif %}
@@ -104,8 +104,8 @@
                             <div class="col-sm-8">
                                 <div class="btn-group btn-group-sm" role="group">
                                     {% if not item.sequences is empty %}
-                                        <a class="btn btn-primary btn-sm" role="button"
-                                           title="{{ 'SeeSequences'|get_lang }}" data-toggle="popover"
+                                        <a class="btn btn--primary btn-sm" role="button"
+                                           title="{{ 'See sequences'|get_lang }}" data-toggle="popover"
                                            id="session-{{ item.id }}-sequences">
                                             <i class="fas fa-sitemap"></i>
                                         </a>
@@ -126,14 +126,14 @@
                                         var content = '';
                                         {% if item.sequences %}
                                         {% for sequence in item.sequences %}
-                                        content += '<p class="lead">{{ sequence.name }}</p>';
+                                        content += '<p class="lead">{{ sequence.title }}</p>';
                                         {% if sequence.requirements %}
-                                        content += '<p><em class="fa fa-sort-amount-desc"></em> {{ 'RequiredSessions'|get_lang }}</p>';
+                                        content += '<p><em class="fa fa-sort-amount-desc"></em> {{ 'Required sessions'|get_lang }}</p>';
                                         content += '<ul>';
 
                                         {% for requirement in sequence.requirements %}
                                         content += '<li>';
-                                        content += '<a href="{{ _p.web ~ 'session/' ~ requirement.id ~ '/about/' }}">{{ requirement.name }}</a>';
+                                        content += '<a href="{{ _p.web ~ 'session/' ~ requirement.id ~ '/about/' }}">{{ requirement.title }}</a>';
                                         content += '</li>';
                                         {% endfor %}
 
@@ -141,12 +141,12 @@
                                         {% endif %}
 
                                         {% if sequence.dependencies %}
-                                        content += '<p><em class="fa fa-sort-amount-desc"></em> {{ 'DependentSessions'|get_lang }}</p>';
+                                        content += '<p><em class="fa fa-sort-amount-desc"></em> {{ 'Dependent sessions'|get_lang }}</p>';
                                         content += '<ul>';
 
                                         {% for dependency in sequence.dependencies %}
                                         content += '<li>';
-                                        content += '<a href="{{ _p.web ~ 'session/' ~ dependency.id ~ '/about/' }}">{{ dependency.name }}</a>';
+                                        content += '<a href="{{ _p.web ~ 'session/' ~ dependency.id ~ '/about/' }}">{{ dependency.title }}</a>';
                                         content += '</li>';
                                         {% endfor %}
 
@@ -158,7 +158,7 @@
                                         {% endif %}
                                         {% endfor %}
                                         {% else %}
-                                        content = "{{ 'NoDependencies'|get_lang }}";
+                                        content = "{{ 'No dependencies'|get_lang }}";
                                         {% endif %}
 
                                         return content;

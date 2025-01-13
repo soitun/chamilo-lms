@@ -4,6 +4,7 @@
 
 use Chamilo\CoreBundle\Entity\ExtraFieldSavedSearch;
 use ChamiloSession as Session;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
 
 $cidReset = true;
 
@@ -40,7 +41,7 @@ switch ($action) {
             SESSION_VISIBLE_READ_ONLY,
             false
         );
-        Display::addFlash(Display::return_message(get_lang('UserAdded')));
+        Display::addFlash(Display::return_message(get_lang('The user has been added')));
         header("Location: ".api_get_self().'?user_id='.$userToLoad.'#session-table');
         break;
     case 'unsubscribe_user':
@@ -54,7 +55,7 @@ switch ($action) {
 $em = Database::getManager();
 
 $formSearch = new FormValidator('load', 'get', api_get_self());
-$formSearch->addHeader(get_lang('Load Diagnosis'));
+$formSearch->addHeader(get_lang('Load diagnosis'));
 if (!empty($userInfo)) {
     $users = [];
     switch ($userInfo['status']) {
@@ -114,7 +115,7 @@ if ($userToLoad) {
     }
 }
 
-$formSearch->addButtonSearch(get_lang('Show Diagnostic'), 'save');
+$formSearch->addButtonSearch(get_lang('Show diagnosis'), 'save');
 
 $form = new FormValidator('search', 'post', api_get_self().'?user_id='.$userToLoad.'#session-table');
 $form->addHeader(get_lang('Diagnosis'));
@@ -126,7 +127,7 @@ if (!empty($items)) {
     /** @var ExtraFieldSavedSearch $item */
     foreach ($items as $item) {
         $variable = 'extra_'.$item->getField()->getVariable();
-        if (ExtraField::FIELD_TYPE_TAG === $item->getField()->getFieldType()) {
+        if (ExtraField::FIELD_TYPE_TAG === $item->getField()->getValueType()) {
             $tagsData[$variable] = $item->getValue();
         }
         $defaults[$variable] = $item->getValue();
@@ -144,6 +145,18 @@ if (isset($defaults['extra_access_end_date']) && isset($defaults['extra_access_e
 $extraField = new ExtraField('session');
 $extraFieldValue = new ExtraFieldValue('session');
 $extraFieldValueUser = new ExtraFieldValue('user');
+
+$wantStage = $extraFieldValueUser->get_values_by_handler_and_field_variable(api_get_user_id(), 'filiere_want_stage');
+$defaultValueStatus = '';
+$hide = true;
+if ($wantStage) {
+    $hide = ('yes' === $wantStage['field_value'] || '' === $wantStage['field_value']);
+}
+
+$defaultValueStatus = 'extraFiliere.hide()';
+if (false === $hide) {
+    $defaultValueStatus = '';
+}
 
 $theme = 'theme_fr';
 
@@ -507,8 +520,22 @@ $userForm->addButtonSave(get_lang('Save'), 'submit_partial[collapseEight]');
 
 $userForm->addEndPanel();
 
-$form->addButtonSave(get_lang('Save Diagnostic Changes'), 'save');
-$form->addButtonSearch(get_lang('Search Sessions'), 'search');
+$form->addButtonSave(get_lang('Save diagnostic changes'), 'save');
+
+// Get list of session status
+$statusList = SessionManager::getStatusList();
+$statusSelectList[0] = ' -- '.get_lang('All').' --';
+foreach ($statusList as $nro => $name) {
+    $statusSelectList[$nro] = $name;
+}
+$form->addSelect(
+    'filter_status',
+    get_lang('Session status'),
+    $statusSelectList,
+    ['id' => 'filter_status']
+);
+
+$form->addButtonSearch(get_lang('Search sessions'), 'search');
 
 $extraFieldsToFilter = $extraField->get_all(['variable = ?' => 'temps_de_travail']);
 $extraFieldToSearch = [];
@@ -518,7 +545,7 @@ if (!empty($extraFieldsToFilter)) {
     }
 }
 $extraFieldListToString = implode(',', $extraFieldToSearch);
-$result = SessionManager::getGridColumns('simple', $extraFieldsToFilter);
+$result = SessionManager::getGridColumns('custom', $extraFieldsToFilter);
 $columns = $result['columns'];
 $columnModel = $result['column_model'];
 
@@ -579,17 +606,6 @@ if (!empty($filters)) {
             if ($count > 5) {
                 if (isset($filters[$column['name']])) {
                     $defaultValues['jqg'.$countExtraField] = $filters[$column['name']];
-                    /*switch ($column['name']) {
-                        case 'extra_theme_it':
-                        case 'extra_theme_de':
-                        case 'extra_theme_es':
-                        case 'extra_theme_fr':
-                            break;
-                        case 'extra_domaine':
-                            break;
-                        case '':
-                            break;
-                    }*/
                     $filterToSend['rules'][] = [
                         'field' => $column['name'],
                         'op' => 'cn',
@@ -630,6 +646,13 @@ if ($form->validate()) {
                 continue;
             }
             if (!empty($value)) {
+                if (is_array($value)) {
+                    $valueArray = $value;
+                    $filtered_value = array_filter($valueArray, function($valueFilter) {
+                        return $valueFilter !== null && $valueFilter !== "";
+                    });
+                    $value = $filtered_value;
+                }
                 $filters[$key] = $value;
             }
         }
@@ -655,6 +678,10 @@ if ($form->validate()) {
                     $count++;
                 }
             }
+        }
+
+        if (!empty($_REQUEST['filter_status'])) {
+            $filterToSend['filter_status'] = (int) $_REQUEST['filter_status'];
         }
     }
 
@@ -792,6 +819,126 @@ $htmlHeadXtra[] = '<script>
 $(function() {
     '.$jqueryExtra.'
     '.$jsTag.'
+});
+</script>';
+
+$url = api_get_path(WEB_AJAX_PATH).'extra_field.ajax.php?a=order&user_id='.$userId;
+$htmlHeadXtra[] = '
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+      var targetBlock = window.location.hash;
+      var targetBlockWithoutHash = targetBlock.substring(1);
+      const diapoButton = document.querySelector("#card_"+targetBlockWithoutHash+" a");
+
+      setTimeout(function() {
+        diapoButton.click();
+      }, 500);
+    });
+</script>
+<script>
+$(function() {
+    var themeDefault = "extra_'.$theme.'";
+    var extraFiliere = $("input[name=\'extra_filiere[extra_filiere]\']").parent().parent();
+    '.$defaultValueStatus.'
+
+    $("input[name=\'extra_filiere_want_stage[extra_filiere_want_stage]\']").change(function() {
+        if ($(this).val() == "no") {
+            extraFiliere.show();
+        } else {
+            extraFiliere.hide();
+        }
+    });
+
+    $("#extra_theme").parent().append(
+        $("<a>", {
+            "class": "btn ajax btn--plain",
+            "href": "'.$url.'&field_variable=extra_theme",
+            "text": "'.get_lang('Order').'"
+        })
+    );
+
+    $("#extra_theme_fr").parent().append(
+        $("<a>", {
+            "class": "btn ajax btn--plain",
+            "href": "'.$url.'&field_variable=extra_theme_fr",
+            "text": "'.get_lang('Order').'"
+        })
+    );
+
+    $("#extra_theme_de").parent().append(
+        $("<a>", {
+            "class": "btn ajax btn--plain",
+            "href": "'.$url.'&field_variable=extra_theme_de",
+            "text": "'.get_lang('Order').'"
+        })
+    );
+
+    $("#extra_theme_it").parent().append(
+        $("<a>", {
+            "class": "btn ajax btn--plain",
+            "href": "'.$url.'&field_variable=extra_theme_it",
+            "text": "'.get_lang('Order').'"
+        })
+    );
+
+    $("#extra_theme_es").parent().append(
+        $("<a>", {
+            "class": "btn ajax btn--plain",
+            "href": "'.$url.'&field_variable=extra_theme_es",
+            "text": "'.get_lang('Order').'"
+        })
+    );
+
+     $("#extra_theme_pl").parent().append(
+        $("<a>", {
+            "class": "btn ajax btn--plain",
+            "href": "'.$url.'&field_variable=extra_theme_pl",
+            "text": "'.get_lang('Order').'"
+        })
+    );
+
+    $("#extra_domaine_0, #extra_domaine_1, #extra_domaine_2").on("change", function() {
+        var domainList = [];
+        $("#extra_domaine_0 option:selected").each(function() {
+            domainList.push($(this).val());
+        });
+        $("#extra_domaine_1 option:selected").each(function() {
+            domainList.push($(this).val());
+        });
+        $("#extra_domaine_2 option:selected").each(function() {
+            domainList.push($(this).val());
+        });
+
+        var domainListToString = JSON.stringify(domainList);
+
+        $.ajax({
+            contentType: "application/x-www-form-urlencoded",
+            type: "GET",
+            url: "'.api_get_path(WEB_AJAX_PATH).'extra_field.ajax.php?a=search_options_from_tags&type=session&from=extra_domaine&search="+themeDefault+"&options="+domainListToString,
+            success: function(data) {
+                var selectToString = "";
+                selectToString += "<option></option>";
+                jQuery.each(JSON.parse(data), function(i, item) {
+                    selectToString += "<optgroup label=\'"+item.text+"\'>";
+                    jQuery.each(item.children, function(j, data) {
+                        if (data.text != "") {
+                            selectToString += "<option value=\'"+data.text+"\'> " +data.text+"</option>"
+                        }
+                    });
+                    selectToString += "</optgroup>";
+                });
+
+                for (i = 0; i <= 5; i++) {
+                    var themeId = "#"+themeDefault+"_"+i;
+                    var beforeValue = $(themeId).find(":selected").val();
+                    $(themeId).find("option").remove().end();
+                    $(themeId).empty();
+                    $(themeId).html(selectToString);
+                    $(themeId).val(beforeValue);
+                }
+            }
+         });
+    });
 });
 </script>';
 
@@ -944,14 +1091,15 @@ if (!empty($filterToSend)) {
                         }
                     }
                     break;
+                case 'extra_filiere':
+                    $filterItem['data'] = $filterItem['data']['extra_filiere'];
+                    break;
             }
         }
 
         if ($deleteFiliere) {
-            foreach ($filterToSend['rules'] as &$filterItem) {
-                if (isset($filterItem['field']) && 'extra_filiere' == $filterItem['field']) {
-                    $filterItem = [];
-                }
+            if (isset($filterItem['field']) && 'extra_filiere' == $filterItem['field']) {
+                $filterItem = [];
             }
         }
     }
@@ -968,13 +1116,13 @@ if (!empty($filterToSend)) {
 
     $filterToSend = json_encode($filterToSend);
     $url = api_get_path(WEB_AJAX_PATH).'model.ajax.php?a=get_sessions&_search=true&load_extra_field='.
-        $extraFieldListToString.'&_force_search=true&rows=20&page=1&sidx=&sord=asc&filters2='.$filterToSend;
+        $extraFieldListToString.'&_force_search=true&rows=20&page=1&origin=load_search&sidx=&sord=desc&filters2='.$filterToSend;
     if (isset($params['search_using_2'])) {
         $url .= '&lang='.$lang;
     }
 } else {
     $url = api_get_path(WEB_AJAX_PATH).'model.ajax.php?a=get_sessions&_search=true&load_extra_field='.
-        $extraFieldListToString.'&_force_search=true&rows=20&page=1&sidx=&sord=asc';
+        $extraFieldListToString.'&_force_search=true&rows=20&page=1&origin=load_search&sidx=&sord=desc';
 }
 
 // Autowidth
@@ -1003,19 +1151,21 @@ $actionLinks = 'function action_formatter(cellvalue, options, rowObject) {
     var id = options.rowId.toString();
     if (sessionList.indexOf(id) == -1) {
         return \'<a href="'.api_get_self(
-    ).'?action=subscribe_user&user_id='.$userToLoad.'&session_id=\'+id+\'">'.Display::return_icon(
-        'add.png',
-        addslashes(get_lang('Subscribe')),
-        '',
-        ICON_SIZE_SMALL
+    ).'?action=subscribe_user&user_id='.$userToLoad.'&session_id=\'+id+\'">'.Display::getMdiIcon(
+        ActionIcon::ADD,
+        'ch-tool-icon',
+        null,
+        ICON_SIZE_SMALL,
+        addslashes(get_lang('Subscribe'))
     ).'</a>'.'\';
     } else {
         return \'<a href="'.api_get_self(
-    ).'?action=unsubscribe_user&user_id='.$userToLoad.'&session_id=\'+id+\'">'.Display::return_icon(
-        'delete.png',
-        addslashes(get_lang('Delete')),
-        '',
-        ICON_SIZE_SMALL
+    ).'?action=unsubscribe_user&user_id='.$userToLoad.'&session_id=\'+id+\'">'.Display::getMdiIcon(
+        ActionIcon::DELETE,
+        'ch-tool-icon',
+        null,
+        ICON_SIZE_SMALL,
+        addslashes(get_lang('Delete'))
     ).'</a>'.'\';
     }
 }';
@@ -1130,6 +1280,9 @@ if ($data) {
 }
 
 $numHours = $total - $sumHours;
+if ($numHours < 0) {
+    $numHours = 0;
+}
 $headers = [
     get_lang('Total Available Hours') => $total,
     get_lang('Sum Hours Sessions Subscribed') => $sumHours,
@@ -1146,15 +1299,16 @@ $button = '';
 $userReportButton = '';
 if ($userToLoad) {
     $button = Display::url(
-        get_lang('Ofaj End Of LearnPath'),
-        api_get_path(WEB_PATH).'resources/messages/new',
-        ['class' => 'btn btn-default']
+        get_lang('Send diagnostic finalization message'),
+        api_get_path(WEB_PATH).'resources/messages/new?'
+            .http_build_query(['send_to_user' => $userToLoad, 'prefill' => 'diagnosticFinalizationMessage']),
+        ['class' => 'btn btn--plain']
     );
     $button .= '<br /><br />';
     $userReportButton = Display::url(
         get_lang('Diagnostic Validate LearningPath'),
-        api_get_path(WEB_CODE_PATH).'mySpace/myStudents.php?student='.$userToLoad,
-        ['class' => 'btn btn-primary']
+        api_get_path(WEB_CODE_PATH).'my_space/myStudents.php?student='.$userToLoad,
+        ['class' => 'btn btn--primary']
     );
 }
 

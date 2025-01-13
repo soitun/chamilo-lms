@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\Component\Utils;
 
+use Chamilo\CoreBundle\Framework\Container;
 use ChamiloSession as Session;
 use Database;
 use DateInterval;
@@ -13,8 +14,9 @@ use DateTime;
 use DateTimeZone;
 use Display;
 use Exception;
-use const PHP_SAPI;
 use Template;
+
+use const PHP_SAPI;
 
 class ChamiloApi
 {
@@ -36,10 +38,7 @@ class ChamiloApi
         return self::$configuration;
     }
 
-    /**
-     * @return bool|string
-     */
-    public static function getConfigurationValue(string $variable)
+    public static function getConfigurationValue(string $variable): mixed
     {
         $configuration = self::getConfigurationArray();
         if (\array_key_exists($variable, $configuration)) {
@@ -51,10 +50,8 @@ class ChamiloApi
 
     /**
      * Returns an array of resolutions that can be used for the conversion of documents to images.
-     *
-     * @return array
      */
-    public static function getDocumentConversionSizes()
+    public static function getDocumentConversionSizes(): array
     {
         return [
             '540x405' => '540x405 (3/4)',
@@ -73,13 +70,18 @@ class ChamiloApi
     /**
      * Get the platform logo path.
      *
-     * @return null|string
+     * @deprecated
+     *
+     * @throws Exception
      */
-    public static function getPlatformLogoPath(string $theme = '', bool $getSysPath = false, bool $forcedGetter = false)
-    {
+    public static function getPlatformLogoPath(
+        string $theme = '',
+        bool $getSysPath = false,
+        bool $forcedGetter = false
+    ): ?string {
         static $logoPath;
 
-        // If call from CLI it should be reload.
+        // If call from CLI it should be reloaded.
         if ('cli' === PHP_SAPI) {
             $logoPath = null;
         }
@@ -94,22 +96,22 @@ class ChamiloApi
                 }
             }
             $themeDir = Template::getThemeDir($theme);
-            $customLogoPath = $themeDir.sprintf('images/header-logo-custom%s.png', $accessUrlId);
+            $customLogoPath = $themeDir.\sprintf('images/header-logo-custom%s.png', $accessUrlId);
 
             $svgIcons = api_get_setting('icons_mode_svg');
             if ('true' === $svgIcons) {
                 $customLogoPathSVG = substr($customLogoPath, 0, -3).'svg';
-                if (file_exists(api_get_path(SYS_PUBLIC_PATH).sprintf('css/%s', $customLogoPathSVG))) {
+                if (file_exists(api_get_path(SYS_PUBLIC_PATH).\sprintf('css/%s', $customLogoPathSVG))) {
                     if ($getSysPath) {
-                        return api_get_path(SYS_PUBLIC_PATH).sprintf('css/%s', $customLogoPathSVG);
+                        return api_get_path(SYS_PUBLIC_PATH).\sprintf('css/%s', $customLogoPathSVG);
                     }
 
                     return api_get_path(WEB_CSS_PATH).$customLogoPathSVG;
                 }
             }
-            if (file_exists(api_get_path(SYS_PUBLIC_PATH).sprintf('css/%s', $customLogoPath))) {
+            if (file_exists(api_get_path(SYS_PUBLIC_PATH).\sprintf('css/%s', $customLogoPath))) {
                 if ($getSysPath) {
-                    return api_get_path(SYS_PUBLIC_PATH).sprintf('css/%s', $customLogoPath);
+                    return api_get_path(SYS_PUBLIC_PATH).\sprintf('css/%s', $customLogoPath);
                 }
 
                 return api_get_path(WEB_CSS_PATH).$customLogoPath;
@@ -143,17 +145,22 @@ class ChamiloApi
     /**
      * Get the platform logo.
      * Return a <img> if the logo image exists.
-     * Otherwise return a <h2> with the institution name.
+     * Otherwise, return a <h2> with the institution name.
      *
-     * @return string
+     * @throws Exception
      */
     public static function getPlatformLogo(
         string $theme = '',
         array $imageAttributes = [],
         bool $getSysPath = false,
         bool $forcedGetter = false
-    ) {
-        $logoPath = self::getPlatformLogoPath($theme, $getSysPath, $forcedGetter);
+    ): string {
+        $logoPath = Container::getThemeHelper()->getThemeAssetUrl('images/header-logo.svg');
+
+        if (empty($logoPath)) {
+            $logoPath = Container::getThemeHelper()->getThemeAssetUrl('images/header-logo.png');
+        }
+
         $institution = api_get_setting('Institution');
         $institutionUrl = api_get_setting('InstitutionUrl');
         $siteName = api_get_setting('siteName');
@@ -199,7 +206,7 @@ class ChamiloApi
      *
      * @return string The original string without the given tags
      */
-    public static function stripGivenTags(string $string, array $tags)
+    public static function stripGivenTags(string $string, array $tags): string
     {
         foreach ($tags as $tag) {
             $string2 = preg_replace('#</\b'.$tag.'\b[^>]*>#i', ' ', $string);
@@ -218,10 +225,13 @@ class ChamiloApi
      * @param string $datetime  Datetime to be modified as accepted by the Datetime class constructor
      * @param bool   $operation True for Add, False to Subtract
      *
-     * @return string
+     * @throws Exception
      */
-    public static function addOrSubTimeToDateTime(string $time, string $datetime = 'now', bool $operation = true)
-    {
+    public static function addOrSubTimeToDateTime(
+        string $time,
+        string $datetime = 'now',
+        bool $operation = true
+    ): string {
         $date = new DateTime($datetime);
         $hours = 0;
         $minutes = 0;
@@ -240,11 +250,11 @@ class ChamiloApi
     /**
      * Returns the course id (integer) for the given course directory or the current ID if no directory is defined.
      *
-     * @param string $directory The course directory/path that appears in the URL
+     * @param string|null $directory The course directory/path that appears in the URL
      *
-     * @return int
+     * @throws Exception
      */
-    public static function getCourseIdByDirectory(string $directory = null)
+    public static function getCourseIdByDirectory(?string $directory = null): int
     {
         if (!empty($directory)) {
             $directory = Database::escape_string($directory);
@@ -271,63 +281,39 @@ class ChamiloApi
 
     /**
      * Check if the current HTTP request is by AJAX.
-     *
-     * @return bool
      */
-    public static function isAjaxRequest()
+    public static function isAjaxRequest(): bool
     {
-        $requestedWith = isset($_SERVER['HTTP_X_REQUESTED_WITH']) ? $_SERVER['HTTP_X_REQUESTED_WITH'] : null;
+        $requestedWith = $_SERVER['HTTP_X_REQUESTED_WITH'] ?? null;
 
         return 'XMLHttpRequest' === $requestedWith;
     }
 
     /**
      * Get a variable name for language file from a text.
-     *
-     * @return string
      */
-    public static function getLanguageVar(string $text, string $prefix = '')
+    public static function getLanguageVar(string $text, string $prefix = ''): string
     {
         $text = api_replace_dangerous_char($text);
         $text = str_replace(['-', ' ', '.'], '_', $text);
-        $text = preg_replace('/\_{1,}/', '_', $text);
-        //$text = str_replace('_', '', $text);
+        $text = preg_replace('/_+/', '_', $text);
+        // $text = str_replace('_', '', $text);
         $text = api_underscore_to_camel_case($text);
 
         return $prefix.$text;
     }
 
     /**
-     * Get the stylesheet path for HTML documents created with CKEditor.
-     *
-     * @return string
-     */
-    public static function getEditorDocStylePath()
-    {
-        $visualTheme = api_get_visual_theme();
-
-        $cssFile = api_get_path(SYS_CSS_PATH).sprintf('themes/%s/document.css', $visualTheme);
-
-        if (is_file($cssFile)) {
-            return api_get_path(WEB_CSS_PATH).sprintf('themes/%s/document.css', $visualTheme);
-        }
-
-        return api_get_path(WEB_CSS_PATH).'document.css';
-    }
-
-    /**
      * Get the stylesheet path for HTML blocks created with CKEditor.
-     *
-     * @return string
      */
-    public static function getEditorBlockStylePath()
+    public static function getEditorBlockStylePath(): string
     {
         $visualTheme = api_get_visual_theme();
 
-        $cssFile = api_get_path(SYS_CSS_PATH).sprintf('themes/%s/editor_content.css', $visualTheme);
+        $cssFile = api_get_path(SYS_CSS_PATH).\sprintf('themes/%s/editor_content.css', $visualTheme);
 
         if (is_file($cssFile)) {
-            return api_get_path(WEB_CSS_PATH).sprintf('themes/%s/editor_content.css', $visualTheme);
+            return api_get_path(WEB_CSS_PATH).\sprintf('themes/%s/editor_content.css', $visualTheme);
         }
 
         return api_get_path(WEB_CSS_PATH).'editor_content.css';
@@ -337,17 +323,17 @@ class ChamiloApi
      * Get a list of colors from the palette at main/palette/pchart/default.color
      * and return it as an array of strings.
      *
-     * @param bool $decimalOpacity Whether to return the opacity as 0..100 or 0..1
-     * @param bool $wrapInRGBA     Whether to return it as 1,1,1,100 or rgba(1,1,1,100)
-     * @param int  $fillUpTo       If the number of colors is smaller than this number, generate more colors
+     * @param bool     $decimalOpacity Whether to return the opacity as 0..100 or 0..1
+     * @param bool     $wrapInRGBA     Whether to return it as 1,1,1,100 or rgba(1,1,1,100)
+     * @param int|null $fillUpTo       If the number of colors is smaller than this number, generate more colors
      *
      * @return array An array of string colors
      */
     public static function getColorPalette(
         bool $decimalOpacity = false,
         bool $wrapInRGBA = false,
-        int $fillUpTo = null
-    ) {
+        ?int $fillUpTo = null
+    ): array {
         // Get the common colors from the palette used for pchart
         $paletteFile = api_get_path(SYS_CODE_PATH).'palettes/pchart/default.color';
         $palette = file($paletteFile);
@@ -356,8 +342,8 @@ class ChamiloApi
             // (0..100) and chartjs uses percentage (0.0..1.0), we need to divide
             // the last value by 100, which is a bit overboard for just one chart
             foreach ($palette as $index => $color) {
-                $components = preg_split('/,/', trim($color));
-                $components[3] = round($components[3] / 100, 1);
+                $components = explode(',', trim($color));
+                $components[3] = round((int) $components[3] / 100, 1);
                 $palette[$index] = implode(',', $components);
             }
         }
@@ -385,10 +371,8 @@ class ChamiloApi
      *                             See api_get_local_time.
      *
      * @throws Exception
-     *
-     * @return DateTime
      */
-    public static function getServerMidnightTime(?string $utcTime = null)
+    public static function getServerMidnightTime(?string $utcTime = null): DateTime
     {
         $localTime = api_get_local_time($utcTime);
         $localTimeZone = api_get_timezone();
@@ -401,10 +385,8 @@ class ChamiloApi
 
     /**
      * Get JavaScript code necessary to load quiz markers-rolls in medialement's Markers Rolls plugin.
-     *
-     * @return string
      */
-    public static function getQuizMarkersRollsJS()
+    public static function getQuizMarkersRollsJS(): string
     {
         $webCodePath = api_get_path(WEB_CODE_PATH);
         $cidReq = api_get_cidreq(true, true, 'embeddable');
@@ -413,7 +395,7 @@ class ChamiloApi
         return "
             var \$originalNode = $(originalNode),
                     qMarkersRolls = \$originalNode.data('q-markersrolls') || [],
-                    qMarkersColor = \$originalNode.data('q-markersrolls-color') || '{$colorPalette[0]}';
+                    qMarkersColor = \$originalNode.data('q-markersrolls-color') || '$colorPalette[0]';
 
                 if (0 == qMarkersRolls.length) {
                     return;
@@ -424,7 +406,7 @@ class ChamiloApi
                 instance.options.markersRolls = {};
 
                 qMarkersRolls.forEach(function (qMarkerRoll) {
-                    var url = '{$webCodePath}exercise/exercise_submit.php?{$cidReq}&'
+                    var url = '{$webCodePath}exercise/exercise_submit.php?$cidReq&'
                         + $.param({
                             exerciseId: qMarkerRoll[1],
                             learnpath_id: 0,
@@ -437,5 +419,23 @@ class ChamiloApi
 
                 instance.buildmarkersrolls(instance, instance.controls, instance.layers, instance.media);
         ";
+    }
+
+    /**
+     * Performs a redirection to the specified URL.
+     *
+     * This method sends a direct HTTP Location header to the client,
+     * causing the browser to navigate to the specified URL. It should be
+     * used with caution and only in scenarios where Symfony's standard
+     * response handling is not applicable. The method terminates script
+     * execution after sending the header.
+     */
+    public static function redirectTo(string $url): void
+    {
+        if (!empty($url)) {
+            header("Location: $url");
+
+            exit;
+        }
     }
 }

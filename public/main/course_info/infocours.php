@@ -4,6 +4,9 @@
 
 use Chamilo\CoreBundle\Framework\Container;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\ToolIcon;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
 
 /**
  * Code to display the course settings form (for the course admin)
@@ -41,7 +44,7 @@ if (!$isAllowToEdit) {
 }
 
 $router = Container::getRouter();
-$translator = Container::getTranslator();
+$translator = Container::$container->get('translator');
 
 $show_delete_watermark_text_message = false;
 if ('true' === api_get_setting('pdf_export_watermark_by_course')) {
@@ -149,7 +152,7 @@ if ('true' === api_get_setting('pdf_export_watermark_by_course')) {
     $form->addText('pdf_export_watermark_text', get_lang('PDF watermark text'), false, ['size' => '60']);
     $form->addElement('file', 'pdf_export_watermark_path', get_lang('Upload a watermark image'));
     if (false != $url) {
-        $delete_url = '<a href="?delete_watermark">'.Display::return_icon('delete.png', get_lang('Remove picture')).'</a>';
+        $delete_url = '<a href="?delete_watermark">'.Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Remove picture')).'</a>';
         $form->addElement(
             'html',
             '<div class="row"><div class="form"><a href="'.$url.'">'.$url.' '.$delete_url.'</a></div></div>'
@@ -197,7 +200,7 @@ $label = $form->addLabel(
     get_lang('Direct link'),
     sprintf(
         get_lang(
-            'If your course is public or open, you can use the direct link below to send an invitation to new users, so after registration, they will be sent directly to the course. Also, you can add the e=1 parameter to the URL, replacing \"1\" by an exercise ID to send them directly to a specific exam. The exercise ID can be discovered in the URL when clicking on an exercise to open it.<br/>%s'
+            'If your course is public or open, you can use the direct link below to send an invitation to new users, so after registration, they will be sent directly to the course. Also, you can add the e=1 parameter to the URL, replacing "1" by an exercise ID to send them directly to a specific exam. The exercise ID can be discovered in the URL when clicking on an exercise to open it.<br/>%s'
         ),
         $url
     ),
@@ -262,12 +265,10 @@ $form->addPanelOption(
     'course_access',
     get_lang('Course access'),
     $elements,
-    'course.png',
-    false,
-    'accordionSettings'
+    ToolIcon::COURSE,
+    false
 );
-/*
-/*
+
 // Documents
 $globalGroup = [];
 if ('true' === api_get_setting('documents_default_visibility_defined_in_course')) {
@@ -289,26 +290,12 @@ if ('true' == api_get_setting('show_default_folders')) {
     $myButton = $form->addButtonSave(get_lang('Save settings'), 'submit_save', true);
 }
 
-$group = [];
-$group[] = $form->createElement(
-    'radio',
-    'enable_document_auto_launch',
-    get_lang('Auto-launch for documents'),
-    get_lang('Redirect to the document list'),
-    1
-);
-$group[] = $form->createElement('radio', 'enable_document_auto_launch', null, get_lang('Deactivate'), 0);
-$globalGroup[get_lang('Auto-launch for documents')] = $group;
-
-$globalGroup[] = $myButton;
-
 $form->addPanelOption(
     'documents',
     get_lang('Documents'),
     $globalGroup,
-    'folder.png',
-    false,
-    'accordionSettings'
+    ToolIcon::DOCUMENT,
+    false
 );
 
 $globalGroup = [];
@@ -317,21 +304,21 @@ $group[] = $form->createElement(
     'radio',
     'email_alert_to_teacher_on_new_user_in_course',
     get_lang('E-mail teacher when a new user auto-subscribes'),
-    get_lang('E-mail teacher when a new user auto-subscribesEnable'),
+    get_lang('Enable'),
     1
 );
 $group[] = $form->createElement(
     'radio',
     'email_alert_to_teacher_on_new_user_in_course',
     null,
-    get_lang('E-mail teacher when a new user auto-subscribesToTeacharAndTutor'),
+    get_lang('To teacher and tutor'),
     2
 );
 $group[] = $form->createElement(
     'radio',
     'email_alert_to_teacher_on_new_user_in_course',
     null,
-    get_lang('E-mail teacher when a new user auto-subscribesDisable'),
+    get_lang('Disable'),
     0
 );
 $globalGroup[get_lang('E-mail teacher when a new user auto-subscribes')] = $group;
@@ -341,21 +328,21 @@ $group[] = $form->createElement(
     'radio',
     'email_alert_students_on_new_homework',
     get_lang('E-mail students on assignment creation'),
-    get_lang('E-mail students on assignment creationEnable'),
+    get_lang('Enable'),
     1
 );
 $group[] = $form->createElement(
     'radio',
     'email_alert_students_on_new_homework',
     null,
-    get_lang('E-mail students on assignment creationToHrmEnable'),
+    get_lang('To HR only'),
     2
 );
 $group[] = $form->createElement(
     'radio',
     'email_alert_students_on_new_homework',
     null,
-    get_lang('E-mail students on assignment creationDisable'),
+    get_lang('Disable'),
     0
 );
 $globalGroup[get_lang('E-mail students on assignment creation')] = $group;
@@ -365,28 +352,28 @@ $group[] = $form->createElement(
     'radio',
     'email_alert_manager_on_new_doc',
     get_lang('E-mail on assignments submission by students'),
-    get_lang('E-mail on assignments submission by studentsActivate'),
+    get_lang('Enable'),
     1
 );
 $group[] = $form->createElement(
     'radio',
     'email_alert_manager_on_new_doc',
     null,
-    get_lang('E-mail on assignments submission by studentsActivateOnlyForTeachers'),
+    get_lang('Only for teachers'),
     3
 );
 $group[] = $form->createElement(
     'radio',
     'email_alert_manager_on_new_doc',
     null,
-    get_lang('E-mail on assignments submission by studentsActivateOnlyForStudents'),
+    get_lang('Only for students'),
     2
 );
 $group[] = $form->createElement(
     'radio',
     'email_alert_manager_on_new_doc',
     null,
-    get_lang('E-mail on assignments submission by studentsDeactivate'),
+    get_lang('Disable'),
     0
 );
 
@@ -397,14 +384,14 @@ $group[] = $form->createElement(
     'radio',
     'email_alert_on_new_doc_dropbox',
     get_lang('E-mail users on dropbox file reception'),
-    get_lang('E-mail users on dropbox file receptionActivate'),
+    get_lang('Enable'),
     1
 );
 $group[] = $form->createElement(
     'radio',
     'email_alert_on_new_doc_dropbox',
     null,
-    get_lang('E-mail users on dropbox file receptionDeactivate'),
+    get_lang('Disable'),
     0
 );
 
@@ -450,9 +437,8 @@ $form->addPanelOption(
     'email-notifications',
     get_lang('E-mail notifications'),
     $globalGroup,
-    'mail.png',
-    false,
-    'accordionSettings'
+    ActionIcon::SEND_MESSAGE,
+    false
 );
 
 $group = [];
@@ -460,14 +446,14 @@ $group[] = $form->createElement(
     'radio',
     'allow_user_edit_agenda',
     get_lang('Allow learners to edit the agenda'),
-    get_lang('Allow learners to edit the agendaActivate'),
+    get_lang('Enable'),
     1
 );
 $group[] = $form->createElement(
     'radio',
     'allow_user_edit_agenda',
     null,
-    get_lang('Allow learners to edit the agendaDeactivate'),
+    get_lang('Disable'),
     0
 );
 
@@ -476,14 +462,14 @@ $group2[] = $form->createElement(
     'radio',
     'allow_user_edit_announcement',
     get_lang('Allow learners to edit announcements'),
-    get_lang('Allow learners to edit announcementsActivate'),
+    get_lang('Enable'),
     1
 );
 $group2[] = $form->createElement(
     'radio',
     'allow_user_edit_announcement',
     null,
-    get_lang('Allow learners to edit announcementsDeactivate'),
+    get_lang('Disable'),
     0
 );
 
@@ -492,14 +478,14 @@ $group3[] = $form->createElement(
     'radio',
     'allow_user_image_forum',
     get_lang('User picture in forum'),
-    get_lang('User picture in forumActivate'),
+    get_lang('Enable'),
     1
 );
 $group3[] = $form->createElement(
     'radio',
     'allow_user_image_forum',
     null,
-    get_lang('User picture in forumDeactivate'),
+    get_lang('Disable'),
     0
 );
 
@@ -508,14 +494,14 @@ $group4[] = $form->createElement(
     'radio',
     'allow_user_view_user_list',
     get_lang('Allow user view user list'),
-    get_lang('Allow user view user listActivate'),
+    get_lang('Enable'),
     1
 );
 $group4[] = $form->createElement(
     'radio',
     'allow_user_view_user_list',
     null,
-    get_lang('Allow user view user listDeactivate'),
+    get_lang('Disable'),
     0
 );
 $myButton = $form->addButtonSave(get_lang('Save settings'), 'submit_save', true);
@@ -532,9 +518,8 @@ $form->addPanelOption(
     'users',
     get_lang('User rights'),
     $globalGroup,
-    'user.png',
-    false,
-    'accordionSettings'
+    ToolIcon::MEMBER,
+    false
 );
 
 // CHAT SETTINGS
@@ -564,30 +549,11 @@ $form->addPanelOption(
     'chat',
     get_lang('Chat settings'),
     $globalGroup,
-    'chat.png',
-    false,
-    'accordionSettings'
+    ToolIcon::CHAT,
+    false
 );
 
 $globalGroup = [];
-$group = [];
-$group[] = $form->createElement(
-    'radio',
-    'enable_lp_auto_launch',
-    get_lang('Enable learning path auto-launch'),
-    get_lang('Redirect to a selected learning path'),
-    1
-);
-$group[] = $form->createElement(
-    'radio',
-    'enable_lp_auto_launch',
-    get_lang('Enable learning path auto-launch'),
-    get_lang('Redirect to the learning paths list'),
-    2
-);
-$group[] = $form->createElement('radio', 'enable_lp_auto_launch', null, get_lang('Deactivate'), 0);
-
-$globalGroup[get_lang('Enable learning path auto-launch')] = $group;
 
 if ('true' === api_get_setting('allow_course_theme')) {
     // Allow theme into Learning path
@@ -596,14 +562,14 @@ if ('true' === api_get_setting('allow_course_theme')) {
         'radio',
         'allow_learning_path_theme',
         get_lang('Enable course themes'),
-        get_lang('Enable course themesAllow'),
+        get_lang('Enable'),
         1
     );
     $group[] = $form->createElement(
         'radio',
         'allow_learning_path_theme',
         null,
-        get_lang('Enable course themesDisallow'),
+        get_lang('Disable'),
         0
     );
 
@@ -638,7 +604,7 @@ if ('true' === $allowLPReturnLink) {
             'radio',
             'lp_return_link',
             null,
-            get_lang('RedirectToPortalHome'),
+            get_lang('Redirect to portal home'),
             3
         ),
     ];
@@ -655,7 +621,7 @@ if ('true' === $exerciseInvisible &&
         $form->createElement(
             'radio',
             'exercise_invisible_in_session',
-            get_lang('TestinvisibleInSession'),
+            get_lang('Test invisible in session'),
             get_lang('Yes'),
             1
         ),
@@ -668,7 +634,7 @@ if ('true' === $exerciseInvisible &&
         ),
     ];
 
-    $globalGroup[get_lang("TestinvisibleInSession")] = $group;
+    $globalGroup[get_lang("Test invisible in session")] = $group;
 }
 
 if ($isEditable) {
@@ -686,54 +652,9 @@ $form->addPanelOption(
     'config_lp',
     get_lang('Learning path settings'),
     $globalGroup,
-    'scorms.png',
-    false,
-    'accordionSettings'
+    ToolIcon::LP,
+    false
 );
-
-if (api_get_configuration_value('allow_exercise_auto_launch')) {
-    $globalGroup = [];
-
-    // Auto launch exercise
-    $group = [];
-    $group[] = $form->createElement(
-        'radio',
-        'enable_exercise_auto_launch',
-        get_lang('Auto-launch for exercises'),
-        get_lang('Redirect to the selected exercise'),
-        1
-    );
-    $group[] = $form->createElement(
-        'radio',
-        'enable_exercise_auto_launch',
-        get_lang('Auto-launch for exercises'),
-        get_lang('Redirect to the exercises list'),
-        2
-    );
-    $group[] = $form->createElement('radio', 'enable_exercise_auto_launch', null, get_lang('Deactivate'), 0);
-
-    $globalGroup[get_lang("Auto-launch for exercises")] = $group;
-
-    if ($isEditable) {
-        $myButton = $form->addButtonSave(get_lang('Save settings'), 'submit_save', true);
-        $globalGroup[] = $myButton;
-    } else {
-        // Is it allowed to edit the course settings?
-        if (!$isEditable) {
-            $disabled_output = "disabled";
-        }
-        $form->freeze();
-    }
-
-    $form->addPanelOption(
-        'config_exercise',
-        get_lang('Test'),
-        $globalGroup,
-        'quiz.png',
-        false,
-        'accordionSettings'
-    );
-}
 
 // START THEMATIC
 $group = [];
@@ -755,7 +676,7 @@ $group[] = $form->createElement(
     'radio',
     'display_info_advance_inside_homecourse',
     null,
-    get_lang('Display information about the next uncompleted topicAndLastDoneAdvance'),
+    get_lang('Display information about the next incomplete and the last completed topic'),
     3
 );
 $group[] = $form->createElement(
@@ -776,9 +697,8 @@ $form->addPanelOption(
     'thematic',
     get_lang('Thematic advance configuration'),
     $globalGroup,
-    'course_progress.png',
-    false,
-    'accordionSettings'
+    ToolIcon::COURSE_PROGRESS,
+    false
 );
 
 if ('true' === api_get_setting('allow_public_certificates')) {
@@ -802,17 +722,12 @@ if ('true' === api_get_setting('allow_public_certificates')) {
         'certificate',
         get_lang('Certificates'),
         $globalGroup,
-        null,
-        false,
-        'accordionSettings'
+        ObjectIcon::CERTIFICATE,
+        false
     );
 }
 
 // Forum settings
-$group = [
-    $form->createElement('radio', 'enable_forum_auto_launch', null, get_lang('Redirect to forums list'), 1),
-    $form->createElement('radio', 'enable_forum_auto_launch', null, get_lang('Disabled'), 2),
-];
 $myButton = $form->addButtonSave(get_lang('Save settings'), 'submit_save', true);
 
 // Forum settings
@@ -827,7 +742,6 @@ $addUsers = [
 ];
 
 $globalGroup = [
-    get_lang('Enable forum auto-launch') => $group,
     get_lang('Hide forum notifications') => $groupNotification,
     get_lang('Subscribe automatically all users to all forum notifications') => $addUsers,
     '' => $myButton,
@@ -837,9 +751,8 @@ $form->addPanelOption(
     'forum',
     get_lang('Forum'),
     $globalGroup,
-    'forum.png',
-    false,
-    'accordionSettings'
+    ToolIcon::FORUM,
+    false
 );
 
 // Student publication
@@ -863,9 +776,85 @@ $form->addPanelOption(
     'student-publication',
     get_lang('Assignments'),
     $globalGroup,
-    'work.png',
-    false,
-    'accordionSettings'
+    ToolIcon::ASSIGNMENT,
+    false
+);
+
+// Auto-launch settings for documents, exercises, learning paths, and forums
+$globalGroup = [];
+$group = [];
+
+// Auto-launch for documents
+$group[] = $form->createElement(
+    'radio',
+    'auto_launch_option',
+    get_lang('Auto-launch for documents'),
+    get_lang('Redirect to the document list'),
+    'enable_document_auto_launch'
+);
+
+// Auto-launch for learning paths
+$group[] = $form->createElement(
+    'radio',
+    'auto_launch_option',
+    get_lang('Enable learning path auto-launch'),
+    get_lang('Redirect to a selected learning path'),
+    'enable_lp_auto_launch'
+);
+$group[] = $form->createElement(
+    'radio',
+    'auto_launch_option',
+    get_lang('Enable learning path auto-launch'),
+    get_lang('Redirect to the learning paths list'),
+    'enable_lp_auto_launch_list'
+);
+
+// Auto-launch for exercises
+$group[] = $form->createElement(
+    'radio',
+    'auto_launch_option',
+    get_lang('Auto-launch for exercises'),
+    get_lang('Redirect to the selected exercise'),
+    'enable_exercise_auto_launch'
+);
+$group[] = $form->createElement(
+    'radio',
+    'auto_launch_option',
+    get_lang('Auto-launch for exercises'),
+    get_lang('Redirect to the exercises list'),
+    'enable_exercise_auto_launch_list'
+);
+
+// Auto-launch for forums
+$group[] = $form->createElement(
+    'radio',
+    'auto_launch_option',
+    get_lang('Auto-launch for forums'),
+    get_lang('Redirect to forums list'),
+    'enable_forum_auto_launch'
+);
+
+// Option to deactivate all auto-launch options
+$group[] = $form->createElement(
+    'radio',
+    'auto_launch_option',
+    get_lang('Disable all auto-launch options'),
+    get_lang('Disable'),
+    'disable_auto_launch'
+);
+
+$myButton = $form->addButtonSave(get_lang('Save settings'), 'submit_save', true);
+$globalGroup = [
+    get_lang('Auto-launch') => $group,
+    '' => $myButton,
+];
+
+$form->addPanelOption(
+    'autolaunch',
+    get_lang('Autolaunch settings'),
+    $globalGroup,
+    ToolIcon::COURSE,
+    false
 );
 
 $button = Display::toolbarButton(
@@ -877,21 +866,6 @@ $button = Display::toolbarButton(
 $html = [
     $form->createElement('html', '<p>'.get_lang('LTI intro tool').'</p>'.$button),
 ];
-
-$form->addPanelOption(
-    'lti_tool',
-    $translator->trans('External tools'),
-    $html,
-    'plugin.png',
-    false,
-    'accordionSettings'
-);*/
-
-// Plugin course settings
-//$appPlugin = new AppPlugin();
-//$appPlugin->add_course_settings_form($form);
-
-//$form->addHtml('</div>');
 
 // Set the default values of the form
 $values = [];
@@ -908,17 +882,40 @@ $values['legal'] = $_course['legal'];
 $values['activate_legal'] = $_course['activate_legal'];
 $values['show_score'] = $_course['show_score'];
 
-/*$courseSettings = CourseManager::getCourseSettingVariables($appPlugin);
+$courseSettings = CourseManager::getCourseSettingVariables();
 foreach ($courseSettings as $setting) {
     $result = api_get_course_setting($setting);
     if ('-1' != $result) {
         $values[$setting] = $result;
     }
-}*/
+}
 // make sure new settings have a clear default value
 if (!isset($values['student_delete_own_publication'])) {
     $values['student_delete_own_publication'] = 0;
 }
+
+$documentAutoLaunch = api_get_course_setting('enable_document_auto_launch');
+$lpAutoLaunch = api_get_course_setting('enable_lp_auto_launch');
+$exerciseAutoLaunch = api_get_course_setting('enable_exercise_auto_launch');
+$forumAutoLaunch = api_get_course_setting('enable_forum_auto_launch');
+
+$defaultAutoLaunchOption = 'disable_auto_launch';
+if ($documentAutoLaunch == 1) {
+    $defaultAutoLaunchOption = 'enable_document_auto_launch';
+} elseif ($lpAutoLaunch == 1) {
+    $defaultAutoLaunchOption = 'enable_lp_auto_launch';
+} elseif ($lpAutoLaunch == 2) {
+    $defaultAutoLaunchOption = 'enable_lp_auto_launch_list';
+} elseif ($exerciseAutoLaunch == 1) {
+    $defaultAutoLaunchOption = 'enable_exercise_auto_launch';
+} elseif ($exerciseAutoLaunch == 2) {
+    $defaultAutoLaunchOption = 'enable_exercise_auto_launch_list';
+} elseif ($forumAutoLaunch == 1) {
+    $defaultAutoLaunchOption = 'enable_forum_auto_launch';
+}
+
+$values['auto_launch_option'] = $defaultAutoLaunchOption;
+
 $form->setDefaults($values);
 
 // Validate form
@@ -930,6 +927,10 @@ if ($form->validate()) {
     $uploadFile = $request->files->get('picture');
 
     if (null !== $uploadFile) {
+        $hasIllustration = $illustrationRepo->hasIllustration($courseEntity);
+        if ($hasIllustration) {
+            $illustrationRepo->deleteIllustration($courseEntity);
+        }
         $file = $illustrationRepo->addIllustration(
             $courseEntity,
             api_get_user_entity(api_get_user_id()),
@@ -955,15 +956,14 @@ if ($form->validate()) {
         $illustrationRepo->deleteIllustration($courseEntity);
     }
 
-    $limitCourses = api_get_configuration_value('hosting_limit_active_courses');
-    if ($limitCourses > 0) {
+    $access_url_id = api_get_current_access_url_id();
+
+    $limitCourses = get_hosting_limit($access_url_id, 'hosting_limit_active_courses');
+    if ($limitCourses !== null && $limitCourses > 0) {
         $courseInfo = api_get_course_info_by_id($courseId);
 
-        // Check if
-        if (COURSE_VISIBILITY_HIDDEN == $courseInfo['visibility'] &&
-            $visibility != $courseInfo['visibility']
-        ) {
-            $num = CourseManager::countActiveCourses($urlId);
+        if (COURSE_VISIBILITY_HIDDEN == $courseInfo['visibility'] && $visibility != $courseInfo['visibility']) {
+            $num = CourseManager::countActiveCourses($access_url_id);
             if ($num >= $limitCourses) {
                 api_warn_hosting_contact('hosting_limit_active_courses');
 
@@ -997,10 +997,37 @@ if ($form->validate()) {
 
     $activeLegal = $updateValues['activate_legal'] ?? 0;
 
-    /*$category = null;
-    if (!empty($updateValues['category_id'])) {
-        $category = $courseCategoryRepo->find($updateValues['category_id']);
-    }*/
+    $autoLaunchOption = $updateValues['auto_launch_option'] ?? 'disable_auto_launch';
+    $updateValues['enable_document_auto_launch'] = 0;
+    $updateValues['enable_lp_auto_launch'] = 0;
+    $updateValues['enable_lp_auto_launch_list'] = 0;
+    $updateValues['enable_exercise_auto_launch'] = 0;
+    $updateValues['enable_exercise_auto_launch_list'] = 0;
+    $updateValues['enable_forum_auto_launch'] = 0;
+
+    switch ($autoLaunchOption) {
+        case 'enable_document_auto_launch':
+            $updateValues['enable_document_auto_launch'] = 1;
+            break;
+        case 'enable_lp_auto_launch':
+            $updateValues['enable_lp_auto_launch'] = 1;
+            break;
+        case 'enable_lp_auto_launch_list':
+            $updateValues['enable_lp_auto_launch'] = 2;
+            break;
+        case 'enable_exercise_auto_launch':
+            $updateValues['enable_exercise_auto_launch'] = 1;
+            break;
+        case 'enable_exercise_auto_launch_list':
+            $updateValues['enable_exercise_auto_launch'] = 2;
+            break;
+        case 'enable_forum_auto_launch':
+            $updateValues['enable_forum_auto_launch'] = 1;
+            break;
+        case 'disable_auto_launch':
+        default:
+            break;
+    }
 
     $courseEntity
         ->setTitle($updateValues['title'])
@@ -1021,15 +1048,14 @@ if ($form->validate()) {
     $em->flush();
 
     // Insert/Updates course_settings table
-    /*foreach ($courseSettings as $setting) {
+    foreach ($courseSettings as $setting) {
         $value = isset($updateValues[$setting]) ? $updateValues[$setting] : null;
         CourseManager::saveCourseConfigurationSetting(
-            $appPlugin,
             $setting,
             $value,
             api_get_course_int_id()
         );
-    }*/
+    }
     // update the extra fields
     $courseFieldValue = new ExtraFieldValue('course');
     $courseFieldValue->saveFieldValues($updateValues, true);

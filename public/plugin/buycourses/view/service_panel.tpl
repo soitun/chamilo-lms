@@ -36,14 +36,14 @@
         <tbody>
         {% for sale in sale_list %}
             <tr class="{{ sale.status == service_sale_statuses.status_cancelled ? 'buy-courses-cross-out' : '' }}">
-                <td>{{ sale.name }}</td>
+                <td>{{ sale.title }}</td>
                 <td class="text-center">{{ sale.service_type }}</td>
                 <td class="text-center">{{ sale.currency ~ ' ' ~ sale.price }}</td>
                 <td class="text-center">{{ sale.date | api_get_local_time }}</td>
                 <td class="text-center">{{ sale.reference }}</td>
                 <td class="text-center">
                     <a id="service_sale_info" tag="{{ sale.id }}" name="s_{{ sale.id }}"
-                       class="btn btn-info btn-sm">{{ 'Info'|get_lang }}</a>
+                       class="btn btn--info btn-sm">{{ 'Info'|get_lang }}</a>
                 </td>
                 </td>
             </tr>
@@ -77,7 +77,7 @@
                         buttons: {
                             main: {
                                 label: "{{ 'Close'|get_lang }}",
-                                className: "btn-default"
+                                className: "btn--plain"
                             }
                         }
                     });

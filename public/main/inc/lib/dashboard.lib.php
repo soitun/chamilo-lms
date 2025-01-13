@@ -103,7 +103,7 @@ class DashboardManager
         echo '</table>';
         echo '<br />';
         echo '<button
-            class="btn btn-default"
+            class="btn btn--plain"
             type="submit"
             name="submit_dashboard_plugins"
             value="'.get_lang('EnableDashboard plugins').'">'.
@@ -242,7 +242,7 @@ class DashboardManager
                             $plugin_controller = Database::escape_string($plugin_info['controller']);
                         }
 
-                        $ins = "INSERT INTO $tbl_block(name, description, path, controller, active)
+                        $ins = "INSERT INTO $tbl_block(title, description, path, controller, active)
                                VALUES ('$plugin_name', '$plugin_description', '$plugin_path', '$plugin_controller', 1)";
                         $result = Database::query($ins);
                         $affected_rows = Database::affected_rows($result);
@@ -309,6 +309,9 @@ class DashboardManager
         $rs_block = Database::query($sql);
         if (Database::num_rows($rs_block) > 0) {
             while ($row_block = Database::fetch_array($rs_block)) {
+                if (!isset($row_block['name'])) {
+                    $row_block['name'] = $row_block['title'];
+                }
                 $block_data[] = $row_block;
             }
         }
@@ -395,7 +398,7 @@ class DashboardManager
                     $html .= '<tr>';
                     // checkboxes
                     $html .= self::display_user_dashboard_list_checkboxes($user_id, $block['id']);
-                    $html .= '<td>'.$block['name'].'</td>';
+                    $html .= '<td>'.$block['title'].'</td>';
                     $html .= '<td>'.$block['description'].'</td>';
                     $html .= '<td>
                             <select class="selectpicker show-tick form-control" name="columns['.$block['id'].']">
@@ -411,13 +414,13 @@ class DashboardManager
 
             $html .= '</table>';
             $html .= '<div class="row"><div class="col-md-12">';
-            $html .= '<button class="btn btn-default" type="submit" name="submit_dashboard_list" value="'.get_lang('Enable dashboard block').'"><em class="fa fa-check-square"></em> '.
+            $html .= '<button class="btn btn--plain" type="submit" name="submit_dashboard_list" value="'.get_lang('Enable dashboard block').'"><em class="fa fa-check-square"></em> '.
                 get_lang('Enable dashboard block').'</button></form>';
             $html .= '</div></div>';
         } else {
             $html .= '<div style="margin-top:20px">'.get_lang('ThereAreNoEnabledDashboard plugins').'</div>';
             if (api_is_platform_admin()) {
-                $html .= '<a class="btn btn-default" href="'.api_get_path(WEB_CODE_PATH).'admin/settings.php?category=Plugins">'.
+                $html .= '<a class="btn btn--plain" href="'.api_get_path(WEB_CODE_PATH).'admin/settings.php?category=Plugins">'.
                     get_lang('Configure Dashboard Plugin').'</a>';
             }
         }

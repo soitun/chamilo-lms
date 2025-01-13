@@ -1,0 +1,147 @@
+@layer base {
+  [type='text'],
+  [type='email'],
+  [type='url'],
+  [type='password'],
+  [type='number'],
+  [type='date'],
+  [type='datetime-local'],
+  [type='month'],
+  [type='search'],
+  [type='tel'],
+  [type='time'],
+  [type='week'],
+  [multiple],
+  textarea,
+  select {
+    @apply focus:ring-0 focus:outline-0;
+  }
+
+  label {
+
+    &:empty {
+      @apply hidden;
+    }
+  }
+}
+
+@layer components {
+  .form {
+    &--search,
+    &--inline {
+      @apply flex-row gap-3 mb-1;
+    }
+
+    &--search {
+      button {
+        @apply flex-none;
+      }
+    }
+
+    &__group {
+      &--inline {
+        @apply flex gap-3;
+      }
+    }
+
+    &__field {
+      @apply flex flex-col gap-2;
+    }
+
+    &__radio-field {
+      @apply flex gap-2 items-center;
+    }
+  }
+}
+
+.field {
+  @apply mb-4;
+
+  > small {
+    @apply text-caption text-primary mt-1;
+  }
+
+  &-group {
+    @apply flex gap-4 flex-wrap mb-4 items-start;
+  }
+
+  &.grid {
+    @apply mt-0;
+  }
+}
+
+.formgrid {
+  &.grid {
+    @apply mt-0;
+  }
+}
+
+.formgroup-inline {
+  @apply flex flex-wrap items-start;
+
+  .field,
+  .field-checkbox,
+  .field-radiobutton {
+    @apply mr-4;
+
+    > label {
+      @apply mr-2 mb-0;
+    }
+  }
+}
+
+.field-checkbox,
+.field-radiobutton {
+  @apply mb-4 flex items-center;
+
+  > label {
+    @apply ml-2 leading-none;
+  }
+}
+
+.p-error {
+  @apply text-error text-caption;
+}
+
+.p-disabled {
+  @apply opacity-60;
+}
+
+.p-float-label {
+  @apply block relative;
+
+  label {
+    @apply absolute top-1/2 -mt-2 pointer-events-none leading-none left-4 text-support-3 bg-transparent transition-all duration-200;
+  }
+
+  &:has(input:focus) label,
+  &:has(input.p-filled) label,
+  &:has(input:-webkit-autofill) label,
+  &:has(textarea:focus) label,
+  &:has(textarea.p-filled) label,
+  &:has(.p-inputwrapper-focus) label,
+  &:has(.p-inputwrapper-filled) label,
+  &:has(.tox.tox-tinymce) label {
+    @apply top-0 left-2 text-caption px-1 bg-white text-primary z-[1];
+  }
+
+  .html-editor-container > div,
+  .tox.tox-tinymce {
+    @apply pt-2 border-support-3 rounded-lg;
+  }
+
+  .p-invalid ~ label {
+    @apply text-error;
+  }
+
+  input:focus,
+  input.p-filled,
+  textarea:focus,
+  textarea.p-filled,
+  .p-inputwrapper-focus,
+  .p-inputwrapper-filled {
+    &.p-invalid ~ label {
+      @apply text-error;
+    }
+  }
+}

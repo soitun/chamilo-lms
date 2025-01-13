@@ -7,114 +7,72 @@ declare(strict_types=1);
 namespace Chamilo\CoreBundle\Entity;
 
 use Chamilo\CoreBundle\Traits\CourseTrait;
-use Chamilo\CoreBundle\Traits\UserTrait;
 use DateTime;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use Symfony\Component\Validator\Constraints as Assert;
 
-/**
- * @ORM\Table(name="gradebook_evaluation",
- *     indexes={
- *         @ORM\Index(name="idx_ge_cat", columns={"category_id"}),
- *     })
- *     @ORM\Entity
- */
+#[ORM\Table(name: 'gradebook_evaluation')]
+#[ORM\Index(name: 'idx_ge_cat', columns: ['category_id'])]
+#[ORM\Entity]
 class GradebookEvaluation
 {
     use CourseTrait;
-    use UserTrait;
 
-    /**
-     * @ORM\Column(name="id", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     */
-    protected int $id;
+    #[ORM\Column(name: 'id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    protected ?int $id = null;
 
-    /**
-     * @ORM\Column(name="name", type="text", nullable=false)
-     */
     #[Assert\NotBlank]
-    protected string $name;
+    #[ORM\Column(name: 'title', type: 'text', nullable: false)]
+    protected string $title;
 
-    /**
-     * @ORM\Column(name="description", type="text", nullable=true)
-     */
+    #[ORM\Column(name: 'description', type: 'text', nullable: true)]
     protected ?string $description = null;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\User", inversedBy="gradeBookEvaluations")
-     * @ORM\JoinColumn(name="user_id", referencedColumnName="id", onDelete="CASCADE")
-     */
-    protected User $user;
-
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\Course", inversedBy="gradebookEvaluations")
-     * @ORM\JoinColumn(name="c_id", referencedColumnName="id", onDelete="CASCADE")
-     */
+    #[ORM\ManyToOne(targetEntity: Course::class, inversedBy: 'gradebookEvaluations')]
+    #[ORM\JoinColumn(name: 'c_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
     protected Course $course;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\GradebookCategory", inversedBy="evaluations")
-     * @ORM\JoinColumn(name="category_id", referencedColumnName="id", onDelete="CASCADE")
-     */
+    #[ORM\ManyToOne(targetEntity: GradebookCategory::class, inversedBy: 'evaluations')]
+    #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
     protected GradebookCategory $category;
 
-    /**
-     * @Gedmo\Timestampable(on="create")
-     * @ORM\Column(name="created_at", type="datetime", nullable=false)
-     */
+    #[Gedmo\Timestampable(on: 'create')]
+    #[ORM\Column(name: 'created_at', type: 'datetime', nullable: false)]
     protected DateTime $createdAt;
 
-    /**
-     * @ORM\Column(name="weight", type="float", precision=10, scale=0, nullable=false)
-     */
     #[Assert\NotBlank]
+    #[ORM\Column(name: 'weight', type: 'float', precision: 10, scale: 0, nullable: false)]
     protected float $weight;
 
-    /**
-     * @ORM\Column(name="max", type="float", precision=10, scale=0, nullable=false)
-     */
     #[Assert\NotBlank]
+    #[ORM\Column(name: 'max', type: 'float', precision: 10, scale: 0, nullable: false)]
     protected float $max;
 
-    /**
-     * @ORM\Column(name="visible", type="integer", nullable=false)
-     */
     #[Assert\NotBlank]
+    #[ORM\Column(name: 'visible', type: 'integer', nullable: false)]
     protected int $visible;
 
-    /**
-     * @ORM\Column(name="type", type="string", length=40, nullable=false)
-     */
     #[Assert\NotBlank]
+    #[ORM\Column(name: 'type', type: 'string', length: 40, nullable: false)]
     protected string $type;
 
-    /**
-     * @ORM\Column(name="locked", type="integer", nullable=false)
-     */
     #[Assert\NotBlank]
+    #[ORM\Column(name: 'locked', type: 'integer', nullable: false)]
     protected int $locked;
 
-    /**
-     * @ORM\Column(name="best_score", type="float", precision=6, scale=2, nullable=true)
-     */
+    #[ORM\Column(name: 'best_score', type: 'float', precision: 6, scale: 2, nullable: true)]
     protected ?float $bestScore = null;
 
-    /**
-     * @ORM\Column(name="average_score", type="float", precision=6, scale=2, nullable=true)
-     */
+    #[ORM\Column(name: 'average_score', type: 'float', precision: 6, scale: 2, nullable: true)]
     protected ?float $averageScore = null;
 
-    /**
-     * @ORM\Column(name="score_weight", type="float", precision=6, scale=2, nullable=true)
-     */
+    #[ORM\Column(name: 'score_weight', type: 'float', precision: 6, scale: 2, nullable: true)]
     protected ?float $scoreWeight = null;
 
-    /**
-     * @ORM\Column(name="user_score_list", type="array", nullable=true)
-     */
+    #[ORM\Column(name: 'user_score_list', type: 'array', nullable: true)]
     protected ?array $userScoreList = null;
 
     public function __construct()
@@ -123,21 +81,21 @@ class GradebookEvaluation
         $this->visible = 1;
     }
 
-    public function setName(string $name): self
+    public function setTitle(string $title): self
     {
-        $this->name = $name;
+        $this->title = $title;
 
         return $this;
     }
 
     /**
-     * Get name.
+     * Get title.
      *
      * @return string
      */
-    public function getName()
+    public function getTitle()
     {
-        return $this->name;
+        return $this->title;
     }
 
     public function setDescription(?string $description): self

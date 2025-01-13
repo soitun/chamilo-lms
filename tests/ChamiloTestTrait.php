@@ -11,11 +11,18 @@ use Chamilo\CoreBundle\Repository\Node\AccessUrlRepository;
 use Chamilo\CoreBundle\Repository\Node\CourseRepository;
 use Chamilo\CoreBundle\Repository\Node\UserRepository;
 use Chamilo\CoreBundle\Repository\SessionRepository;
+use Chamilo\CoreBundle\ServiceHelper\ContainerHelper;
 use Chamilo\CourseBundle\Entity\CGroup;
 use Doctrine\ORM\EntityManager;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpFoundation\Session\Session as SymfonySession;
+use Symfony\Component\HttpFoundation\Session\Storage\MockFileSessionStorage;
 use Symfony\Component\Validator\ConstraintViolationList;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
+
 
 trait ChamiloTestTrait
 {
@@ -55,6 +62,7 @@ trait ChamiloTestTrait
     }
     public function createCourse(string $title): ?Course
     {
+        /* @var CourseRepository $repo */
         $repo = static::getContainer()->get(CourseRepository::class);
         $course = (new Course())
             ->setTitle($title)
@@ -73,7 +81,7 @@ trait ChamiloTestTrait
         $repo = static::getContainer()->get(SessionRepository::class);
 
         $session = (new Session())
-            ->setName($title)
+            ->setTitle($title)
             ->addGeneralCoach($this->getUser('admin'))
             ->addAccessUrl($this->getAccessUrl())
         ;
@@ -87,7 +95,7 @@ trait ChamiloTestTrait
         $em = $this->getEntityManager();
 
         $group = (new CGroup())
-            ->setName($title)
+            ->setTitle($title)
             ->setParent($course)
             ->setCreator($this->getUser('admin'))
             ->setMaxStudent(100)
@@ -104,7 +112,7 @@ trait ChamiloTestTrait
         $creator = $this->createUser('usergroup_creator');
 
         $group = (new Usergroup())
-            ->setName($title)
+            ->setTitle($title)
             ->setDescription('desc')
             ->setCreator($creator)
             ->addAccessUrl($this->getAccessUrl())
@@ -202,8 +210,10 @@ trait ChamiloTestTrait
 
     public function getViolations($entity)
     {
-        /** @var ValidatorInterface $validator */
-        $validator = static::$kernel->getContainer()->get('validator');
+        /** @var ContainerHelper $containerHelper */
+        $containerHelper = static::$kernel->getContainer()->get(ContainerHelper::class);
+
+        $validator = $containerHelper->getValidator();
 
         /** @var ConstraintViolationList $errors */
         return $validator->validate($entity);
@@ -218,4 +228,45 @@ trait ChamiloTestTrait
     {
         return static::getContainer()->get('doctrine')->getManager();
     }
+
+    /**
+     * Helper to mock a request stack with a given current request.
+     *
+     * Builds a request based on parameters, and adds it to the returned
+     * request stack.
+     *
+     * @param array $data
+     *   A map where keys can be the following:
+     *   - <request_parameter>: A parameter following symfony http foundation
+     *   Request constructor.
+     *   - 'session': and array with session data to set.
+     *
+     * @see \Symfony\Component\HttpFoundation\Request::__construct()
+     */
+    public function getMockedRequestStack(array $data = []) : RequestStack
+    {
+        $request_keys = ['query', 'request', 'attributes', 'cookies', 'files', 'server', 'content'];
+        $request_parameters = [];
+        foreach ($request_keys as $request_key) {
+            $request_parameter_default = ($request_key == 'content') ? null : [];
+            $request_parameter = !empty($data[$request_key]) ? $data[$request_key] : $request_parameter_default;
+            $request_parameters[] = $request_parameter;
+        }
+        $request = new Request();
+        call_user_func_array(array($request, 'initialize'), $request_parameters);
+        if (!empty($data['session'])) {
+            $session = new SymfonySession(new MockFileSessionStorage);
+            foreach ($data['session'] as $session_key => $session_value) {
+                $session->set($session_key, $session_value);
+            }
+            $request->setSession($session);
+        }
+        $request_stack = $this->createMock(RequestStack::class);
+        $request_stack
+            ->method('getCurrentRequest')
+            ->willReturn($request)
+        ;
+        return $request_stack;
+    }
+
 }

@@ -3,7 +3,12 @@
 /* For licensing terms, see /license.txt */
 
 use Chamilo\CoreBundle\Framework\Container;
+use Chamilo\CourseBundle\Entity\CQuizCategory;
 use ChamiloSession as Session;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\ToolIcon;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
+use Chamilo\CoreBundle\Component\Utils\StateIcon;
 
 require_once __DIR__.'/../global.inc.php';
 
@@ -11,6 +16,8 @@ require_once __DIR__.'/../global.inc.php';
 $action = $_GET['a'];
 $page = (int) $_REQUEST['page']; //page
 $limit = (int) $_REQUEST['rows']; //quantity of rows
+$cid = isset($_REQUEST['cid']) ? (int) $_REQUEST['cid'] : null;
+$sid = isset($_REQUEST['sid']) ? (int) $_REQUEST['sid'] : null;
 
 // Makes max row persistence after refreshing the grid
 $savedRows = Session::read('max_rows_'.$action);
@@ -285,6 +292,7 @@ if (($search || $forceSearch) && ('false' !== $search)) {
 if (!$sidx) {
     $sidx = 1;
 }
+$options = [];
 
 //2. Selecting the count FIRST
 //@todo rework this
@@ -292,7 +300,7 @@ if (!$sidx) {
 switch ($action) {
     case 'get_exercise_categories':
         $courseId = isset($_REQUEST['c_id']) ? $_REQUEST['c_id'] : 0;
-        $repo = Container::getExerciseCategoryRepository();
+        $repo = Container::getQuizCategoryRepository();
         $qb = $repo->getResourcesByCourse(api_get_course_entity($courseId));
         $count = $qb->select('COUNT(resource)')->getQuery()->getSingleScalarResult();
 
@@ -545,7 +553,7 @@ switch ($action) {
         $count = $skill->getUserListSkillRankingCount();
         break;
     case 'get_course_announcements':
-        $count = AnnouncementManager::getNumberAnnouncements();
+        $count = AnnouncementManager::getNumberAnnouncements($cid, $sid);
         break;
     case 'get_work_teacher':
         $count = getWorkListTeacher(0, $limit, null, null, $whereCondition, true);
@@ -816,8 +824,13 @@ switch ($action) {
             }
         }
 
-        if ('custom' === $listType && api_get_configuration_value('allow_session_status')) {
-            $whereCondition .= ' AND (s.status IN ("'.SessionManager::STATUS_PLANNED.'", "'.SessionManager::STATUS_PROGRESS.'") ) ';
+        if (isset($filters->filter_status)) {
+            $sStatus = (int) $filters->filter_status;
+            $whereCondition .= ' AND s.status = '.$sStatus;
+        } else {
+            if ($listType === 'custom') {
+                $whereCondition .= ' AND (s.status IN ("'.SessionManager::STATUS_PLANNED.'", "'.SessionManager::STATUS_PROGRESS.'") ) ';
+            }
         }
 
         switch ($listType) {
@@ -835,7 +848,8 @@ switch ($action) {
                     [],
                     $listType,
                     $extraFieldsToLoad,
-                    $search
+                    $search,
+                    $language
                 );
                 break;
             case 'active':
@@ -969,7 +983,7 @@ switch ($action) {
                     $options['where'] = [' (session_id IS NULL OR session_id != ?) ' => $sessionId];
                 }
                 if (!empty($keyword)) {
-                    $options['where']['AND name like %?% '] = $keyword;
+                    $options['where']['AND title like %?% '] = $keyword;
                 }
                 $count = $obj->getUserGroupNotInCourse(
                     $options,
@@ -1023,37 +1037,27 @@ $columns = [];
 
 switch ($action) {
     case 'get_exercise_categories':
-        api_protect_course_script();
-        if (!api_is_allowed_to_edit()) {
-            api_not_allowed(true);
-        }
-
         $columns = ['name', 'actions'];
         $qb = $repo->getResourcesByCourse(api_get_course_entity($courseId));
         $items = $qb->getQuery()->getResult();
-        /** @var \Chamilo\CourseBundle\Entity\CExerciseCategory $item */
+        /** @var CQuizCategory $item */
         $result = [];
         foreach ($items as $item) {
             $result[] = [
                 'id' => $item->getId(),
-                'name' => $item->getName(),
+                'name' => $item->getTitle(),
             ];
         }
-        /*$result = $manager->get_all([
-            'where' => ['c_id = ? ' => $courseId],
-            'order' => "$sidx $sord",
-            'LIMIT' => "$start , $limit",
-        ]);*/
         break;
     case 'get_calendar_users':
         $columns = ['firstname', 'lastname', 'exam'];
         $result = $calendarPlugin->getUsersPerCalendar($id);
         break;
     case 'get_usergroups_users':
-        $columns = ['name', 'actions'];
+        $columns = ['title', 'actions'];
         if ('true' === api_get_plugin_setting('learning_calendar', 'enabled')) {
             $columns = [
-                'name',
+                'title',
                 'calendar',
                 'gradebook_items',
                 'time_spent',
@@ -1369,13 +1373,8 @@ switch ($action) {
         $result = AnnouncementManager::getAnnouncements(
             null,
             null,
-            false,
-            $start,
-            $limit,
-            $sidx,
-            $sord,
-            $titleToSearch,
-            $userIdToSearch
+            $cid,
+            $sid
         );
 
         break;
@@ -1439,7 +1438,7 @@ switch ($action) {
         break;
     case 'get_work_user_list_all':
         $plagiarismColumns = [];
-        if (api_get_configuration_value('allow_compilatio_tool')) {
+        if (('true' === api_get_setting('document.allow_compilatio_tool'))) {
             $plagiarismColumns = ['compilatio'];
         }
         if (isset($_GET['type']) && 'simple' === $_GET['type']) {
@@ -1484,7 +1483,7 @@ switch ($action) {
             exit;
         }
         $plagiarismColumns = [];
-        if (api_get_configuration_value('allow_compilatio_tool')) {
+        if (('true' === api_get_setting('document.allow_compilatio_tool'))) {
             $plagiarismColumns = ['compilatio'];
         }
         $columns = [
@@ -1513,7 +1512,7 @@ switch ($action) {
         break;
     case 'get_work_user_list_others':
         $plagiarismColumns = [];
-        if (api_get_configuration_value('allow_compilatio_tool')) {
+        if (('true' === api_get_setting('document.allow_compilatio_tool'))) {
             $plagiarismColumns = ['compilatio'];
         }
 
@@ -1553,7 +1552,7 @@ switch ($action) {
         break;
     case 'get_work_user_list':
         $plagiarismColumns = [];
-        if (api_get_configuration_value('allow_compilatio_tool') && api_is_allowed_to_edit()) {
+        if (('true' === api_get_setting('document.allow_compilatio_tool')) && api_is_allowed_to_edit()) {
             $plagiarismColumns = ['compilatio'];
         }
         if (isset($_GET['type']) && 'simple' == $_GET['type']) {
@@ -1687,8 +1686,8 @@ switch ($action) {
             'username',
         ];
         $extraFieldsToAdd = [];
-        $extraFields = api_get_configuration_value('exercise_category_report_user_extra_fields');
-        $roundValues = api_get_configuration_value('exercise_category_round_score_in_export');
+        $extraFields = api_get_setting('exercise.exercise_category_report_user_extra_fields', true);
+        $roundValues = ('true' === api_get_setting('exercise.exercise_category_round_score_in_export'));
 
         if (!empty($extraFields) && isset($extraFields['fields'])) {
             $extraField = new ExtraField('user');
@@ -1804,7 +1803,7 @@ switch ($action) {
 
         if (api_is_drh()) {
             $orderByName = Database::escape_string($sidx);
-            $orderByName = in_array($orderByName, ['name', 'access_start_date']) ? $orderByName : 'name';
+            $orderByName = in_array($orderByName, ['title', 'access_start_date']) ? $orderByName : 'title';
             $orderBy = " ORDER BY $orderByName $sord";
             $sessions = SessionManager::get_sessions_followed_by_drh(
                 api_get_user_id(),
@@ -1820,7 +1819,7 @@ switch ($action) {
             );
         } elseif (api_is_session_admin()) {
             $orderByName = Database::escape_string($sidx);
-            $orderByName = in_array($orderByName, ['name', 'access_start_date']) ? $orderByName : 'name';
+            $orderByName = in_array($orderByName, ['title', 'access_start_date']) ? $orderByName : 'title';
             $orderBy = " ORDER BY $orderByName $sord";
             $sessions = SessionManager::getSessionsFollowedByUser(
                 api_get_user_id(),
@@ -1836,7 +1835,7 @@ switch ($action) {
                 ['where' => $whereCondition, 'extra' => $extra_fields]
             );
         } else {
-            $sidx = in_array($sidx, $columns) ? $sidx : 'name';
+            $sidx = in_array($sidx, $columns) ? $sidx : 'title';
             // Sessions for the coach
             $sessions = Tracking::get_sessions_coached_by_user(
                 api_get_user_id(),
@@ -1853,7 +1852,13 @@ switch ($action) {
 
         $result = [];
         if (!empty($sessions)) {
-            $pdfIcon = Display::return_icon('pdf.png', get_lang('CertificateOfAchievement'), [], ICON_SIZE_SMALL);
+            $pdfIcon = Display::getMdiIcon(
+                ActionIcon::EXPORT_PDF,
+                'ch-tool-icon',
+                null,
+                ICON_SIZE_SMALL,
+                get_lang('CertificateOfAchievement')
+            );
             foreach ($sessions as $session) {
                 $sessionEntity = api_get_session_entity($session['id']);
                 if (api_drh_can_access_all_session_content()) {
@@ -1884,7 +1889,7 @@ switch ($action) {
                 $detailButtons = [];
                 $detailButtons[] = Display::url(
                     $pdfIcon,
-                    api_get_path(WEB_CODE_PATH).'mySpace/session.php?'
+                    api_get_path(WEB_CODE_PATH).'my_space/session.php?'
                     .http_build_query(
                         [
                             'action' => 'export_to_pdf',
@@ -1896,18 +1901,18 @@ switch ($action) {
                     ['target' => '_blank']
                 );
                 $detailButtons[] = Display::url(
-                    Display::return_icon('works.png', get_lang('WorksReport')),
-                    api_get_path(WEB_CODE_PATH).'mySpace/works_in_session_report.php?session='.$session['id']
+                    Display::getMdiIcon(ObjectIcon::ASSIGNMENT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('WorksReport')),
+                    api_get_path(WEB_CODE_PATH).'my_space/works_in_session_report.php?session='.$session['id']
                 );
                 $detailButtons[] = Display::url(
-                    Display::return_icon('2rightarrow.png'),
-                    api_get_path(WEB_CODE_PATH).'mySpace/course.php?sid='.$session['id']
+                    Display::getMdiIcon(ActionIcon::VIEW_DETAILS, 'ch-tool-icon', null, ICON_SIZE_SMALL,),
+                    api_get_path(WEB_CODE_PATH).'my_space/course.php?sid='.$session['id']
                 );
 
                 $item = [
                     'name' => Display::url(
-                        $session['name'],
-                        api_get_path(WEB_CODE_PATH).'mySpace/course.php?sid='.$session['id']
+                        $session['title'],
+                        api_get_path(WEB_CODE_PATH).'my_space/course.php?sid='.$session['id']
                     ),
                     'date' => $dateToString,
                     'course_per_session' => $count_courses_in_session,
@@ -1939,13 +1944,36 @@ switch ($action) {
             }
         }
 
-        $sidx = in_array($sidx, $columns) ? $sidx : 'name';
+        if (isset($_REQUEST['origin'] ) &&  'load_search' === $_REQUEST['origin']) {
+            if (!in_array($sidx, $columns)) {
+                $sidx = 'display_start_date';
+                $sord = 'DESC';
+            }
+        } else {
+            $sidx = in_array($sidx, $columns) ? $sidx : 'title';
+        }
+        $orderBy = "$sidx $sord, s.title";
+        $limit = 20;
+        $total_pages = 0;
+        if ($count > 0) {
+            if (!empty($limit)) {
+                $total_pages = ceil((float) $count / (float) $limit);
+            }
+        }
+        if ($page > $total_pages) {
+            $page = $total_pages;
+        }
+
+        $start = $limit * $page - $limit;
+        if ($start < 0) {
+            $start = 0;
+        }
         switch ($listType) {
             case 'complete':
                 $result = SessionManager::get_sessions_admin_complete(
                     [
                         'where' => $whereCondition,
-                        'order' => "$sidx $sord, s.name",
+                        'order' => $orderBy,
                         'extra' => $extra_fields,
                         'limit' => "$start , $limit",
                     ]
@@ -1953,11 +1981,12 @@ switch ($action) {
                 break;
             case 'custom':
             case 'simple':
+            case 'all':
                 $result = SessionManager::getSessionsForAdmin(
                     api_get_user_id(),
                     [
                         'where' => $whereCondition,
-                        'order' => "$sidx $sord, s.name",
+                        'order' => $orderBy,
                         'extra' => $extra_fields,
                         'limit' => "$start , $limit",
                     ],
@@ -1965,16 +1994,16 @@ switch ($action) {
                     $sessionColumns,
                     $listType,
                     $extraFieldsToLoad,
-                    $search
+                    $search,
+                    $language
                 );
                 break;
             case 'active':
             case 'close':
-            case 'all':
                 $result = SessionManager::formatSessionsAdminForGrid(
                     [
                         'where' => $whereCondition,
-                        'order' => "s.access_start_date, s.name",
+                        'order' => $orderBy,
                         'extra' => $extra_fields,
                         'limit' => "$start , $limit",
                     ],
@@ -2024,6 +2053,8 @@ switch ($action) {
         break;
     case 'get_session_lp_progress':
         $sessionId = 0;
+        $date_from = $_GET['date_from'];
+        $date_to = $_GET['date_to'];
         if (!empty($_GET['session_id']) && !empty($_GET['course_id'])) {
             $sessionId = (int) $_GET['session_id'];
             $courseId = (int) $_GET['course_id'];
@@ -2227,19 +2258,21 @@ switch ($action) {
             );
 
             if (!empty($item['certif_min_score']) && !empty($item['document_id'])) {
-                $item['certificates'] = Display::return_icon(
-                    'accept.png',
-                    get_lang('With Certificate'),
-                    [],
-                    ICON_SIZE_SMALL
+                $item['certificates'] = Display::getMdiIcon(
+                    StateIcon::COMPLETE,
+                    'ch-tool-icon',
+                    null,
+                    ICON_SIZE_SMALL,
+                    get_lang('With Certificate')
                 );
                 $item['has_certificates'] = '1';
             } else {
-                $item['certificates'] = Display::return_icon(
-                    'warning.png',
-                    get_lang('No certificate'),
-                    [],
-                    ICON_SIZE_SMALL
+                $item['certificates'] = Display::getMdiIcon(
+                    StateIcon::WARNING,
+                    'ch-tool-icon',
+                    null,
+                    ICON_SIZE_SMALL,
+                    get_lang('No certificate')
                 );
                 $item['has_certificates'] = '0';
             }
@@ -2280,7 +2313,7 @@ switch ($action) {
         }
 
         $result = Database::select(
-            'p.id,p.name, p.description, c.name as career, p.status',
+            'p.id,p.name, p.description, c.title as career, p.status',
             "$obj->table p LEFT JOIN ".Database::get_main_table(TABLE_CAREER)." c  ON c.id = p.career_id ",
             ['order' => "$sidx $sord", 'LIMIT' => "$start , $limit"]
         );
@@ -2295,13 +2328,13 @@ switch ($action) {
         $result = $new_result;
         break;
     case 'get_mail_template':
-        $columns = ['name', 'type', 'default_template', 'actions'];
+        $columns = ['title', 'type', 'default_template', 'actions'];
         if (!in_array($sidx, $columns)) {
-            $sidx = 'name';
+            $sidx = 'title';
         }
 
         if (!in_array($sidx, $columns)) {
-            $sidx = 'name';
+            $sidx = 'title';
         }
 
         $result = Database::select(
@@ -2338,8 +2371,8 @@ switch ($action) {
         break;
     case 'get_usergroups':
         $obj->protectScript();
-        $columns = ['name', 'users', 'courses', 'sessions', 'group_type', 'actions'];
-        $sidx = in_array($sidx, $columns) ? $sidx : 'name';
+        $columns = ['title', 'users', 'courses', 'sessions', 'group_type', 'actions'];
+        $sidx = in_array($sidx, $columns) ? $sidx : 'title';
         $result = $obj->getUsergroupsPagination($sidx, $sord, $start, $limit, $whereCondition);
         break;
     case 'get_extra_fields':
@@ -2347,33 +2380,47 @@ switch ($action) {
         $columns = [
             'display_text',
             'variable',
-            'field_type',
+            'value_type',
             'changeable',
             'visible_to_self',
             'visible_to_others',
             'filter',
             'field_order',
         ];
+
+        if ($type === 'user') {
+            $columns[] = 'auto_remove';
+        }
         $sidx = in_array($sidx, $columns) ? $sidx : 'display_text';
         $result = $obj->getAllGrid($sidx, $sord, $start, $limit);
         $new_result = [];
         if (!empty($result)) {
-            $checkIcon = Display::return_icon(
-                'check-circle.png',
+            $checkIcon = Display::getMdiIcon(
+                ActionIcon::ACCEPT,
+                'ch-tool-icon',
+                null,
+                ICON_SIZE_SMALL,
                 get_lang('Yes')
             );
-            $timesIcon = Display::return_icon(
-                'closed-circle.png',
+            $timesIcon = Display::getMdiIcon(
+                ActionIcon::REJECT,
+                'ch-tool-icon',
+                null,
+                ICON_SIZE_SMALL,
                 get_lang('No')
             );
             foreach ($result as $item) {
-                $item['display_text'] = $item['displayText'];
-                $item['field_type'] = $obj->get_field_type_by_id($item['fieldType']);
-                $item['changeable'] = $item['changeable'] ? $checkIcon : $timesIcon;
-                $item['visible_to_self'] = $item['visibleToSelf'] ? $checkIcon : $timesIcon;
-                $item['visible_to_others'] = $item['visibleToOthers'] ? $checkIcon : $timesIcon;
-                $item['filter'] = $item['filter'] ? $checkIcon : $timesIcon;
-                $new_result[] = $item;
+                $new_result[] = [
+                    'id' => $item->getId(),
+                    'variable' => $item->getVariable(),
+                    'display_text' => $item->getDisplayText(),
+                    'value_type' => $obj->get_field_type_by_id($item->getValueType()),
+                    'changeable' => $item->isChangeable() ? $checkIcon : $timesIcon,
+                    'visible_to_self' => $item->isVisibleToSelf() ? $checkIcon : $timesIcon,
+                    'visible_to_others' => $item->isVisibleToOthers() ? $checkIcon : $timesIcon,
+                    'filter' => $item->isFilter() ? $checkIcon : $timesIcon,
+                    'auto_remove' => $item->getAutoRemove() ? $checkIcon : $timesIcon,
+                ];
             }
             $result = $new_result;
         }
@@ -2490,8 +2537,8 @@ switch ($action) {
         ]);
         break;
     case 'get_usergroups_teacher':
-        $columns = ['name', 'users', 'status', 'group_type', 'actions'];
-        $options['order'] = "name $sord";
+        $columns = ['title', 'users', 'status', 'group_type', 'actions'];
+        $options['order'] = "title $sord";
         $options['limit'] = "$start , $limit";
         $options['session_id'] = $sessionId;
         switch ($type) {
@@ -2502,7 +2549,7 @@ switch ($action) {
                     $options['where'] = [' (session_id IS NULL OR session_id != ?) ' => $sessionId];
                 }
                 if (!empty($keyword)) {
-                    $options['where']['AND name like %?% '] = $keyword;
+                    $options['where']['AND title like %?% '] = $keyword;
                 }
                 $result = $obj->getUserGroupNotInCourse(
                     $options,
@@ -2537,11 +2584,11 @@ switch ($action) {
                 )) {
                     $url = 'class.php?action=remove_class_from_course&id='.$group['id'].'&'.api_get_cidreq(
                         ).'&id_session='.api_get_session_id();
-                    $icon = Display::return_icon('delete.png', get_lang('Remove'));
+                    $icon = Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Remove'));
                 } else {
                     $url = 'class.php?action=add_class_to_course&id='.$group['id'].'&'.api_get_cidreq(
                         ).'&type=not_registered';
-                    $icon = Display::return_icon('add.png', get_lang('Add'));
+                    $icon = Display::getMdiIcon(ActionIcon::ADD, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Add'));
                 }
 
                 switch ($group['group_type']) {
@@ -2560,7 +2607,7 @@ switch ($action) {
                 if ($isAllow) {
                     if ($obj->allowTeachers() && $group['author_id'] == $currentUserId) {
                         $group['actions'] .= Display::url(
-                                Display::return_icon('statistics.png', get_lang('Statistics')),
+                                Display::getMdiIcon(ToolIcon::TRACKING, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Statistics')),
                                 $urlUserGroup.'&id='.$group['id']
                             ).'&nbsp;';
                     }

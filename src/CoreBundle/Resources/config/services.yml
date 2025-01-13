@@ -5,6 +5,9 @@ services:
         public: true
         autoconfigure: true
 
+    csrf.token_manager:
+        class: Symfony\Component\Security\Csrf\CsrfTokenManager
+
     chamilo_core.translation.loader.po:
         class: Symfony\Component\Translation\Loader\PoFileLoader
         tags:
@@ -12,29 +15,19 @@ services:
 
     Chamilo\CoreBundle\:
         resource: '../../*'
-        exclude: '../../{Repository,Component,DependencyInjection,EventListener,Form/DataTransformer/ResourceToIdentifierTransformer.php,Framework,Migrations,Settings,ChamiloCoreBundle.php,Entity}'
+        exclude: '../../{Repository,Component,DependencyInjection,EventListener,Form/DataTransformer/ResourceToIdentifierTransformer.php,Framework,Migrations,Settings,ChamiloCoreBundle.php,Entity,ApiResource}'
         public: true
 
     Doctrine\Migrations\Version\DbalMigrationFactory: ~
     Chamilo\CoreBundle\Migrations\MigrationFactory:
         decorates: Doctrine\Migrations\Version\DbalMigrationFactory
-        arguments: ['@Chamilo\CoreBundle\Migrations\MigrationFactory.inner', '@service_container']
+        arguments: ['@Chamilo\CoreBundle\Migrations\MigrationFactory.inner', '@service_container', '@doctrine.orm.entity_manager']
 
     Chamilo\CoreBundle\Controller\:
         resource: '../../Controller'
         tags: ['controller.service_arguments']
 
     Chamilo\CoreBundle\Hook\HookFactory: ~
-
-    Chamilo\CoreBundle\Controller\ResourceController:
-        arguments:
-            - '@Chamilo\CoreBundle\Repository\ResourceFactory'
-
-    Chamilo\CoreBundle\DataPersister\MessageDataPersister:
-        arguments: ['@api_platform.doctrine.orm.data_persister']
-
-    Chamilo\CoreBundle\DataPersister\UserRelUserDataPersister:
-        arguments: ['@api_platform.doctrine.orm.data_persister']
 
     # Form types
     # Custom yes/no form type, use in the platform settings
@@ -45,7 +38,19 @@ services:
     Chamilo\CoreBundle\Component\Editor\CkEditor\CkEditor:
         arguments: ['@translator', '@router']
 
-    Chamilo\CoreBundle\Component\Utils\AssetDirectoryNamer: ~
+    Chamilo\CoreBundle\Component\Utils\AssetDirectoryNamer:
+      arguments:
+        - '@property_accessor'
+        - '@Chamilo\CoreBundle\Repository\AssetRepository'
+        - '@request_stack'
+
+    Chamilo\CoreBundle\Component\Utils\AssetFileNameNamer:
+      arguments:
+        - '@request_stack'
+        - '@translator'
+      tags:
+        - { name: vich_uploader.namer, mapping: assets }
+
     Chamilo\CoreBundle\Component\Utils\CreateDefaultPages: ~
     Chamilo\CoreBundle\Component\Utils\NameConvention: ~
     Chamilo\CoreBundle\Component\Utils\Glide:
@@ -63,7 +68,7 @@ services:
 #        class: Chamilo\CoreBundle\EventListener\OnlineListener
 #        arguments: [@security.context, @doctrine.orm.entity_manager ]
 #        tags:
-#            - {name: kernel.event_listener, event: kernel.controller, method: onCoreController}
+#            - {name: kernel.event_listener, event: kernel.controller}
 
     Chamilo\CoreBundle\Repository\AssetRepository: ~
 
@@ -98,3 +103,7 @@ services:
 
     Chamilo\CoreBundle\Filter\SocialWallFilter:
         tags: [ 'api_platform.filter' ]
+
+    Chamilo\CoreBundle\ServiceHelper\PermissionServiceHelper:
+      arguments:
+        $permissionRelRoleRepository: '@Chamilo\CoreBundle\Repository\PermissionRelRoleRepository'

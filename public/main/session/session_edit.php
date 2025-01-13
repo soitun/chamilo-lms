@@ -28,7 +28,7 @@ $categoriesOption = [
 
 if (false != $categoriesList) {
     foreach ($categoriesList as $categoryItem) {
-        $categoriesOption[$categoryItem['id']] = $categoryItem['name'];
+        $categoriesOption[$categoryItem['id']] = $categoryItem['title'];
     }
 }
 
@@ -53,7 +53,7 @@ $form->addButtonUpdate(get_lang('Edit this session'));
 $formDefaults = [
     'id' => $session->getId(),
     'session_category' => $session->getCategory()?->getId(),
-    'name' => $session->getName(),
+    'title' => $session->getTitle(),
     'description' => $session->getDescription(),
     'show_description' => $session->getShowDescription(),
     'duration' => $session->getDuration(),
@@ -65,6 +65,7 @@ $formDefaults = [
     'coach_access_start_date' => $session->getCoachAccessStartDate() ? api_get_local_time($session->getCoachAccessStartDate()) : null,
     'coach_access_end_date' => $session->getCoachAccessEndDate() ? api_get_local_time($session->getCoachAccessEndDate()) : null,
     'send_subscription_notification' => $session->getSendSubscriptionNotification(),
+    'notify_boss' => $session->getNotifyBoss(),
     'coach_username' => array_map(
         function (User $user) {
             return $user->getId();
@@ -78,7 +79,7 @@ $form->setDefaults($formDefaults);
 if ($form->validate()) {
     $params = $form->getSubmitValues();
 
-    $name = $params['name'];
+    $name = $params['title'];
     $startDate = $params['access_start_date'];
     $endDate = $params['access_end_date'];
     $displayStartDate = $params['display_start_date'];
@@ -110,6 +111,7 @@ if ($form->validate()) {
     }
 
     $status = $params['status'] ?? 0;
+    $notifyBoss = isset($params['notify_boss']) ? 1 : 0;
 
     $return = SessionManager::edit_session(
         $id,
@@ -129,10 +131,27 @@ if ($form->validate()) {
         $extraFields,
         null,
         $sendSubscriptionNotification,
-        $status
+        $status,
+        $notifyBoss
     );
 
     if ($return) {
+        // Delete picture of session
+        $deletePicture = $_POST['delete_picture'] ?? '';
+        if ($deletePicture && $return) {
+            SessionManager::deleteAsset($return);
+        }
+
+        // Add image
+        $picture = $_FILES['picture'];
+        if (!empty($picture['name'])) {
+            SessionManager::updateSessionPicture(
+                $return,
+                $picture,
+                $params['picture_crop_result']
+            );
+        }
+
         Display::addFlash(Display::return_message(get_lang('Update successful')));
         header('Location: resume_session.php?id_session='.$return);
         exit();

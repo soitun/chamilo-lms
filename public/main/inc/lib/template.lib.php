@@ -8,6 +8,7 @@ use Chamilo\CoreBundle\Entity\User;
 use Chamilo\CoreBundle\Framework\Container;
 use Symfony\Component\Filesystem\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\Response;
+use Chamilo\CoreBundle\Component\Utils\ToolIcon;
 
 /**
  * Class Template.
@@ -105,8 +106,21 @@ class Template
 
         $this->twig = Container::getTwig();
 
-        // Setting system variables
-        //$this->set_system_parameters();
+        // Setting app paths/URLs
+        $this->assign('_p', $this->getWebPaths());
+
+        // Here we can add system parameters that can be use in any template
+        $_s = [
+            'software_name' => api_get_configuration_value('software_name'),
+            'system_version' => api_get_configuration_value('system_version'),
+            'site_name' => api_get_setting('siteName'),
+            'institution' => api_get_setting('Institution'),
+            'institution_url' => api_get_setting('InstitutionUrl'),
+            'date' => api_format_date('now', DATE_FORMAT_LONG),
+            'timezone' => api_get_timezone(),
+            'gamification_mode' => api_get_setting('gamification_mode'),
+        ];
+        $this->assign('_s', $_s);
 
         // Setting user variables
         //$this->set_user_parameters();
@@ -122,10 +136,35 @@ class Template
         //$this->set_footer($show_footer);
         //$this->set_header($show_header);
 
-        $defaultStyle = api_get_setting('display.default_template');
+        $defaultStyle = api_get_env_variable('DEFAULT_TEMPLATE', 'default');
         if (!empty($defaultStyle)) {
             $this->templateFolder = $defaultStyle;
         }
+    }
+
+    private function getWebPaths()
+    {
+        $queryString = empty($_SERVER['QUERY_STRING']) ? '' : $_SERVER['QUERY_STRING'];
+        $requestURI = empty($_SERVER['REQUEST_URI']) ? '' : $_SERVER['REQUEST_URI'];
+
+        return [
+            'web' => api_get_path(WEB_PATH),
+            'web_relative' => api_get_path(REL_PATH),
+            'web_course' => api_get_path(WEB_COURSE_PATH),
+            'web_main' => api_get_path(WEB_CODE_PATH),
+            'web_css' => api_get_path(WEB_CSS_PATH),
+            'web_css_theme' => api_get_path(WEB_CSS_PATH).$this->themeDir,
+            'web_ajax' => api_get_path(WEB_AJAX_PATH),
+            'web_img' => api_get_path(WEB_IMG_PATH),
+            'web_plugin' => api_get_path(WEB_PLUGIN_PATH),
+            'web_lib' => api_get_path(WEB_LIBRARY_PATH),
+            'web_self' => api_get_self(),
+            'self_basename' => basename(api_get_self()),
+            'web_query_vars' => api_htmlentities($queryString),
+            'web_self_query_vars' => api_htmlentities($requestURI),
+            'web_cid_query' => api_get_cidreq(),
+            'web_rel_code' => api_get_path(REL_CODE_PATH),
+        ];
     }
 
     /**
@@ -145,7 +184,7 @@ class Template
                 $help = Security::remove_XSS($help);
                 $content = '<div class="help">';
                 $content .= Display::url(
-                    Display::return_icon('help.png', get_lang('Help'), null, ICON_SIZE_LARGE),
+                    Display::getMdiIcon(ToolIcon::HELP, 'ch-tool-icon', null, ICON_SIZE_LARGE, get_lang('Help')),
                     api_get_path(WEB_CODE_PATH).'help/help.php?open='.$help,
                     [
                         'class' => 'ajax',
@@ -347,7 +386,7 @@ class Template
             return "overrides/$name";
         }
 
-        $defaultFolder = api_get_configuration_value('default_template');
+        $defaultFolder = api_get_env_variable('DEFAULT_TEMPLATE', 'default');
 
         // If a template folder has been manually defined, search for the right
         // file, and if not found, go for the same file in the default template
@@ -444,7 +483,7 @@ class Template
             'mediaelement/plugins/vrview/vrview.css',
         ];
 
-        $features = api_get_configuration_value('video_features');
+        $features = api_get_setting('platform.video_features', true);
         $defaultFeatures = ['playpause', 'current', 'progress', 'duration', 'tracks', 'volume', 'fullscreen', 'vrview'];
 
         if (!empty($features) && isset($features['features'])) {
@@ -596,7 +635,7 @@ class Template
             'mediaelement/plugins/vrview/vrview.js',
         ];
 
-        $features = api_get_configuration_value('video_features');
+        $features = api_get_setting('platform.video_features', true);
         if (!empty($features) && isset($features['features'])) {
             foreach ($features['features'] as $feature) {
                 if ('vrview' === $feature) {
@@ -679,7 +718,6 @@ class Template
             $encoded = json_encode($user);
         }
         $params['user'] = $encoded;*/
-        $params['from_vue'] = isset($_REQUEST['from_vue']) ? 1 : 0;
     }
 
     /**
@@ -723,27 +761,6 @@ class Template
     }
 
     /**
-     * @param string $theme
-     *
-     * @return string
-     */
-    public static function getPortalIcon($theme)
-    {
-        // Default root chamilo favicon
-        $icon = 'favicon.ico';
-
-        // Added to verify if in the current Chamilo Theme exist a favicon
-        $themeUrl = api_get_path(SYS_CSS_PATH).'themes/'.$theme.'/images/';
-
-        // If exist pick the current chamilo theme favicon.
-        if (is_file($themeUrl.'favicon.ico')) {
-            $icon = 'build/css/themes/'.$theme.'/images/favicon.ico';
-        }
-
-        return $icon;
-    }
-
-    /**
      * Show footer js template.
      */
     public function show_footer_js_template()
@@ -784,14 +801,9 @@ class Template
      *
      * @return string
      */
-    public static function getThemeFallback()
+    public static function getThemeFallback(): string
     {
-        $theme = api_get_configuration_value('theme_fallback');
-        if (empty($theme)) {
-            $theme = 'chamilo';
-        }
-
-        return $theme;
+        return 'chamilo';
     }
 
     /**
@@ -960,12 +972,7 @@ class Template
     {
         //@todo move this in the template
         $rightFloatMenu = '';
-        $iconBug = Display::return_icon(
-            'bug.png',
-            get_lang('Report a bug'),
-            [],
-            ICON_SIZE_LARGE
-        );
+        $iconBug = Display::getMdiIcon(ToolIcon::BUG_REPORT, 'ch-tool-icon', null, ICON_SIZE_LARGE, get_lang('Report a bug'));
         if ('true' === api_get_setting('show_link_bug_notification') && $this->user_is_logged_in) {
             $rightFloatMenu = '<div class="report">
 		        <a href="https://github.com/chamilo/chamilo-lms/wiki/How-to-report-issues" target="_blank">
@@ -979,12 +986,7 @@ class Template
         ) {
             // by default is project_id = 1
             $defaultProjectId = 1;
-            $iconTicket = Display::return_icon(
-                'help.png',
-                get_lang('Ticket'),
-                [],
-                ICON_SIZE_LARGE
-            );
+            $iconTicket = Display::getMdiIcon(ToolIcon::HELP, 'ch-tool-icon', null, ICON_SIZE_LARGE, get_lang('Ticket'));
             $courseInfo = api_get_course_info();
             $courseParams = '';
             if (!empty($courseInfo)) {
@@ -992,7 +994,7 @@ class Template
             }
             $url = api_get_path(WEB_CODE_PATH).'ticket/tickets.php?project_id='.$defaultProjectId.'&'.$courseParams;
 
-            $allow = TicketManager::userIsAllowInProject(api_get_user_entity(), $defaultProjectId);
+            $allow = TicketManager::userIsAllowInProject($defaultProjectId);
 
             if ($allow) {
                 $rightFloatMenu .= '<div class="help">
@@ -1033,7 +1035,7 @@ class Template
             }
         }
 
-        $this->params['legacy_breadcrumb'] = json_encode($interbreadcrumb);
+        $this->params['legacy_breadcrumb'] = json_encode($interbreadcrumb ? array_values($interbreadcrumb) : []);
         global $htmlHeadXtra;
         $this->params['legacy_javascript'] = $htmlHeadXtra;
     }
@@ -1077,91 +1079,49 @@ class Template
         // by https://securityheaders.io/
         // Enable these settings in configuration.php to use them on your site
         // Strict-Transport-Security
-        $setting = api_get_configuration_value('security_strict_transport');
+        $setting = api_get_setting('security.security_strict_transport');
         if (!empty($setting)) {
             header('Strict-Transport-Security: '.$setting);
         }
         // Content-Security-Policy
-        $setting = api_get_configuration_value('security_content_policy');
+        $setting = api_get_setting('security.security_content_policy');
         if (!empty($setting)) {
             header('Content-Security-Policy: '.$setting);
         }
-        $setting = api_get_configuration_value('security_content_policy_report_only');
+        $setting = api_get_setting('security.security_content_policy_report_only');
         if (!empty($setting)) {
             header('Content-Security-Policy-Report-Only: '.$setting);
         }
         // Public-Key-Pins
-        $setting = api_get_configuration_value('security_public_key_pins');
+        $setting = api_get_setting('security.security_public_key_pins');
         if (!empty($setting)) {
             header('Public-Key-Pins: '.$setting);
         }
-        $setting = api_get_configuration_value('security_public_key_pins_report_only');
+        $setting = api_get_setting('security.security_public_key_pins_report_only');
         if (!empty($setting)) {
             header('Public-Key-Pins-Report-Only: '.$setting);
         }
         // X-Frame-Options
-        $setting = api_get_configuration_value('security_x_frame_options');
+        $setting = api_get_setting('security.security_x_frame_options');
         if (!empty($setting)) {
             header('X-Frame-Options: '.$setting);
         }
         // X-XSS-Protection
-        $setting = api_get_configuration_value('security_xss_protection');
+        $setting = api_get_setting('security.security_xss_protection');
         if (!empty($setting)) {
             header('X-XSS-Protection: '.$setting);
         }
         // X-Content-Type-Options
-        $setting = api_get_configuration_value('security_x_content_type_options');
+        $setting = api_get_setting('security.security_x_content_type_options');
         if (!empty($setting)) {
             header('X-Content-Type-Options: '.$setting);
         }
         // Referrer-Policy
-        $setting = api_get_configuration_value('security_referrer_policy');
+        $setting = api_get_setting('security.security_referrer_policy');
         if (!empty($setting)) {
             header('Referrer-Policy: '.$setting);
         }
         // end of HTTP headers security block
-    }
-
-    /**
-     * Assign favicon to the 'favico' template variable.
-     *
-     * @return bool Always return true because there is always at least one correct favicon.ico
-     */
-    private function assignFavIcon()
-    {
-        // Default root chamilo favicon
-        $favico = '<link rel="shortcut icon" href="'.api_get_path(WEB_PATH).'favicon.ico" type="image/x-icon" />';
-
-        //Added to verify if in the current Chamilo Theme exist a favicon
-        $favicoThemeUrl = api_get_path(SYS_CSS_PATH).$this->themeDir.'images/';
-
-        //If exist pick the current chamilo theme favicon
-        if (is_file($favicoThemeUrl.'favicon.ico')) {
-            $favico = '<link rel="shortcut icon" href="'.api_get_path(WEB_CSS_PATH).$this->themeDir.'images/favicon.ico" type="image/x-icon" />';
-        }
-
-        if (api_is_multiple_url_enabled()) {
-            /*$access_url_id = api_get_current_access_url_id();
-            if ($access_url_id != -1) {
-                $url_info = api_get_access_url($access_url_id);
-                $url = api_remove_trailing_slash(
-                    preg_replace('/https?:\/\//i', '', $url_info['url'])
-                );
-                $clean_url = api_replace_dangerous_char($url);
-                $clean_url = str_replace('/', '-', $clean_url);
-                $clean_url .= '/';
-                $homep = api_get_path(REL_PATH).'home/'.$clean_url; //homep for Home Path
-                $icon_real_homep = api_get_path(SYS_APP_PATH).'home/'.$clean_url;
-                //we create the new dir for the new sites
-                if (is_file($icon_real_homep.'favicon.ico')) {
-                    $favico = '<link rel="shortcut icon" href="'.$homep.'favicon.ico" type="image/x-icon" />';
-                }
-            }*/
-        }
-
-        $this->assign('favico', $favico);
-
-        return true;
     }
 
     /**
@@ -1175,9 +1135,9 @@ class Template
         if ('true' == api_get_setting('accessibility_font_resize')) {
             $resize .= '<div class="resize_font">';
             $resize .= '<div class="btn-group">';
-            $resize .= '<a title="'.get_lang('Decrease the font size').'" href="#" class="decrease_font btn btn-default"><em class="fa fa-font"></em></a>';
-            $resize .= '<a title="'.get_lang('Reset the font size').'" href="#" class="reset_font btn btn-default"><em class="fa fa-font"></em></a>';
-            $resize .= '<a title="'.get_lang('Increase the font size').'" href="#" class="increase_font btn btn-default"><em class="fa fa-font"></em></a>';
+            $resize .= '<a title="'.get_lang('Decrease the font size').'" href="#" class="decrease_font btn btn--plain"><em class="fa fa-font"></em></a>';
+            $resize .= '<a title="'.get_lang('Reset the font size').'" href="#" class="reset_font btn btn--plain"><em class="fa fa-font"></em></a>';
+            $resize .= '<a title="'.get_lang('Increase the font size').'" href="#" class="increase_font btn btn--plain"><em class="fa fa-font"></em></a>';
             $resize .= '</div>';
             $resize .= '</div>';
         }
@@ -1248,8 +1208,8 @@ class Template
                     // If we are on a session "about" screen, publish info about the session
                     $session = api_get_session_entity($sessionId);
 
-                    $socialMeta .= '<meta property="og:title" content="'.$session->getName().' - '.$metaTitle.'" />'."\n";
-                    $socialMeta .= '<meta property="twitter:title" content="'.$session->getName().' - '.$metaTitle.'" />'."\n";
+                    $socialMeta .= '<meta property="og:title" content="'.$session->getTitle().' - '.$metaTitle.'" />'."\n";
+                    $socialMeta .= '<meta property="twitter:title" content="'.$session->getTitle().' - '.$metaTitle.'" />'."\n";
                     $socialMeta .= '<meta property="og:url" content="'.api_get_path(WEB_PATH)."sessions/{$session->getId()}/about/".'" />'."\n";
 
                     $sessionValues = new ExtraFieldValue('session');
@@ -1261,7 +1221,7 @@ class Template
                         if (!empty($sessionImagePath)) {
                             $socialMeta .= '<meta property="og:image" content="'.$sessionImagePath.'" />'."\n";
                             $socialMeta .= '<meta property="twitter:image" content="'.$sessionImagePath.'" />'."\n";
-                            $socialMeta .= '<meta property="twitter:image:alt" content="'.$session->getName().' - '.$metaTitle.'" />'."\n";
+                            $socialMeta .= '<meta property="twitter:image:alt" content="'.$session->getTitle().' - '.$metaTitle.'" />'."\n";
                         }
                     } else {
                         $socialMeta .= $this->getMetaPortalImagePath($metaTitle);
@@ -1308,7 +1268,12 @@ class Template
                 $portalImageMeta .= '<meta property="twitter:image:alt" content="'.$imageAlt.'" />'."\n";
             }
         } else {
-            $logo = ChamiloApi::getPlatformLogoPath($this->theme);
+            $logo = Container::getThemeHelper()->getThemeAssetUrl('images/header-logo.svg');
+
+            if (empty($logo)) {
+                $logo = Container::getThemeHelper()->getThemeAssetUrl('images/header-logo.png');
+            }
+
             if (!empty($logo)) {
                 $portalImageMeta = '<meta property="og:image" content="'.$logo.'" />'."\n";
                 $portalImageMeta .= '<meta property="twitter:image" content="'.$logo.'" />'."\n";

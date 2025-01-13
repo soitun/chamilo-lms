@@ -28,7 +28,7 @@ class CNotebookRepository extends ResourceRepository
     public function findByUser(
         User $user,
         Course $course,
-        Session $session = null,
+        ?Session $session = null,
         string $orderField = 'creation_date',
         string $orderDirection = 'DESC'
     ) {
@@ -37,10 +37,12 @@ class CNotebookRepository extends ResourceRepository
                 $orderField = 'N.creationDate';
 
                 break;
+
             case 'update_date':
                 $orderField = 'N.updateDate';
 
                 break;
+
             case 'title':
                 $orderField = 'N.title';
 

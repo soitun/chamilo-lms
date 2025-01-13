@@ -5,6 +5,7 @@
 use Chamilo\CoreBundle\Entity\Course;
 use Chamilo\CoreBundle\Entity\Message;
 use Chamilo\CoreBundle\Entity\MessageAttachment;
+use Chamilo\CoreBundle\Entity\MessageRelUser;
 use Chamilo\CoreBundle\Entity\SocialPost;
 use Chamilo\CoreBundle\Entity\SocialPostFeedback;
 use Chamilo\CoreBundle\Entity\User;
@@ -37,23 +38,22 @@ class MessageManager
                 );
                 $sender = $message->getSender();
 
-                $deleteButton = '';
-                if (!empty($url) && $currentUserId === $sender->getId()) {
-                    $deleteButton = Display::url(
-                        get_lang('Delete'),
-                        $url.'&action=delete_message&message_id='.$messageId,
-                        ['class' => 'btn btn-danger']
-                    );
+                $deleteLink = '';
+                if (!empty($url) && $sender && $currentUserId === $sender->getId()) {
+                    $deleteLink = '<button title="'.addslashes(get_lang('DeleteMessage')).'"
+                       onclick="event.stopPropagation(); if(confirm(\''.addslashes(api_htmlentities(get_lang('ConfirmDeleteMessage'))).'\')) {
+                       window.location.href=\''.$url.'&action=delete_message&message_id='.$messageId.'\';
+                       } return false;"
+                       class="ml-2 inline-flex items-center">'.
+                        Display::returnPrimeIcon('trash', 'lg').'</button>';
                 }
 
-                $content = $message->getContent().'<br />'.$date.'<br />'.
+                $content = '<div class="custom-message">' . $message->getContent().'<br />'.$date.'<br />'.
                     get_lang('Author').': '.$sender->getUsername().
-                    '<br />'.
-                    $deleteButton
-                ;
+                    '<br /></div>';
 
                 $html .= Display::panelCollapse(
-                    $localTime.' '.UserManager::formatUserFullName($sender).' '.$message->getTitle(),
+                    $localTime.' '.UserManager::formatUserFullName($sender).' '.$message->getTitle().$deleteLink,
                     $content,
                     $tag,
                     null,
@@ -132,6 +132,8 @@ class MessageManager
         $forwardId = 0,
         $checkCurrentAudioId = false,
         $forceTitleWhenSendingEmail = false,
+        $msgType = null,
+        $baseUrl = null
     ) {
         $group_id = (int) $group_id;
         $receiverUserId = (int) $receiverUserId;
@@ -158,7 +160,7 @@ class MessageManager
         }
 
         // Disabling messages for inactive users.
-        if (!$userRecipient->getActive()) {
+        if (!$userRecipient->isActive()) {
             return false;
         }
 
@@ -277,6 +279,7 @@ class MessageManager
             if (!empty($editMessageId)) {
                 $message = $repo->find($editMessageId);
                 if (null !== $message) {
+                    $message->setTitle($subject);
                     $message->setContent($content);
                     $em->persist($message);
                     $em->flush();
@@ -287,12 +290,17 @@ class MessageManager
 
                 $message = (new Message())
                     ->setSender($userSender)
-                    ->addReceiver($userRecipient)
+                    ->addReceiverTo($userRecipient)
                     ->setTitle($subject)
                     ->setContent($content)
                     ->setGroup($group)
                     ->setParent($parent)
                 ;
+
+                if (isset($msgType)) {
+                    $message->setMsgType($msgType);
+                }
+
                 $em->persist($message);
                 $em->flush();
                 $messageId = $message->getId();
@@ -324,9 +332,28 @@ class MessageManager
                 }
             }
 
+            // Add the sender as a receiver with TYPE_SENDER
+            $messageRelUserRepository = $em->getRepository(MessageRelUser::class);
+            $existingRelation = $messageRelUserRepository->findOneBy([
+                'message' => $message,
+                'receiver' => $userSender,
+                'receiverType' => MessageRelUser::TYPE_SENDER
+            ]);
+
+            if (!$existingRelation) {
+                $messageRelUserSender = new MessageRelUser();
+                $messageRelUserSender->setMessage($message);
+                $messageRelUserSender->setReceiver($userSender);
+                $messageRelUserSender->setReceiverType(MessageRelUser::TYPE_SENDER);
+                $em->persist($messageRelUserSender);
+                $em->flush();
+            }
+
             if ($sendEmail) {
                 $notification = new Notification();
                 $sender_info = api_get_user_info($user_sender_id);
+                $baseUrl = $baseUrl ?? api_get_path(WEB_PATH);
+                $content = self::processRelativeLinks($content, $baseUrl);
 
                 // add file attachment additional attributes
                 $attachmentAddedByMail = [];
@@ -350,7 +377,8 @@ class MessageManager
                         $content,
                         $sender_info,
                         $attachmentAddedByMail,
-                        $forceTitleWhenSendingEmail
+                        $forceTitleWhenSendingEmail,
+                        $baseUrl
                     );
                 } else {
                     $usergroup = new UserGroupModel();
@@ -367,7 +395,7 @@ class MessageManager
                     );
 
                     // Adding more sense to the message group
-                    $subject = sprintf(get_lang('There is a new message in group %s'), $group_info['name']);
+                    $subject = sprintf(get_lang('There is a new message in group %s'), $group_info['title']);
                     $new_user_list = [];
                     foreach ($user_list as $user_data) {
                         $new_user_list[] = $user_data['id'];
@@ -383,7 +411,9 @@ class MessageManager
                         $subject,
                         $content,
                         $group_info,
-                        $attachmentAddedByMail
+                        $attachmentAddedByMail,
+                        $forceTitleWhenSendingEmail,
+                        $baseUrl
                     );
                 }
             }
@@ -392,6 +422,20 @@ class MessageManager
         }
 
         return false;
+    }
+
+    /**
+     * Converts relative URLs in href and src attributes to absolute URLs.
+     */
+    private static function processRelativeLinks(string $content, string $baseUrl): string
+    {
+        return preg_replace_callback(
+            '/(href|src)="(\/[^"]*)"/',
+            function ($matches) use ($baseUrl) {
+                return $matches[1] . '="' . rtrim($baseUrl, '/') . $matches[2] . '"';
+            },
+            $content
+        );
     }
 
     /**
@@ -463,17 +507,6 @@ class MessageManager
         return $result;
     }
 
-    public static function softDeleteAttachments(Message $message): void
-    {
-        $attachments = $message->getAttachments();
-        if (!empty($attachments)) {
-            $repo = Container::getMessageAttachmentRepository();
-            foreach ($attachments as $file) {
-                $repo->softDelete($file);
-            }
-        }
-    }
-
     /**
      * Saves a message attachment files.
      *
@@ -519,12 +552,14 @@ class MessageManager
 
         // Search for files inside the $_FILES, when uploading several files from the form.
         if ($request->files->count()) {
+            $allFiles = $request->files->all();
+            $filesArray = array_key_exists('files', $allFiles) ? $allFiles['files'] : $allFiles;
             /** @var UploadedFile|null $fileRequest */
-            foreach ($request->files->all() as $fileRequest) {
+            foreach ($filesArray as $fileRequest) {
                 if (null === $fileRequest) {
                     continue;
                 }
-                if ($fileRequest->getClientOriginalName() === $file['name']) {
+                if ($fileRequest instanceof UploadedFile && $fileRequest->getClientOriginalName() === $file['name']) {
                     $fileToUpload = $fileRequest;
                     break;
                 }
@@ -579,7 +614,7 @@ class MessageManager
         $rs = Database::query($sql);
         $data = [];
         if (Database::num_rows($rs) > 0) {
-            while ($row = Database::fetch_array($rs, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($rs)) {
                 $data[] = $row;
             }
         }
@@ -614,7 +649,7 @@ class MessageManager
         $data = [];
         $parents = [];
         if (Database::num_rows($rs) > 0) {
-            while ($row = Database::fetch_array($rs, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($rs)) {
                 if ($message_id == $row['parent_id'] || in_array($row['parent_id'], $parents)) {
                     $parents[] = $row['id'];
                     $data[] = $row;
@@ -750,7 +785,7 @@ class MessageManager
                             api_get_path(
                                 WEB_CODE_PATH
                             ).'social/group_topics.php?action=delete&id='.$groupId.'&topic_id='.$topic['id'],
-                            ['class' => 'btn btn-default']
+                            ['class' => 'btn btn--plain']
                         );
                 }
 
@@ -805,6 +840,33 @@ class MessageManager
     }
 
     /**
+     * Get message list by id.
+     *
+     * @param int $messageId
+     *
+     * @return array
+     */
+    public static function get_message_by_id($messageId)
+    {
+        $table = Database::get_main_table(TABLE_MESSAGE);
+        $messageId = (int) $messageId;
+        $sql = "SELECT * FROM $table
+                WHERE
+                    id = '$messageId' AND
+                    msg_type <> 3";
+
+        echo $sql;
+
+        $res = Database::query($sql);
+        $item = [];
+        if (Database::num_rows($res) > 0) {
+            $item = Database::fetch_assoc($res);
+        }
+
+        return $item;
+    }
+
+    /**
      * Displays messages of a group with nested view.
      *
      * @param $groupId
@@ -814,11 +876,9 @@ class MessageManager
      */
     public static function display_message_for_group($groupId, $topic_id)
     {
-        return '';
-
-        /*global $my_group_role;
-        $message = Container::getMessageRepository()->find($topic_id);
-        if (null === $message) {
+        global $my_group_role;
+        $main_message = self::get_message_by_id($topic_id);
+        if (empty($main_message)) {
             return false;
         }
 
@@ -843,28 +903,29 @@ class MessageManager
         $html = '';
         $items_page_nr = null;
 
-        $filesAttachments = self::getAttachmentLinkList($message);
-        $name = UserManager::formatUserFullName($message->getSender());
+        $user_sender_info = api_get_user_info($main_message['user_sender_id']);
+        $files_attachments = self::getAttachmentLinkList($main_message['id'], 0);
+        $name = $user_sender_info['complete_name'];
 
         $topic_page_nr = isset($_GET['topics_page_nr']) ? (int) $_GET['topics_page_nr'] : null;
 
         $links .= '<div class="pull-right">';
         $links .= '<div class="btn-group btn-group-sm">';
 
-        if ((GROUP_USER_PERMISSION_ADMIN == $my_group_role || GROUP_USER_PERMISSION_MODERATOR == $my_group_role) ||
-            $message->getSender()->getId() == $current_user_id
+        if (($my_group_role == GROUP_USER_PERMISSION_ADMIN || $my_group_role == GROUP_USER_PERMISSION_MODERATOR) ||
+            $main_message['user_sender_id'] == $current_user_id
         ) {
             $urlEdit = $webCodePath.'social/message_for_group_form.inc.php?'
                 .http_build_query(
                     [
                         'user_friend' => $current_user_id,
                         'group_id' => $groupId,
-                        'message_id' => $message->getId(),
+                        'message_id' => $main_message['id'],
                         'action' => 'edit_message_group',
-                        'anchor_topic' => 'topic_'.$message->getId(),
+                        'anchor_topic' => 'topic_'.$main_message['id'],
                         'topics_page_nr' => $topic_page_nr,
                         'items_page_nr' => $items_page_nr,
-                        'topic_id' => $message->getId(),
+                        'topic_id' => $main_message['id'],
                     ]
                 );
 
@@ -878,18 +939,18 @@ class MessageManager
             );
         }
 
-        $links .= self::getLikesButton($message->getId(), $current_user_id, $groupId);
+        $links .= self::getLikesButton($main_message['id'], $current_user_id, $groupId);
 
         $urlReply = $webCodePath.'social/message_for_group_form.inc.php?'
             .http_build_query(
                 [
                     'user_friend' => $current_user_id,
                     'group_id' => $groupId,
-                    'message_id' => $message->getId(),
+                    'message_id' => $main_message['id'],
                     'action' => 'reply_message_group',
-                    'anchor_topic' => 'topic_'.$message->getId(),
+                    'anchor_topic' => 'topic_'.$main_message['id'],
                     'topics_page_nr' => $topic_page_nr,
-                    'topic_id' => $message->getId(),
+                    'topic_id' => $main_message['id'],
                 ]
             );
 
@@ -916,8 +977,9 @@ class MessageManager
         $links .= '</div>';
         $links .= '</div>';
 
-        $title = '<h4>'.Security::remove_XSS($message->getTitle(), STUDENT, true).$links.'</h4>';
+        $title = '<h4>'.Security::remove_XSS($main_message['title'], STUDENT, true).$links.'</h4>';
 
+        $userPicture = $user_sender_info['avatar'];
         $main_content .= '<div class="row">';
         $main_content .= '<div class="col-md-2">';
         $main_content .= '<div class="avatar-author">';
@@ -945,7 +1007,7 @@ class MessageManager
                 .'</div>';
         }
         $attachment = '<div class="message-attach">'
-            .(!empty($filesAttachments) ? implode('<br />', $filesAttachments) : '')
+            .(!empty($files_attachments) ? implode('<br />', $files_attachments) : '')
             .'</div>';
         $main_content .= '<div class="col-md-10">';
         $user_link = Display::url(
@@ -984,31 +1046,31 @@ class MessageManager
                 $links .= '<div class="pull-right">';
                 $html_items = '';
                 $user_sender_info = api_get_user_info($topic['user_sender_id']);
-                $filesAttachments = self::getAttachmentLinkList($topic['id'], 0);
+                $files_attachments = self::getAttachmentLinkList($topic['id'], 0);
                 $name = $user_sender_info['complete_name'];
 
                 $links .= '<div class="btn-group btn-group-sm">';
                 if (
-                    (GROUP_USER_PERMISSION_ADMIN == $my_group_role ||
-                        GROUP_USER_PERMISSION_MODERATOR == $my_group_role
+                    ($my_group_role == GROUP_USER_PERMISSION_ADMIN ||
+                        $my_group_role == GROUP_USER_PERMISSION_MODERATOR
                     ) ||
                     $topic['user_sender_id'] == $current_user_id
                 ) {
                     $links .= Display::toolbarButton(
                         $langEdit,
                         $webCodePath.'social/message_for_group_form.inc.php?'
-                            .http_build_query(
-                                [
-                                    'user_friend' => $current_user_id,
-                                    'group_id' => $groupId,
-                                    'message_id' => $topic['id'],
-                                    'action' => 'edit_message_group',
-                                    'anchor_topic' => 'topic_'.$topic_id,
-                                    'topics_page_nr' => $topic_page_nr,
-                                    'items_page_nr' => $items_page_nr,
-                                    'topic_id' => $topic_id,
-                                ]
-                            ),
+                        .http_build_query(
+                            [
+                                'user_friend' => $current_user_id,
+                                'group_id' => $groupId,
+                                'message_id' => $topic['id'],
+                                'action' => 'edit_message_group',
+                                'anchor_topic' => 'topic_'.$topic_id,
+                                'topics_page_nr' => $topic_page_nr,
+                                'items_page_nr' => $items_page_nr,
+                                'topic_id' => $topic_id,
+                            ]
+                        ),
                         'pencil',
                         'default',
                         ['class' => 'ajax', 'data-title' => $langEdit, 'data-size' => 'lg'],
@@ -1021,18 +1083,18 @@ class MessageManager
                 $links .= Display::toolbarButton(
                     $langReply,
                     $webCodePath.'social/message_for_group_form.inc.php?'
-                        .http_build_query(
-                            [
-                                'user_friend' => $current_user_id,
-                                'group_id' => $groupId,
-                                'message_id' => $topic['id'],
-                                'action' => 'reply_message_group',
-                                'anchor_topic' => 'topic_'.$topic_id,
-                                'topics_page_nr' => $topic_page_nr,
-                                'items_page_nr' => $items_page_nr,
-                                'topic_id' => $topic_id,
-                            ]
-                        ),
+                    .http_build_query(
+                        [
+                            'user_friend' => $current_user_id,
+                            'group_id' => $groupId,
+                            'message_id' => $topic['id'],
+                            'action' => 'reply_message_group',
+                            'anchor_topic' => 'topic_'.$topic_id,
+                            'topics_page_nr' => $topic_page_nr,
+                            'items_page_nr' => $items_page_nr,
+                            'topic_id' => $topic_id,
+                        ]
+                    ),
                     'commenting',
                     'default',
                     ['class' => 'ajax', 'data-title' => $langReply, 'data-size' => 'lg'],
@@ -1073,7 +1135,7 @@ class MessageManager
                         .'</div>';
                 }
                 $attachment = '<div class="message-attach">'
-                    .(!empty($filesAttachments) ? implode('<br />', $filesAttachments) : '')
+                    .(!empty($files_attachments) ? implode('<br />', $files_attachments) : '')
                     .'</div>';
                 $html_items .= '<div class="col-md-10">'
                     .'<div class="message-content">'
@@ -1088,7 +1150,7 @@ class MessageManager
 
                 $base_padding = 20;
 
-                if (0 == $topic['indent_cnt']) {
+                if ($topic['indent_cnt'] == 0) {
                     $indent = $base_padding;
                 } else {
                     $indent = (int) $topic['indent_cnt'] * $base_padding + $base_padding;
@@ -1120,7 +1182,8 @@ class MessageManager
                     $style_class
                 );
             }
-        }*/
+        }
+
 
         return $html;
     }
@@ -1409,15 +1472,13 @@ class MessageManager
         );
         $layoutContent = '';
         $emailbody = '';
-        if (true == api_get_configuration_value('mail_template_system')) {
-            $mailTemplateManager = new MailTemplateManager();
-            $templateText = $mailTemplateManager->getTemplateByType('new_user_mail_to_admin_approval.tpl');
-            if (empty($templateText)) {
-            } else {
-                // custom procedure to load a template as a string (doesn't use cache so may slow down)
-                $template = $tplMailBody->twig->createTemplate($templateText);
-                $emailbody = $template->render($tplMailBody->params);
-            }
+        $mailTemplateManager = new MailTemplateManager();
+        $templateText = $mailTemplateManager->getTemplateByType('new_user_mail_to_admin_approval.tpl');
+        if (empty($templateText)) {
+        } else {
+            // custom procedure to load a template as a string (doesn't use cache so may slow down)
+            $template = $tplMailBody->twig->createTemplate($templateText);
+            $emailbody = $template->render($tplMailBody->params);
         }
         if (empty($emailbody)) {
             $layoutContent = $tplMailBody->get_template('mail/new_user_mail_to_admin_approval.tpl');
@@ -1426,7 +1487,7 @@ class MessageManager
 
         $emailsubject = '['.get_lang('ApprovalForNewAccount').'] '.$user->getUsername();
 
-        if (api_get_configuration_value('send_inscription_notification_to_general_admin_only')) {
+        if ('true' === api_get_setting('admin.send_inscription_notification_to_general_admin_only')) {
             $email = api_get_setting('emailAdministrator');
             $firstname = api_get_setting('administratorSurname');
             $lastname = api_get_setting('administratorName');
@@ -1651,7 +1712,7 @@ class MessageManager
      */
     public static function countLikesAndDislikes($messageId, $userId): array
     {
-        if (!api_get_configuration_value('social_enable_messages_feedback')) {
+        if ('true' !== api_get_setting('social.social_enable_messages_feedback')) {
             return [];
         }
 
@@ -1677,13 +1738,13 @@ class MessageManager
      */
     public static function getLikesButton($messageId, $userId, $groupId = 0)
     {
-        if (!api_get_configuration_value('social_enable_messages_feedback')) {
+        if ('true' !== api_get_setting('social.social_enable_messages_feedback')) {
             return '';
         }
 
         $countLikes = self::countLikesAndDislikes($messageId, $userId);
 
-        $class = $countLikes['user_liked'] ? 'btn-primary' : 'btn-default';
+        $class = $countLikes['user_liked'] ? 'btn--primary' : 'btn--plain';
 
         $btnLike = Display::button(
             'like',
@@ -1699,8 +1760,8 @@ class MessageManager
         );
 
         $btnDislike = '';
-        if (false === api_get_configuration_value('disable_dislike_option')) {
-            $disabled = $countLikes['user_disliked'] ? 'btn-danger' : 'btn-default';
+        if ('true' !== api_get_setting('social.disable_dislike_option')) {
+            $disabled = $countLikes['user_disliked'] ? 'btn--danger' : 'btn--plain';
 
             $btnDislike = Display::button(
                 'like',

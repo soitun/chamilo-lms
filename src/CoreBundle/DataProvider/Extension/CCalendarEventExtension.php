@@ -6,151 +6,191 @@ declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\DataProvider\Extension;
 
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Extension\QueryCollectionExtensionInterface;
-//use ApiPlatform\Core\Bridge\Doctrine\Orm\Extension\QueryItemExtensionInterface;
-//use ApiPlatform\Core\Bridge\Doctrine\Orm\Extension\QueryItemExtensionInterface;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Util\QueryNameGeneratorInterface;
-use Chamilo\CoreBundle\Entity\Message;
+use ApiPlatform\Doctrine\Orm\Extension\QueryCollectionExtensionInterface;
+use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
+use ApiPlatform\Metadata\Operation;
+use Chamilo\CoreBundle\Entity\AccessUrl;
 use Chamilo\CoreBundle\Entity\User;
+use Chamilo\CoreBundle\Entity\Usergroup;
+use Chamilo\CoreBundle\Repository\Node\CourseRepository;
+use Chamilo\CoreBundle\Repository\SessionRepository;
+use Chamilo\CoreBundle\ServiceHelper\AccessUrlHelper;
+use Chamilo\CoreBundle\ServiceHelper\CidReqHelper;
+use Chamilo\CoreBundle\ServiceHelper\UserHelper;
+use Chamilo\CoreBundle\Settings\SettingsManager;
 use Chamilo\CourseBundle\Entity\CCalendarEvent;
-use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\ORM\QueryBuilder;
-use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\Security\Core\Exception\AccessDeniedException;
-use Symfony\Component\Security\Core\Security;
+use UserGroupModel;
 
-final class CCalendarEventExtension implements QueryCollectionExtensionInterface //, QueryItemExtensionInterface
+final class CCalendarEventExtension implements QueryCollectionExtensionInterface
 {
-    private Security $security;
-    private RequestStack $requestStack;
+    public function __construct(
+        private readonly CidReqHelper $cidReqHelper,
+        private readonly UserHelper $userHelper,
+        private readonly AccessUrlHelper $accessUrlHelper,
+        private readonly SettingsManager $settingsManager,
+        private readonly CourseRepository $courseRepository,
+        private readonly SessionRepository $sessionRepository,
+    ) {}
 
-    public function __construct(Security $security, RequestStack $request)
-    {
-        $this->security = $security;
-        $this->requestStack = $request;
+    public function applyToCollection(
+        QueryBuilder $queryBuilder,
+        QueryNameGeneratorInterface $queryNameGenerator,
+        string $resourceClass,
+        ?Operation $operation = null,
+        array $context = []
+    ): void {
+        $this->addWhere($queryBuilder, $resourceClass, $context);
     }
 
-    public function applyToCollection(QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, string $resourceClass, string $operationName = null): void
-    {
-        /*if ($this->security->isGranted('ROLE_ADMIN')) {
-            return;
-        }*/
-        /*
-        if ('collection_query' === $operationName) {
-            if (null === $user = $this->security->getUser()) {
-                throw new AccessDeniedException('Access Denied.');
-            }
-
-            $rootAlias = $queryBuilder->getRootAliases()[0];
-            $queryBuilder->andWhere(sprintf('%s.user = :current_user', $rootAlias));
-            $queryBuilder->setParameter('current_user', $user);
-        }*/
-
-        $this->addWhere($queryBuilder, $resourceClass);
-    }
-
-    public function applyToItem(QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, string $resourceClass, array $identifiers, string $operationName = null, array $context = []): void
-    {
-        //$this->addWhere($queryBuilder, $resourceClass);
-    }
-
-    private function addWhere(QueryBuilder $qb, string $resourceClass): void
+    private function addWhere(QueryBuilder $qb, string $resourceClass, array $context): void
     {
         if (CCalendarEvent::class !== $resourceClass) {
             return;
         }
 
-        /*if ($this->security->isGranted('ROLE_ADMIN')) {
+        $isGlobalType = isset($context['filters']['type']) && 'global' === $context['filters']['type'];
+        if ($isGlobalType) {
             return;
-        }*/
+        }
 
-        /** @var User $user */
-        $user = $this->security->getUser();
+        $courseId = $this->cidReqHelper->getCourseId();
+        $sessionId = $this->cidReqHelper->getSessionId();
+        $groupId = $this->cidReqHelper->getGroupId();
+        $user = $this->userHelper->getCurrent();
+        $accessUrl = $this->accessUrlHelper->getCurrent();
+
+        $inCourseBase = !empty($courseId);
+        $inSession = !empty($sessionId);
+        $inCourseSession = $inCourseBase && $inSession;
+
+        $inPersonalList = !$inCourseBase && !$inCourseSession;
+
         $alias = $qb->getRootAliases()[0];
 
         $qb
             ->innerJoin("$alias.resourceNode", 'node')
-            ->leftJoin('node.resourceLinks', 'links')
+            ->leftJoin('node.resourceLinks', 'resource_links')
         ;
 
-        $request = $this->requestStack->getCurrentRequest();
-        $courseId = $request->query->get('cid');
-        $sessionId = $request->query->get('sid');
-        $groupId = $request->query->get('gid');
-
-        $startDate = $request->query->get('startDate');
-        $endDate = $request->query->get('endDate');
-
-        if (!empty($startDate) && !empty($endDate)) {
-            $qb->andWhere(
-                "
-                $alias.startDate BETWEEN :start AND :end OR
-                $alias.endDate BETWEEN :start AND :end 
-            "
-            );
-            $qb
-                ->setParameter('start', $startDate)
-                ->setParameter('end', $endDate)
-            ;
+        if ($inPersonalList && $user) {
+            $this->addPersonalCalendarConditions($qb, $user);
+            $this->addCourseConditions($qb, $user, $accessUrl);
+            $this->addSessionConditions($qb, $user, $accessUrl);
         }
-
-        if (empty($courseId)) {
-            $qb
-                ->andWhere('links.user = :user OR node.creator = :user')
-                ->setParameter('user', $user)
-            ;
-        } else {
-            $qb
-                ->andWhere('links.course = :course')
-                ->setParameter('course', $courseId)
-            ;
-
-            if (empty($sessionId)) {
-                $qb->andWhere('links.session IS NULL');
-            } else {
-                $qb
-                    ->andWhere('links.session = :session')
-                    ->setParameter('session', $sessionId)
-                ;
-            }
-
-            if (empty($groupId)) {
-                $qb->andWhere('links.group IS NULL');
-            } else {
-                $qb
-                    ->andWhere('links.group = :group')
-                    ->setParameter('group', $groupId)
-                ;
-            }
-        }
-
-        //$qb->leftJoin("$alias.receivers", 'r');
-        //$qb->leftJoin("$alias.receivers", 'r', Join::WITH, "r.receiver = :current OR $alias.sender = :current ");
-        //$qb->leftJoin("$alias.receivers", 'r');
-        /*$qb->andWhere(
-            $qb->expr()->orX(
-                $qb->andWhere(
-                    $qb->expr()->eq("$alias.sender", $user->getId()),
-                    $qb->expr()->eq("$alias.msgType", Message::MESSAGE_TYPE_OUTBOX)
-                ),
-                $qb->andWhere(
-                    $qb->expr()->in("r", $user->getId()),
-                    $qb->expr()->eq("$alias.msgType", Message::MESSAGE_TYPE_INBOX)
-                )
-            ),
-        );*/
     }
 
-    /*public function generateBetweenRange($qb, $alias, $field, $range)
+    private function addPersonalCalendarConditions(QueryBuilder $qb, User $user): void
     {
-        $value = $range['between'];
-        $rangeValue = explode('..', $value);
-        $valueParameter = $field.'1';
         $qb
-            ->andWhere(sprintf('%1$s.%2$s BETWEEN :%3$s_1 AND :%3$s_2', $alias, $field, $valueParameter))
-            ->setParameter(sprintf('%s_1', $valueParameter), $rangeValue[0])
-            ->setParameter(sprintf('%s_2', $valueParameter), $rangeValue[1]);
+            ->andWhere(
+                $qb->expr()->orX(
+                    $qb->expr()->eq('resource_links.user', ':user'),
+                    $qb->expr()->eq('node.creator', ':user')
+                )
+            )
+            ->setParameter('user', $user->getId())
+        ;
 
-        return $qb;
-    }*/
+        $this->addSubscriptionsConditions($qb, $user);
+    }
+
+    private function addSubscriptionsConditions(QueryBuilder $qb, User $user): void
+    {
+        $groupList = (new UserGroupModel())->getUserGroupListByUser($user->getId(), Usergroup::NORMAL_CLASS);
+        $groupIdList = $groupList ? array_column($groupList, 'id') : [];
+
+        $alias = $qb->getRootAliases()[0];
+
+        $expr = $qb->expr()->orX(
+            $qb->expr()->eq("$alias.subscriptionVisibility", ':visibility_all'),
+        );
+
+        if ($groupIdList) {
+            $expr->add(
+                $qb->expr()->orX(
+                    $qb->expr()->eq("$alias.subscriptionVisibility", ':visibility_class'),
+                    $qb->expr()->in("$alias.subscriptionItemId", ':item_id_list')
+                )
+            );
+
+            $qb->setParameter('visibility_class', CCalendarEvent::SUBSCRIPTION_VISIBILITY_CLASS);
+            $qb->setParameter('item_id_list', $groupIdList);
+        }
+
+        $qb
+            ->orWhere($expr)
+            ->setParameter(':visibility_all', CCalendarEvent::SUBSCRIPTION_VISIBILITY_ALL)
+        ;
+    }
+
+    private function addCourseConditions(QueryBuilder $qb, User $user, AccessUrl $accessUrl): void
+    {
+        $courseSubscriptions = $this->courseRepository->getCoursesByUser($user, $accessUrl);
+
+        $courseIdList = [];
+
+        foreach ($courseSubscriptions as $courseSubscription) {
+            $courseIdList[] = $courseSubscription->getCourse()->getId();
+        }
+
+        if ($courseIdList) {
+            $qb
+                ->orWhere(
+                    $qb->expr()->andX(
+                        $qb->expr()->in('resource_links.course', ':course_id_list'),
+                        $qb->expr()->isNull('resource_links.session')
+                    )
+                )
+                ->setParameter('course_id_list', $courseIdList)
+            ;
+        }
+    }
+
+    private function addSessionConditions(QueryBuilder $qb, User $user, AccessUrl $accessUrl): void
+    {
+        $sessionIdList = [];
+        $courseIdList = [];
+
+        if ($user->isHRM()
+            && 'true' === $this->settingsManager->getSetting('session.drh_can_access_all_session_content')
+        ) {
+            $sessions = $this->sessionRepository
+                ->getUserFollowedSessionsInAccessUrl($user, $accessUrl)
+                ->getQuery()
+                ->getResult()
+            ;
+
+            foreach ($sessions as $session) {
+                foreach ($session->getCourses() as $sessionRelCourse) {
+                    $courseIdList[] = $sessionRelCourse->getCourse()->getId();
+                }
+
+                $sessionIdList[] = $session->getId();
+            }
+        } else {
+            $sessions = $this->sessionRepository->getSessionsByUser($user, $accessUrl)->getQuery()->getResult();
+
+            foreach ($sessions as $session) {
+                foreach ($session->getSessionRelCourseByUser($user) as $sessionRelCourse) {
+                    $courseIdList[] = $sessionRelCourse->getCourse()->getId();
+                }
+
+                $sessionIdList[] = $session->getId();
+            }
+        }
+
+        if ($sessionIdList && $courseIdList) {
+            $qb
+                ->orWhere(
+                    $qb->expr()->andX(
+                        $qb->expr()->in('resource_links.session', ':session_id_list'),
+                        $qb->expr()->in('resource_links.course', ':course_id_list')
+                    )
+                )
+                ->setParameter('session_id_list', array_unique($sessionIdList))
+                ->setParameter('course_id_list', $courseIdList)
+            ;
+        }
+    }
 }

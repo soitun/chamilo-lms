@@ -1,8 +1,7 @@
 # To get started with security, check out the documentation:
 # http://symfony.com/doc/current/book/security.html
 security:
-    enable_authenticator_manager: true
-
+    # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
     password_hashers:
         legacy_md5:
             algorithm: md5
@@ -46,15 +45,15 @@ security:
         ROLE_SUPER_ADMIN: [ROLE_ADMIN, ROLE_ALLOWED_TO_SWITCH] # Admin that can log in as another user.
         ROLE_GLOBAL_ADMIN: [ROLE_ADMIN, ROLE_ALLOWED_TO_SWITCH] # The user that installed the platform.
         ROLE_TEACHER: [ROLE_STUDENT]
-        ROLE_RRHH: [ROLE_TEACHER, ROLE_ALLOWED_TO_SWITCH]
+        ROLE_HR: [ROLE_TEACHER, ROLE_ALLOWED_TO_SWITCH]
         ROLE_QUESTION_MANAGER: [ROLE_STUDENT]
         ROLE_SESSION_MANAGER: [ROLE_STUDENT, ROLE_ALLOWED_TO_SWITCH]
         ROLE_STUDENT_BOSS: [ROLE_STUDENT]
         ROLE_INVITEE: [ROLE_STUDENT]
 
-        ROLE_CURRENT_COURSE_STUDENT: [ROLE_CURRENT_COURSE_STUDENT] # Set in the CourseListener
+        ROLE_CURRENT_COURSE_STUDENT: [ROLE_CURRENT_COURSE_STUDENT] # Set in the CidReqListener
         ROLE_CURRENT_COURSE_TEACHER: [ROLE_CURRENT_COURSE_TEACHER, ROLE_CURRENT_COURSE_STUDENT] # Set in the course listener
-        ROLE_CURRENT_COURSE_GROUP_STUDENT: [ROLE_CURRENT_COURSE_GROUP_STUDENT] # Set in the CourseListener
+        ROLE_CURRENT_COURSE_GROUP_STUDENT: [ROLE_CURRENT_COURSE_GROUP_STUDENT] # Set in the CidReqListener
         ROLE_CURRENT_COURSE_GROUP_TEACHER: [ROLE_CURRENT_COURSE_GROUP_TEACHER, ROLE_CURRENT_COURSE_GROUP_STUDENT]
         ROLE_CURRENT_COURSE_SESSION_STUDENT: [ROLE_CURRENT_COURSE_SESSION_STUDENT]
         ROLE_CURRENT_COURSE_SESSION_TEACHER: [ROLE_CURRENT_COURSE_SESSION_STUDENT, ROLE_CURRENT_COURSE_SESSION_TEACHER]
@@ -68,7 +67,6 @@ security:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
-            anonymous: true
 
         # Use to connect via a JWT token
         api:
@@ -115,6 +113,12 @@ security:
                 check_path: /login_json
                 # username_path: security.credentials.login
                 # password_path: security.credentials.password
+
+            custom_authenticators:
+                - Chamilo\CoreBundle\Security\Authenticator\OAuth2\GenericAuthenticator
+                - Chamilo\CoreBundle\Security\Authenticator\OAuth2\FacebookAuthenticator
+                - Chamilo\CoreBundle\Security\Authenticator\OAuth2\KeycloakAuthenticator
+                - Chamilo\CoreBundle\Security\Authenticator\OAuth2\AzureAuthenticator
 
     access_control:
         - {path: ^/login, roles: PUBLIC_ACCESS}

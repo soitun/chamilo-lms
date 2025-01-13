@@ -15,7 +15,7 @@ if (!api_is_allowed_to_edit()) {
     api_not_allowed(true);
 }
 
-$blockEdition = api_get_configuration_value('block_student_publication_edition');
+$blockEdition = ('true' === api_get_setting('work.block_student_publication_edition'));
 
 if ($blockEdition && !api_is_platform_admin()) {
     api_not_allowed(true);
@@ -56,7 +56,7 @@ $there_is_a_end_date = false;
 
 if (Gradebook::is_active()) {
     $link_info = GradebookUtils::isResourceInCourseGradebook(
-        api_get_course_id(),
+        api_get_course_int_id(),
         LINK_STUDENTPUBLICATION,
         $workId
     );

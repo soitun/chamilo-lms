@@ -47,7 +47,7 @@ class Positioning extends Plugin
         Database::query($sql);
 
         // Installing course settings
-        $this->install_course_fields_in_all_courses(true, 'positioning.png');
+        $this->install_course_fields_in_all_courses(true);
     }
 
     public function uninstall()
@@ -81,7 +81,7 @@ class Positioning extends Plugin
         $result = Database::query($sql);
 
         if (Database::num_rows($result) > 0) {
-            return Database::fetch_array($result, 'ASSOC');
+            return Database::fetch_assoc($result);
         }
 
         return false;
@@ -227,7 +227,7 @@ class Positioning extends Plugin
         $result = Database::query($sql);
 
         if (Database::num_rows($result) > 0) {
-            return Database::fetch_array($result, 'ASSOC');
+            return Database::fetch_assoc($result);
         }
 
         return false;

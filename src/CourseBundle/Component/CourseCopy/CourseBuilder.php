@@ -36,6 +36,7 @@ use Chamilo\CourseBundle\Component\CourseCopy\Resources\Work;
 use Chamilo\CourseBundle\Entity\CLpCategory;
 use CourseManager;
 use Database;
+use Doctrine\DBAL\Exception;
 use DocumentManager;
 use learnpath;
 use Link as LinkManager;
@@ -123,7 +124,7 @@ class CourseBuilder
         $this->course->code = $_course['code'];
         $this->course->type = $type;
         //   $this->course->path = api_get_path(SYS_COURSE_PATH).$_course['path'].'/';
-//        $this->course->backup_path = api_get_path(SYS_COURSE_PATH).$_course['path'];
+        //        $this->course->backup_path = api_get_path(SYS_COURSE_PATH).$_course['path'];
         $this->course->encoding = api_get_system_encoding();
         $this->course->info = $_course;
     }
@@ -524,7 +525,7 @@ class CourseBuilder
 
         $sql = "SELECT * FROM $table
                 WHERE c_id = $courseId $sessionCondition $idCondition
-                ORDER BY cat_title";
+                ORDER BY title";
 
         $result = Database::query($sql);
         while ($obj = Database::fetch_object($result)) {
@@ -564,7 +565,7 @@ class CourseBuilder
         $sql = "SELECT * FROM $table WHERE c_id = $courseId
                 $sessionCondition
                 $idCondition
-                ORDER BY thread_title ";
+                ORDER BY title ";
         $result = Database::query($sql);
 
         while ($obj = Database::fetch_object($result)) {
@@ -1183,10 +1184,8 @@ class CourseBuilder
         $db_result = Database::query($sql);
         $is_required = 0;
         while ($obj = Database::fetch_object($db_result)) {
-            if (api_get_configuration_value('allow_required_survey_questions')) {
-                if (isset($obj->is_required)) {
-                    $is_required = $obj->is_required;
-                }
+            if (isset($obj->is_required)) {
+                $is_required = $obj->is_required;
             }
             $question = new SurveyQuestion(
                 $obj->question_id,
@@ -1498,7 +1497,7 @@ class CourseBuilder
                 $lp = new CourseCopyLearnpath(
                     $obj->id,
                     $obj->lp_type,
-                    $obj->name,
+                    $obj->title,
                     $obj->path,
                     $obj->ref,
                     $obj->description,
@@ -1519,7 +1518,7 @@ class CourseBuilder
                     $obj->autolaunch,
                     $obj->created_on,
                     $obj->modified_on,
-                    $obj->publicated_on,
+                    $obj->published_on,
                     $obj->expired_on,
                     $obj->session_id,
                     $obj->category_id,
@@ -1745,13 +1744,13 @@ class CourseBuilder
         $sql = "SELECT * FROM $table_thematic
                 WHERE c_id = $courseId $sessionCondition ";
         $db_result = Database::query($sql);
-        while ($row = Database::fetch_array($db_result, 'ASSOC')) {
+        while ($row = Database::fetch_assoc($db_result)) {
             $thematic = new Thematic($row);
             $sql = 'SELECT * FROM '.$table_thematic_advance.'
                     WHERE c_id = '.$courseId.' AND thematic_id = '.$row['id'];
 
             $result = Database::query($sql);
-            while ($sub_row = Database::fetch_array($result, 'ASSOC')) {
+            while ($sub_row = Database::fetch_assoc($result)) {
                 $thematic->addThematicAdvance($sub_row);
             }
 
@@ -1778,7 +1777,7 @@ class CourseBuilder
                             tp.id IN (".implode(', ', $thematic_plan_id_list).') ';
 
                 $result = Database::query($sql);
-                while ($sub_row = Database::fetch_array($result, 'ASSOC')) {
+                while ($sub_row = Database::fetch_assoc($result)) {
                     $thematic->addThematicPlan($sub_row);
                 }
             }
@@ -1789,10 +1788,12 @@ class CourseBuilder
     /**
      * Build the attendances.
      *
-     * @param int   $session_id      Internal session ID
-     * @param int   $courseId        Internal course ID
+     * @param int   $session_id Internal session ID
+     * @param int   $courseId Internal course ID
      * @param bool  $withBaseContent Whether to include content from the course without session or not
-     * @param array $id_list         If you want to restrict the structure to only the given IDs
+     * @param array $id_list If you want to restrict the structure to only the given IDs
+     * @throws \Exception
+     * @throws Exception
      */
     public function build_attendance(
         $session_id = 0,
@@ -1808,13 +1809,13 @@ class CourseBuilder
         $sql = 'SELECT * FROM '.$table_attendance.'
                 WHERE c_id = '.$courseId.' '.$sessionCondition;
         $db_result = Database::query($sql);
-        while ($row = Database::fetch_array($db_result, 'ASSOC')) {
+        while ($row = Database::fetch_assoc($db_result)) {
             $obj = new Attendance($row);
             $sql = 'SELECT * FROM '.$table_attendance_calendar.'
                     WHERE c_id = '.$courseId.' AND attendance_id = '.$row['id'];
 
             $result = Database::query($sql);
-            while ($sub_row = Database::fetch_array($result, 'ASSOC')) {
+            while ($sub_row = Database::fetch_assoc($result)) {
                 $obj->add_attendance_calendar($sub_row);
             }
             $this->course->add_resource($obj);
@@ -1824,14 +1825,15 @@ class CourseBuilder
     /**
      * Build the works (or "student publications", or "assignments").
      *
-     * @param int   $session_id      Internal session ID
-     * @param int   $courseId        Internal course ID
+     * @param int   $session_id Internal session ID
+     * @param int   $courseId Internal course ID
      * @param bool  $withBaseContent Whether to include content from the course without session or not
-     * @param array $idList          If you want to restrict the structure to only the given IDs
+     * @param array $idList If you want to restrict the structure to only the given IDs
+     * @throws Exception
      */
     public function build_works(
-        $session_id = 0,
-        $courseId = 0,
+        int $session_id = 0,
+        int $courseId = 0,
         $withBaseContent = false,
         $idList = []
     ) {
@@ -1859,7 +1861,7 @@ class CourseBuilder
                     $idCondition
                 ";
         $result = Database::query($sql);
-        while ($row = Database::fetch_array($result, 'ASSOC')) {
+        while ($row = Database::fetch_assoc($result)) {
             $obj = new Work($row);
             $this->course->add_resource($obj);
         }
@@ -1877,7 +1879,7 @@ class CourseBuilder
     ) {
         $courseInfo = api_get_course_info_by_id($courseId);
         $courseCode = $courseInfo['code'];
-        $cats = Category:: load(
+        $cats = Category::load(
             null,
             null,
             $courseCode,

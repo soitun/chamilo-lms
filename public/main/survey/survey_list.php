@@ -5,6 +5,8 @@
 use Chamilo\CoreBundle\Framework\Container;
 use Chamilo\CourseBundle\Entity\CSurvey;
 use ChamiloSession as Session;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
 
 /**
  * @author Patrick Cool <patrick.cool@UGent.be>, Ghent University: cleanup, refactoring and rewriting large parts of
@@ -79,7 +81,7 @@ if (isset($_GET['search']) && 'advanced' === $_GET['search']) {
 }
 
 $listUrl = api_get_path(WEB_CODE_PATH).'survey/survey_list.php?'.api_get_cidreq();
-$surveyId = $_GET['survey_id'] ?? 0;
+$surveyId = isset($_GET['survey_id']) ? (int) $_GET['survey_id'] : 0;
 $repo = Container::getSurveyRepository();
 $survey = null;
 if (!empty($surveyId)) {
@@ -165,7 +167,7 @@ if (isset($_POST['action']) && $_POST['action'] && isset($_POST['id']) && is_arr
 					ORDER BY survey_question.sort, survey_question_option.sort ASC";
                 $result = Database::query($sql);
                 $questionsOptions = [];
-                while ($row = Database::fetch_array($result, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($result)) {
                     if ('pagebreak' !== $row['type']) {
                         $questionsOptions[$row['sort']]['question_id'] = $row['question_id'];
                         $questionsOptions[$row['sort']]['survey_id'] = $row['survey_id'];
@@ -187,7 +189,7 @@ if (isset($_POST['action']) && $_POST['action'] && isset($_POST['id']) && is_arr
                 $userAnswers = [];
                 $all_answers = [];
                 $result = Database::query($sql);
-                while ($answers_of_user = Database::fetch_array($result, 'ASSOC')) {
+                while ($answers_of_user = Database::fetch_assoc($result)) {
                     $userAnswers[$answers_of_user['user']][$surveyId][$answers_of_user['question_id']][] = $answers_of_user['option_id'];
                     $all_answers[$answers_of_user['user']][$answers_of_user['question_id']][] = $answers_of_user;
                 }
@@ -574,15 +576,15 @@ $actions = '';
 if (!api_is_session_general_coach() || 'true' === $extend_rights_for_coachs) {
     $actions .= '<a
         href="'.api_get_path(WEB_CODE_PATH).'survey/create_new_survey.php?'.api_get_cidreq().'&amp;action=add">'.
-        Display::return_icon('new_survey.png', get_lang('Create survey'), '', ICON_SIZE_MEDIUM).'</a> ';
+        Display::getMdiIcon(ObjectIcon::SURVEY, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Create survey')).'</a> ';
     $url = api_get_path(WEB_CODE_PATH).'survey/create_meeting.php?'.api_get_cidreq();
     $actions .= Display::url(
-        Display::return_icon('add_doodle.png', get_lang('Create surveyDoodle'), '', ICON_SIZE_MEDIUM),
+        Display::getMdiIcon(ObjectIcon::SURVEY_DOODLE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Create surveyDoodle')),
         $url
     );
 }
 $actions .= '<a href="'.api_get_self().'?'.api_get_cidreq().'&amp;search=advanced">'.
-    Display::return_icon('search.png', get_lang('Search'), '', ICON_SIZE_MEDIUM).'</a>';
+    Display::getMdiIcon(ActionIcon::SEARCH, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Search')).'</a>';
 
 echo Display::toolbarAction('toolbar', [$actions]);
 
@@ -606,9 +608,9 @@ function get_survey_data($from, $number_of_items, $column, $direction)
     return SurveyUtil::get_survey_data($from, $number_of_items, $column, $direction);
 }
 
-function modify_filter($survey_id)
+function modify_filter($survey_id, $url_params, $row)
 {
-    return SurveyUtil::modify_filter($survey_id, false);
+    return SurveyUtil::modify_filter($survey_id, $url_params, $row);
 }
 
 function modify_filter_drh($survey_id)

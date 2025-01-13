@@ -26,7 +26,7 @@ define('TABLE_MAIN_SYSTEM_ANNOUNCEMENTS', 'sys_announcement');
 define('TABLE_MAIN_SYSTEM_ANNOUNCEMENTS_GROUPS', 'announcement_rel_group');
 define('TABLE_MAIN_LANGUAGE', 'language');
 define('TABLE_MAIN_SETTINGS_OPTIONS', 'settings_options');
-define('TABLE_MAIN_SETTINGS_CURRENT', 'settings_current');
+define('TABLE_MAIN_SETTINGS', 'settings');
 define('TABLE_MAIN_SESSION', 'session');
 define('TABLE_MAIN_SESSION_CATEGORY', 'session_category');
 define('TABLE_MAIN_SESSION_COURSE', 'session_rel_course');
@@ -114,7 +114,7 @@ define('TABLE_STATISTIC_TRACK_E_HOTPOTATOES', 'track_e_hotpotatoes');
 define('TABLE_STATISTIC_TRACK_E_COURSE_ACCESS', 'track_e_course_access');
 define('TABLE_STATISTIC_TRACK_E_EXERCISES', 'track_e_exercises');
 define('TABLE_STATISTIC_TRACK_E_ATTEMPT', 'track_e_attempt');
-define('TABLE_STATISTIC_TRACK_E_ATTEMPT_RECORDING', 'track_e_attempt_recording');
+define('TABLE_STATISTIC_TRACK_E_ATTEMPT_QUALIFY', 'track_e_attempt_qualify');
 define('TABLE_STATISTIC_TRACK_E_DEFAULT', 'track_e_default');
 define('TABLE_STATISTIC_TRACK_E_UPLOADS', 'track_e_uploads');
 define('TABLE_STATISTIC_TRACK_E_HOTSPOT', 'track_e_hotspot');
@@ -232,6 +232,7 @@ define('TABLE_NOTEBOOK', 'notebook');
 // Message
 define('TABLE_MESSAGE', 'message');
 define('TABLE_MESSAGE_ATTACHMENT', 'message_attachment');
+define('TABLE_MESSAGE_REL_USER', 'message_rel_user');
 
 // Attendance Sheet
 define('TABLE_ATTENDANCE', 'attendance');

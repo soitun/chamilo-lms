@@ -33,8 +33,13 @@ class TrackEExerciseRepositoryTest extends AbstractApiTest
         $teacher = $this->createUser('teacher');
         $student = $this->createUser('student');
 
+        /** @var CourseRepository $courseRepo */
         $courseRepo = self::getContainer()->get(CourseRepository::class);
+
+        /** @var TrackEExerciseRepository $trackExerciseRepo */
         $trackExerciseRepo = self::getContainer()->get(TrackEExerciseRepository::class);
+
+        /** @var CQuizRepository $exerciseRepo */
         $exerciseRepo = self::getContainer()->get(CQuizRepository::class);
 
         $this->assertSame(1, $courseRepo->count([]));
@@ -83,9 +88,9 @@ class TrackEExerciseRepositoryTest extends AbstractApiTest
         $em->remove($course);
         $em->flush();
 
-        $this->assertSame(0, $trackExerciseRepo->count([]));
-        $this->assertSame(0, $exerciseRepo->count([]));
         $this->assertSame(0, $courseRepo->count([]));
+        $this->assertSame(0, $trackExerciseRepo->count([]));
+        $this->assertSame(1, $exerciseRepo->count([]));
     }
 
     public function testCreateInSession(): void
@@ -281,9 +286,9 @@ class TrackEExerciseRepositoryTest extends AbstractApiTest
         $em->remove($course);
         $em->flush();
 
-        $this->assertSame(0, $courseRepo->count([]));
-        $this->assertSame(0, $exerciseRepo->count([]));
         $this->assertSame(0, $trackExerciseRepo->count([]));
+        $this->assertSame(1, $exerciseRepo->count([]));
+        $this->assertSame(0, $courseRepo->count([]));
 
         $teacher = $this->getUser('teacher');
         $this->assertNotNull($teacher);

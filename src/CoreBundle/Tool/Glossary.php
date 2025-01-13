@@ -10,14 +10,14 @@ use Chamilo\CourseBundle\Entity\CGlossary;
 
 class Glossary extends AbstractTool implements ToolInterface
 {
-    public function getName(): string
+    public function getTitle(): string
     {
         return 'glossary';
     }
 
     public function getLink(): string
     {
-        return '/main/glossary/index.php';
+        return '/resources/glossary/:nodeId/';
     }
 
     public function getIcon(): string

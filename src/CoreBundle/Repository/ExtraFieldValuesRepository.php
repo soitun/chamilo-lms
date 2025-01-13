@@ -9,7 +9,9 @@ namespace Chamilo\CoreBundle\Repository;
 use Chamilo\CoreBundle\Entity\ExtraField;
 use Chamilo\CoreBundle\Entity\ExtraFieldItemInterface;
 use Chamilo\CoreBundle\Entity\ExtraFieldValues;
+use Chamilo\CourseBundle\Entity\CLp;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -45,7 +47,7 @@ class ExtraFieldValuesRepository extends ServiceEntityRepository
             )
             ->where(
                 $qb->expr()->andX(
-                    $qb->expr()->eq('f.extraFieldType', $extraFieldType),
+                    $qb->expr()->eq('f.itemType', $extraFieldType),
                     $qb->expr()->eq('fv.itemId', $itemId),
                     $qb->expr()->eq('f.visibleToSelf', true)
                 )
@@ -68,7 +70,7 @@ class ExtraFieldValuesRepository extends ServiceEntityRepository
             ->andWhere('v.itemId = :id')
             ->andWhere(
                 $qb->expr()->eq('f.visibleToSelf', true),
-                $qb->expr()->eq('f.extraFieldType', $type)
+                $qb->expr()->eq('f.itemType', $type)
             )
             ->setParameter(
                 'id',
@@ -91,6 +93,7 @@ class ExtraFieldValuesRepository extends ServiceEntityRepository
             ->setParameter('field', $extraField)
         ;
 
+        /** @var ?ExtraFieldValues $extraFieldValues */
         $extraFieldValues = $qb->getQuery()->getOneOrNullResult();
         $em = $this->getEntityManager();
 
@@ -98,16 +101,101 @@ class ExtraFieldValuesRepository extends ServiceEntityRepository
             $extraFieldValues = (new ExtraFieldValues())
                 ->setItemId($itemId)
                 ->setField($extraField)
-                ->setValue($data)
+                ->setFieldValue($data)
             ;
             $em->persist($extraFieldValues);
-            $em->flush();
         } else {
-            $extraFieldValues->setValue($data);
+            $extraFieldValues->setFieldValue($data);
             $em->persist($extraFieldValues);
-            $em->flush();
         }
 
+        $em->flush();
+
         return $extraFieldValues;
+    }
+
+    public function findLegalAcceptByItemId($itemId)
+    {
+        $qb = $this->createQueryBuilder('s')
+            ->innerJoin('s.field', 'sf')
+            ->where('s.itemId = :itemId')
+            ->andWhere('sf.variable = :variable')
+            ->andWhere('sf.itemType = :itemType')
+            ->andWhere('s.fieldValue IS NOT NULL')
+            ->andWhere('s.fieldValue != :emptyString')
+            ->orderBy('s.id', 'ASC')
+            ->setMaxResults(1)
+            ->setParameter('itemId', $itemId)
+            ->setParameter('variable', 'legal_accept')
+            ->setParameter('itemType', 1)
+            ->setParameter('emptyString', '')
+        ;
+
+        $result = $qb->getQuery()->getOneOrNullResult();
+
+        if (null === $result) {
+            return null;
+        }
+
+        return [
+            'id' => $result->getId(),
+            'itemId' => $result->getItemId(),
+            'value' => $result->getFieldValue(),
+        ];
+    }
+
+    /**
+     * @return ExtraFieldValues|array<ExtraFieldValues>|null
+     *
+     * @throws NonUniqueResultException
+     */
+    public function findByVariableAndValue(
+        ExtraField $extraField,
+        string|int $value,
+        bool $last = false,
+        bool $all = false,
+        bool $useLike = false,
+    ): ExtraFieldValues|array|null {
+        $qb = $this->createQueryBuilder('s');
+
+        if ($useLike) {
+            $qb->andWhere($qb->expr()->like('s.fieldValue', ':value'));
+            $value = "%$value%";
+        } else {
+            $qb->andWhere($qb->expr()->eq('s.fieldValue', ':value'));
+        }
+
+        $query = $qb
+            ->andWhere(
+                $qb->expr()->eq('s.field', ':f')
+            )
+            ->orderBy('s.itemId', $last ? 'DESC' : 'ASC')
+            ->setParameter('value', "$value")
+            ->setParameter('f', $extraField)
+            ->getQuery()
+        ;
+
+        if ($all) {
+            return $query->getResult();
+        }
+
+        return $query->getOneOrNullResult();
+    }
+
+    /**
+     * Retrieves the LP IDs that have a value for 'number_of_days_for_completion'.
+     */
+    public function getLpIdWithDaysForCompletion(): array
+    {
+        $qb = $this->createQueryBuilder('efv')
+            ->select('efv.itemId as lp_id, efv.fieldValue as ndays')
+            ->innerJoin('efv.field', 'ef')
+            ->innerJoin(CLp::class, 'lp', 'WITH', 'lp.iid = efv.itemId')
+            ->where('ef.variable = :variable')
+            ->andWhere('efv.fieldValue > 0')
+            ->setParameter('variable', 'number_of_days_for_completion')
+        ;
+
+        return $qb->getQuery()->getResult();
     }
 }

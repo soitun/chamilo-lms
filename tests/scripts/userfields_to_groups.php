@@ -3,10 +3,11 @@
  * Move user fields "ruc" and "razon_social" to (social) groups (create groups)
  * and assign the related users to those groups.
  */
+die('Remove the "die()" statement on line '.__LINE__.' to execute this script'.PHP_EOL);
 if (PHP_SAPI != 'cli') {
     die('This script can only be launched from the command line');
 }
-require __DIR__ . '/../../main/inc/global.inc.php';
+require_once __DIR__.'/../../public/main/inc/global.inc.php';
 
 // We assume all these fields represent the same value, so they are on a 1-1
 // relationship.
@@ -18,12 +19,12 @@ $tUserFieldValue = Database::get_main_table(TABLE_EXTRA_FIELD_VALUES);
 $tUser = Database::get_main_table(TABLE_MAIN_USER);
 
 // First get the IDs of the selected fields
-$sql = "SELECT id, field_type, variable FROM $tUserField";
+$sql = "SELECT id, value_type, variable FROM $tUserField";
 $result = Database::query($sql);
 $foundFields = array();
 $fieldsNames = array();
 while ($row = Database::fetch_assoc($result)) {
-    if ($row['field_type'] == 1 && in_array($row['variable'], $referenceFields)) {
+    if ($row['value_type'] == 1 && in_array($row['variable'], $referenceFields)) {
         $foundFields[$row['variable']] = array('id' => $row['id']);
         $fieldsNames[$row['id']] = $row['variable'];
     }

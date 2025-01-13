@@ -4,6 +4,8 @@
 
 use Chamilo\CoreBundle\Entity\ExtraField;
 use ExtraField as ExtraFieldModel;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\StateIcon;
 
 /**
  * This script allows teachers to subscribe existing users
@@ -139,6 +141,9 @@ $table = new SortableTable(
 );
 $parameters['keyword'] = $keyword;
 $parameters['type'] = $type;
+$parameters['cid'] = api_get_course_int_id();
+$parameters['sid'] = api_get_session_id();
+
 $table->set_additional_parameters($parameters);
 $col = 0;
 $table->set_header($col++, '', false);
@@ -185,10 +190,10 @@ $actionsLeft = Display::url(
 
 if (isset($_GET['subscribe_user_filter_value']) && !empty($_GET['subscribe_user_filter_value'])) {
     $actionsLeft .= '<a href="subscribe_user.php?type='.$type.'">'.
-        Display::return_icon('clean_group.gif').' '.get_lang('Clear filter results').'</a>';
+        Display::getMdiIcon(ActionIcon::RESET, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Clear filter results')).' '.get_lang('Clear filter results').'</a>';
 }
 $extraForm = '';
-if ('true' === api_get_setting('ProfilingFilterAddingUsers')) {
+if ('true' === api_get_setting('profiling_filter_adding_users')) {
     $extraForm = display_extra_profile_fields_filter();
 }
 
@@ -203,7 +208,8 @@ $form = new FormValidator(
 );
 $form->addText('keyword', '', false);
 $form->addElement('hidden', 'type', $type);
-$form->addElement('hidden', 'cidReq', api_get_course_id());
+$form->addElement('hidden', 'cid', api_get_course_int_id());
+$form->addElement('hidden', 'sid', api_get_session_id());
 $form->addButtonSearch(get_lang('Search'));
 echo Display::toolbarAction('toolbar-subscriber', [$actionsLeft, $extraForm, $form->returnForm()]);
 
@@ -229,16 +235,12 @@ function get_number_of_users()
     $sessionId = api_get_session_id();
     $courseId = api_get_course_int_id();
 
-    $studentRoleFilter = " AND ( 
-        u.roles LIKE '%ROLE_STUDENT%'
-        ) 
-    ";
-
-    $teacherRoleFilter = " AND ( 
+    $studentRoleFilter = '';
+    $teacherRoleFilter = " AND (
         u.roles LIKE '%ROLE_TEACHER%' OR
         u.roles LIKE '%ROLE_ADMIN%' OR
         u.roles LIKE '%ROLE_SESSION_MANAGER%'
-        ) 
+        )
     ";
 
     if (isset($_REQUEST['type']) && COURSEMANAGER == $_REQUEST['type']) {
@@ -251,6 +253,7 @@ function get_number_of_users()
                         c_id = $courseId AND
                         session_id = $sessionId
                     WHERE
+                        u.active <> ".USER_SOFT_DELETED." AND
                         cu.user_id IS NULL
                         $teacherRoleFilter AND
                         (u.official_code <> 'ADMIN' OR u.official_code IS NULL) ";
@@ -268,6 +271,7 @@ function get_number_of_users()
                             INNER JOIN  $tbl_url_rel_user as url_rel_user
                             ON (url_rel_user.user_id = u.id)
                             WHERE
+                                u.active <> ".USER_SOFT_DELETED." AND
                                 cu.user_id IS NULL AND
                                 access_url_id = $url_access_id
                                 $teacherRoleFilter AND
@@ -280,8 +284,9 @@ function get_number_of_users()
                     FROM $user_table u
                     LEFT JOIN $course_user_table cu
                     ON u.id = cu.user_id and c_id = $courseId
-                    WHERE 
-                          cu.user_id IS NULL 
+                    WHERE
+                          u.active <> ".USER_SOFT_DELETED." AND
+                          cu.user_id IS NULL
                           $teacherRoleFilter  ";
 
             if (api_is_multiple_url_enabled()) {
@@ -295,7 +300,8 @@ function get_number_of_users()
                         ON u.id = cu.user_id AND c_id = $courseId
                         INNER JOIN  $tbl_url_rel_user as url_rel_user
                         ON (url_rel_user.user_id = u.id)
-                        WHERE 
+                        WHERE
+                            u.active <> ".USER_SOFT_DELETED." AND
                             cu.user_id IS NULL
                             $teacherRoleFilter AND
                             access_url_id = $url_access_id ";
@@ -313,7 +319,8 @@ function get_number_of_users()
                         c_id = $courseId AND
                         session_id = $sessionId
                     WHERE
-                        cu.user_id IS NULL 
+                        u.active <> ".USER_SOFT_DELETED." AND
+                        cu.user_id IS NULL
                         $studentRoleFilter AND
                         (u.official_code <> 'ADMIN' OR u.official_code IS NULL) ";
 
@@ -331,7 +338,8 @@ function get_number_of_users()
                             INNER JOIN $tbl_url_rel_user as url_rel_user
                             ON (url_rel_user.user_id = u.id)
                             WHERE
-                                cu.user_id IS NULL 
+                                u.active <> ".USER_SOFT_DELETED." AND
+                                cu.user_id IS NULL
                                 $studentRoleFilter AND
                                 access_url_id = $url_access_id AND
                                 (u.official_code <> 'ADMIN' OR u.official_code IS NULL) ";
@@ -346,14 +354,14 @@ function get_number_of_users()
             // we change the SQL when we have a filter
             if (isset($_GET['subscribe_user_filter_value']) &&
                 !empty($_GET['subscribe_user_filter_value']) &&
-                'true' === api_get_setting('ProfilingFilterAddingUsers')
+                'true' === api_get_setting('profiling_filter_adding_users')
             ) {
                 $field_identification = explode('*', $_GET['subscribe_user_filter_value']);
                 $sql .= "
                     LEFT JOIN $table_user_field_values field_values
                     ON field_values.item_id = u.id
                     WHERE
-                        cu.user_id IS NULL 
+                        cu.user_id IS NULL
                         $studentRoleFilter AND
                         field_values.field_id = '".intval($field_identification[0])."' AND
                         field_values.value = '".Database::escape_string($field_identification[1])."'
@@ -373,9 +381,9 @@ function get_number_of_users()
                             ON u.id = cu.user_id AND c_id = $courseId
                             INNER JOIN $tbl_url_rel_user as url_rel_user
                             ON (url_rel_user.user_id = u.id)
-                            WHERE 
-                                  cu.user_id IS NULL AND 
-                                  access_url_id = $url_access_id  
+                            WHERE
+                                  cu.user_id IS NULL AND
+                                  access_url_id = $url_access_id
                                   $studentRoleFilter ";
                 }
             }
@@ -394,7 +402,7 @@ function get_number_of_users()
         )";
 
         // we also want to search for users who have something in their profile fields that matches the keyword
-        if ('true' === api_get_setting('ProfilingFilterAddingUsers')) {
+        if ('true' === api_get_setting('profiling_filter_adding_users')) {
             $additional_users = search_additional_profile_fields($keyword);
         }
 
@@ -414,7 +422,7 @@ function get_number_of_users()
             $users_of_course[] = $course_user['user_id'];
         }
     }
-    $sql .= " AND u.status <> ".ANONYMOUS." ";
+    $sql .= " AND u.status <> ".ANONYMOUS." AND u.active <> ".USER_SOFT_DELETED." ";
     $res = Database::query($sql);
     $count_user = 0;
 
@@ -469,16 +477,12 @@ function get_user_data($from, $number_of_items, $column, $direction)
                 u.id              AS col5";
     }
 
-    $studentRoleFilter = " AND ( 
-        u.roles LIKE '%ROLE_STUDENT%'
-        ) 
-    ";
-
-    $teacherRoleFilter = " AND ( 
+    $studentRoleFilter = '';
+    $teacherRoleFilter = " AND (
         u.roles LIKE '%ROLE_TEACHER%' OR
         u.roles LIKE '%ROLE_ADMIN%' OR
         u.roles LIKE '%ROLE_SESSION_MANAGER%'
-        ) 
+        )
     ";
 
     if (isset($_REQUEST['type']) && COURSEMANAGER == $_REQUEST['type']) {
@@ -497,7 +501,7 @@ function get_user_data($from, $number_of_items, $column, $direction)
             // applying the filter of the additional user profile fields
             if (isset($_GET['subscribe_user_filter_value']) &&
                 !empty($_GET['subscribe_user_filter_value']) &&
-                'true' === api_get_setting('ProfilingFilterAddingUsers')
+                'true' === api_get_setting('profiling_filter_adding_users')
             ) {
                 $field_identification = explode('*', $_GET['subscribe_user_filter_value']);
                 $sql .= "
@@ -510,8 +514,8 @@ function get_user_data($from, $number_of_items, $column, $direction)
                         field_values.field_id = '".intval($field_identification[0])."' AND
                         field_values.value = '".Database::escape_string($field_identification[1])."'";
             } else {
-                $sql .= " WHERE 
-                            cu.user_id IS NULL 
+                $sql .= " WHERE
+                            cu.user_id IS NULL
                             $teacherRoleFilter AND
                             (u.official_code <> 'ADMIN' OR u.official_code IS NULL) ";
             }
@@ -525,14 +529,14 @@ function get_user_data($from, $number_of_items, $column, $direction)
             // applying the filter of the additional user profile fields
             if (isset($_GET['subscribe_user_filter_value']) &&
                 !empty($_GET['subscribe_user_filter_value']) &&
-                'true' === api_get_setting('ProfilingFilterAddingUsers')
+                'true' === api_get_setting('profiling_filter_adding_users')
             ) {
                 $field_identification = explode('*', $_GET['subscribe_user_filter_value']);
                 $sql .= "
                     LEFT JOIN $table_user_field_values field_values
                         ON field_values.item_id = u.id
                     WHERE
-                        cu.user_id IS NULL 
+                        cu.user_id IS NULL
                         $studentRoleFilter AND
                         field_values.field_id = '".intval($field_identification[0])."' AND
                         field_values.value = '".Database::escape_string($field_identification[1])."'";
@@ -553,7 +557,7 @@ function get_user_data($from, $number_of_items, $column, $direction)
                     // applying the filter of the additional user profile fields
                     if (isset($_GET['subscribe_user_filter_value']) &&
                         !empty($_GET['subscribe_user_filter_value']) &&
-                        'true' === api_get_setting('ProfilingFilterAddingUsers')
+                        'true' === api_get_setting('profiling_filter_adding_users')
                     ) {
                         $field_identification = explode('*', $_GET['subscribe_user_filter_value']);
                         $sql .= "
@@ -565,7 +569,7 @@ function get_user_data($from, $number_of_items, $column, $direction)
                                 field_values.field_id = '".intval($field_identification[0])."' AND
                                 field_values.value = '".Database::escape_string($field_identification[1])."'";
                     } else {
-                        $sql .= " WHERE 
+                        $sql .= " WHERE
                                     cu.user_id IS NULL
                                     $teacherRoleFilter AND
                                     access_url_id = $url_access_id ";
@@ -585,7 +589,7 @@ function get_user_data($from, $number_of_items, $column, $direction)
                         session_id = $sessionId ";
 
             if (api_is_multiple_url_enabled()) {
-                $sql .= " INNER JOIN $tbl_url_rel_user as url_rel_user 
+                $sql .= " INNER JOIN $tbl_url_rel_user as url_rel_user
                           ON (url_rel_user.user_id = u.id) ";
             }
 
@@ -598,7 +602,7 @@ function get_user_data($from, $number_of_items, $column, $direction)
                     LEFT JOIN $table_user_field_values field_values
                         ON field_values.item_id = u.id
                     WHERE
-                        cu.user_id IS NULL 
+                        cu.user_id IS NULL
                         $studentRoleFilter AND
                         (u.official_code <> 'ADMIN' OR u.official_code IS NULL) AND
                         field_values.field_id = '".intval($field_identification[0])."' AND
@@ -648,7 +652,7 @@ function get_user_data($from, $number_of_items, $column, $direction)
                     // applying the filter of the additional user profile fields
                     if (isset($_GET['subscribe_user_filter_value']) &&
                         !empty($_GET['subscribe_user_filter_value']) &&
-                        'true' === api_get_setting('ProfilingFilterAddingUsers')
+                        'true' === api_get_setting('profiling_filter_adding_users')
                     ) {
                         $field_identification = explode('*', $_GET['subscribe_user_filter_value']);
                         $sql .= "
@@ -662,9 +666,9 @@ function get_user_data($from, $number_of_items, $column, $direction)
                                 access_url_id = $url_access_id
                             ";
                     } else {
-                        $sql .= " WHERE 
-                            cu.user_id IS NULL 
-                            $studentRoleFilter AND 
+                        $sql .= " WHERE
+                            cu.user_id IS NULL
+                            $studentRoleFilter AND
                             access_url_id = $url_access_id ";
                     }
                 }
@@ -684,7 +688,7 @@ function get_user_data($from, $number_of_items, $column, $direction)
                     )
                 ";
 
-        if ('true' === api_get_setting('ProfilingFilterAddingUsers')) {
+        if ('true' === api_get_setting('profiling_filter_adding_users')) {
             // we also want to search for users who have something in
             // their profile fields that matches the keyword
             $additional_users = search_additional_profile_fields($keyword);
@@ -702,7 +706,7 @@ function get_user_data($from, $number_of_items, $column, $direction)
         }
     }
 
-    $sql .= " AND u.status != ".ANONYMOUS." ";
+    $sql .= " AND u.status != ".ANONYMOUS." AND u.active <> ".USER_SOFT_DELETED." ";
     $column = (int) $column;
     $direction = !in_array(strtolower(trim($direction)), ['asc', 'desc']) ? 'asc' : $direction;
     // Sorting and pagination (used by the sortable table)
@@ -710,7 +714,6 @@ function get_user_data($from, $number_of_items, $column, $direction)
     $from = (int) $from;
     $number_of_items = (int) $number_of_items;
     $sql .= " LIMIT $from, $number_of_items";
-    error_log($sql);
     $res = Database::query($sql);
     $users = [];
     while ($user = Database::fetch_row($res)) {
@@ -746,7 +749,7 @@ function registerFilter($user_id)
     }
     $user_id = (int) $user_id;
 
-    $result = '<a class="btn btn-small btn-primary" href="'.api_get_self().'?'.api_get_cidreq().'&Registerister=yes&type='.$type.'&user_id='.$user_id.'">'.
+    $result = '<a class="btn btn-small btn--primary" href="'.api_get_self().'?'.api_get_cidreq().'&Registerister=yes&type='.$type.'&user_id='.$user_id.'">'.
         get_lang("Register").'</a>';
 
     return $result;
@@ -768,22 +771,24 @@ function active_filter($active, $url_params, $row)
     $_user = api_get_user_info();
     if ('1' == $active) {
         $action = 'Accountactive';
-        $image = 'accept';
+        $image = StateIcon::COMPLETE;
     }
 
     if ('0' == $active) {
         $action = 'AccountInactive';
-        $image = 'error';
+        $image = StateIcon::INCOMPLETE;
     }
     $result = '';
     if ($row['0'] != $_user['user_id']) {
         // you cannot lock yourself out otherwise you could disable all the accounts
         // including your own => everybody is locked out and nobody can change it anymore.
-        $result = Display::return_icon(
-            $image.'.png',
-            get_lang(ucfirst($action)),
-            [],
-            ICON_SIZE_TINY
+        $result = Display::getMdiIcon(
+            $image,
+            'ch-tool-icon',
+            null,
+            ICON_SIZE_TINY,
+            get_lang(ucfirst($action))
+
         );
     }
 
@@ -841,8 +846,8 @@ function search_additional_profile_fields($keyword)
             WHERE
                 user.id = user_values.item_id AND
                 user_values.field_id = e.id AND
-                e.extra_field_type = $extraFieldType AND
-                (value LIKE '%".$keyword."%'".$profiling_field_options_exact_values_sql.")";
+                e.item_type = $extraFieldType AND
+                (field_value LIKE '%".$keyword."%'".$profiling_field_options_exact_values_sql.")";
     $result = Database::query($sql);
     $additional_users = [];
     while ($profiled_users = Database::fetch_array($result)) {
@@ -893,7 +898,7 @@ function display_extra_profile_fields_filter()
         }
     }
 
-    $html = '<form class="form-inline" id="subscribe_user_filter" name="subscribe_user_filter" method="get" action="'.api_get_self().'?'.api_get_cidreq().'">';
+    $html = '<form class="form--inline" id="subscribe_user_filter" name="subscribe_user_filter" method="get" action="'.api_get_self().'?'.api_get_cidreq().'">';
     $html .= '<input type="hidden" name="type" id="type" value="'.Security::remove_XSS($_REQUEST['type']).'" />';
     $html .= '<select name="subscribe_user_filter_value" id="subscribe_user_filter_value">'.$return.'</select>';
     $html .= '<button type="submit" name="submit_filter" id="submit_filter" value="" class="search">'.get_lang('Filter').'</button>';

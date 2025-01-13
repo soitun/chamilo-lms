@@ -464,7 +464,7 @@ class CourseChatUtils
         if (null === $resourceNode) {
             $em = Database::getManager();
             $resource = new CChatConversation();
-            $resource->setName($filename_chat);
+            $resource->setTitle($filename_chat);
 
             $handle = tmpfile();
             fwrite($handle, '');
@@ -485,13 +485,7 @@ class CourseChatUtils
             $resourceNode = $resource->getResourceNode();
         }
 
-        if ($resourceNode->hasResourceFile()) {
-            //$resourceFile = $resourceNode->getResourceFile();
-            //$fileName = $this->getFilename($resourceFile);
-            return $this->repository->getResourceNodeFileContent($resourceNode);
-        }
-
-        return '';
+        return $this->repository->getResourceNodeFileContent($resourceNode);
 
         $remove = 0;
         $content = [];
@@ -522,7 +516,7 @@ class CourseChatUtils
         if ($isMaster || $GLOBALS['is_session_general_coach']) {
             $history .= '
                 <div id="clear-chat">
-                    <button type="button" id="chat-reset" class="btn btn-danger btn-sm">
+                    <button type="button" id="chat-reset" class="btn btn--danger btn-sm">
                         '.get_lang('Clear the chat').'
                     </button>
                 </div>
@@ -658,7 +652,7 @@ class CourseChatUtils
             $criteria = Criteria::create()->where(Criteria::expr()->eq('course', $course));
             $userIsCoach = api_is_course_session_coach($this->userId, $course->getId(), $session->getId());
 
-            if (api_get_configuration_value('course_chat_restrict_to_coach')) {
+            if ('true' === api_get_setting('chat.course_chat_restrict_to_coach')) {
                 if ($userIsCoach) {
                     $criteria->andWhere(
                         Criteria::expr()->eq('status', Session::STUDENT)

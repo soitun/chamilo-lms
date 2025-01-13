@@ -1,35 +1,39 @@
 <template>
   <a
-      data-fancybox="gallery"
-      :href="resource.contentUrl"
-      :data-type="getDataType"
+    :data-type="getDataType"
+    :href="resource.contentUrl"
+    data-fancybox="gallery"
   >
-    <ResourceFileIcon :file="resource.resourceNode.resourceFile" />
+    <ResourceIcon :resource-data="resource" />
     {{ resource.title }}
   </a>
 </template>
 
 <script>
-import ResourceFileIcon from './ResourceFileIcon.vue';
+import ResourceIcon from "./ResourceIcon.vue"
+
 export default {
-  name: 'ResourceFileLink',
+  name: "ResourceFileLink",
   components: {
-    ResourceFileIcon
+    ResourceIcon,
+  },
+  props: {
+    resource: {
+      type: Object,
+      required: true,
+    },
   },
   computed: {
     getDataType() {
-      if (this.resource.resourceNode.resourceFile.image) {
-        return 'image';
+      if (this.resource.resourceNode.firstResourceFile.image) {
+        return "image"
       }
-      if (this.resource.resourceNode.resourceFile.video) {
-        return 'video';
+      if (this.resource.resourceNode.firstResourceFile.video) {
+        return "video"
       }
 
-      return 'iframe';
-    }
+      return "iframe"
+    },
   },
-  props: {
-    resource: Object
-  },
-};
+}
 </script>

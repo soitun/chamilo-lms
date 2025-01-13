@@ -8,115 +8,87 @@ namespace Chamilo\CoreBundle\Entity;
 
 use Chamilo\CoreBundle\Traits\UserTrait;
 use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\Common\Collections\Criteria;
 use Doctrine\ORM\Mapping as ORM;
+use Stringable;
 
-/**
- * Class PortfolioCategory.
- *
- * @ORM\Table(
- *     name="portfolio_category",
- *     indexes={
- *         @ORM\Index(name="user", columns={"user_id"})
- *     }
- * )
- * @ORM\Entity
- */
-class PortfolioCategory
+#[ORM\Table(name: 'portfolio_category')]
+#[ORM\Index(columns: ['user_id'], name: 'user')]
+#[ORM\Entity]
+class PortfolioCategory implements Stringable
 {
     use UserTrait;
 
-    /**
-     * @ORM\Column(name="id", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     */
-    protected int $id;
+    #[ORM\Column(name: 'id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    protected ?int $id = null;
 
-    /**
-     * @ORM\Column(name="title", type="text", nullable=false)
-     */
+    #[ORM\Column(name: 'title', type: 'text', nullable: false)]
     protected string $title;
 
-    /**
-     * @ORM\Column(name="description", type="text", nullable=true)
-     */
+    #[ORM\Column(name: 'description', type: 'text', nullable: true)]
     protected ?string $description = null;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\User")
-     * @ORM\JoinColumn(name="user_id", referencedColumnName="id", nullable=false, onDelete="CASCADE")
-     */
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     protected User $user;
 
-    /**
-     * @ORM\Column(name="is_visible", type="boolean", options={"default":true})
-     */
+    #[ORM\Column(name: 'is_visible', type: 'boolean', options: ['default' => true])]
     protected bool $isVisible = true;
 
-    /**
-     * @ORM\OneToMany(targetEntity="Chamilo\CoreBundle\Entity\Portfolio", mappedBy="category")
-     */
+    #[ORM\OneToMany(targetEntity: Portfolio::class, mappedBy: 'category')]
     protected ArrayCollection $items;
+
+    #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'children')]
+    #[ORM\JoinColumn(name: 'parent_id', referencedColumnName: 'id', onDelete: 'SET NULL')]
+    private ?PortfolioCategory $parent = null;
+
+    #[ORM\OneToMany(mappedBy: 'parent', targetEntity: self::class)]
+    private Collection $children;
 
     public function __construct()
     {
+        $this->children = new ArrayCollection();
         $this->items = new ArrayCollection();
-    }
-
-    public function __toString(): string
-    {
-        return $this->title;
     }
 
     /**
      * Get id.
-     *
-     * @return int
      */
-    public function getId()
+    public function getId(): ?int
     {
         return $this->id;
     }
 
     /**
      * Get title.
-     *
-     * @return string
      */
-    public function getTitle()
+    public function getTitle(): string
     {
         return $this->title;
     }
 
     /**
      * Set title.
-     *
-     * @return PortfolioCategory
      */
-    public function setTitle(string $title)
+    public function setTitle(string $title): self
     {
         $this->title = $title;
 
         return $this;
     }
 
-    /**
-     * Get description.
-     *
-     * @return null|string
-     */
-    public function getDescription()
+    public function getDescription(): ?string
     {
         return $this->description;
     }
 
     /**
      * Set description.
-     *
-     * @return PortfolioCategory
      */
-    public function setDescription(?string $description)
+    public function setDescription(?string $description): self
     {
         $this->description = $description;
 
@@ -130,10 +102,8 @@ class PortfolioCategory
 
     /**
      * Set isVisible.
-     *
-     * @return PortfolioCategory
      */
-    public function setIsVisible(bool $isVisible)
+    public function setIsVisible(bool $isVisible): self
     {
         $this->isVisible = $isVisible;
 
@@ -142,10 +112,8 @@ class PortfolioCategory
 
     /**
      * Get items.
-     *
-     * @return ArrayCollection
      */
-    public function getItems(Course $course = null, Session $session = null, bool $onlyVisibles = false)
+    public function getItems(?Course $course = null, ?Session $session = null, bool $onlyVisibles = false): ArrayCollection
     {
         $criteria = Criteria::create();
 
@@ -174,5 +142,48 @@ class PortfolioCategory
         $this->items = $items;
 
         return $this;
+    }
+
+    public function getParent(): ?self
+    {
+        return $this->parent;
+    }
+
+    public function setParent(?self $parent): self
+    {
+        $this->parent = $parent;
+
+        return $this;
+    }
+
+    public function getChildren(): Collection
+    {
+        return $this->children;
+    }
+
+    public function addChild(self $child): self
+    {
+        if (!$this->children->contains($child)) {
+            $this->children[] = $child;
+            $child->setParent($this);
+        }
+
+        return $this;
+    }
+
+    public function removeChild(self $child): self
+    {
+        if ($this->children->removeElement($child)) {
+            if ($child->getParent() === $this) {
+                $child->setParent(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function __toString(): string
+    {
+        return $this->title;
     }
 }

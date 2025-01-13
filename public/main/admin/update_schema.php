@@ -8,20 +8,16 @@ require_once __DIR__.'/../inc/global.inc.php';
 // Access restrictions
 api_protect_admin_script(true);
 
-if (true != api_get_configuration_value('sync_db_with_schema')) {
-    api_not_allowed(true);
-}
-
 $em = Database::getManager();
 $connection = Database::getManager()->getConnection();
 $sm = $connection->createSchemaManager();
 $fromSchema = $sm->createSchema();
 
-$tool = new \Doctrine\ORM\Tools\SchemaTool(Database::getManager());
+$tool = new \Doctrine\ORM\Tools\SchemaTool($em);
 $metadatas = $em->getMetadataFactory()->getAllMetadata();
 $toSchema = $tool->getSchemaFromMetadata($metadatas);
-$comparator = new \Doctrine\DBAL\Schema\Comparator();
-$schemaDiff = $comparator->compareSchemas($fromSchema, $toSchema);
+
+$schemaDiff = $sm->createComparator()->compareSchemas($fromSchema, $toSchema);
 
 $sqlList = $schemaDiff->toSaveSql($connection->getDatabasePlatform());
 $content = '';

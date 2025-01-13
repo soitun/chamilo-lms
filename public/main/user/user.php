@@ -4,6 +4,7 @@
 
 use Chamilo\CoreBundle\Entity\Session;
 use Chamilo\CoreBundle\Framework\Container;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
 
 /**
  * This script displays a list of the users of the current course.
@@ -49,7 +50,7 @@ if (!empty($sessionId)) {
 }
 
 $disableUsers = 3 === (int) $course_info['visibility'] &&
-    api_get_configuration_value('disable_change_user_visibility_for_public_courses');
+    ('true' === api_get_setting('profile.disable_change_user_visibility_for_public_courses'));
 
 if (false === $canEdit && $disableUsers) {
     api_not_allowed(true);
@@ -232,7 +233,7 @@ if (isset($_GET['action'])) {
                     $sql .= ' , '.Database::get_main_table(TABLE_MAIN_ACCESS_URL_REL_USER).' au ';
                 }
                 $sql .= "
-                    WHERE c_id = $courseId
+                    WHERE user.active <> ".USER_SOFT_DELETED." AND c_id = $courseId
                         AND session_course_user.user_id = user.id
                         AND session_id = $sessionId
                 ";
@@ -252,7 +253,7 @@ if (isset($_GET['action'])) {
                 $rs = Database::query($sql);
                 $counter = 1;
 
-                while ($user = Database:: fetch_array($rs, 'ASSOC')) {
+                while ($user = Database::fetch_assoc($rs)) {
                     if (isset($user['legal_agreement'])) {
                         if (1 == $user['legal_agreement']) {
                             $user['legal_agreement'] = get_lang('Yes');
@@ -320,6 +321,7 @@ if (isset($_GET['action'])) {
                     $sql .= ' , '.Database::get_main_table(TABLE_MAIN_ACCESS_URL_REL_USER).' au ';
                 }
                 $sql .= " WHERE
+                        user.active <> ".USER_SOFT_DELETED." AND
                         c_id = '$courseId' AND
                         course_user.relation_type <> ".COURSE_RELATION_TYPE_RRHH." AND
                         course_user.user_id = user.id ";
@@ -339,7 +341,7 @@ if (isset($_GET['action'])) {
 
                 $rs = Database::query($sql);
                 $counter = 1;
-                while ($user = Database::fetch_array($rs, 'ASSOC')) {
+                while ($user = Database::fetch_assoc($rs)) {
                     if (isset($user['legal_agreement'])) {
                         if (1 == $user['legal_agreement']) {
                             $user['legal_agreement'] = get_lang('Yes');
@@ -449,7 +451,7 @@ if (api_is_allowed_to_edit(null, true)) {
 					    rel_course.c_id = $courseId ";
 
             $result = Database::query($sql);
-            $row = Database::fetch_array($result, 'ASSOC');
+            $row = Database::fetch_assoc($result);
             if (($row && $row['user_id'] == $user_id) || empty($row)) {
                 CourseManager::unsubscribe_user($user_id, $courseCode);
                 Display::addFlash(
@@ -496,6 +498,8 @@ $table = new SortableTable(
 $parameters['keyword'] = isset($_GET['keyword']) ? Security::remove_XSS($_GET['keyword']) : null;
 $parameters['sec_token'] = Security::get_token();
 $parameters['id_session'] = api_get_session_id();
+$parameters['cid'] = api_get_course_int_id();
+$parameters['sid'] = api_get_session_id();
 $parameters['type'] = $type;
 
 $table->set_additional_parameters($parameters);
@@ -524,9 +528,9 @@ $table->set_header($header_nr++, get_lang('Login'));
 $indexList['groups'] = $header_nr;
 $table->set_header($header_nr++, get_lang('Group'), false);
 
-$hideFields = api_get_configuration_value('hide_user_field_from_list');
+$hideFields = api_get_setting('profile.hide_user_field_from_list', true);
 
-if (!empty($hideFields)) {
+if (isset($hideFields['fields'])) {
     $hideFields = $hideFields['fields'];
     foreach ($hideFields as $fieldToHide) {
         if (isset($indexList[$fieldToHide])) {
@@ -591,7 +595,7 @@ if ($canRead) {
             $selectedTab = 1;
             $url = api_get_path(WEB_CODE_PATH).'user/subscribe_user.php?'.api_get_cidreq().'&type='.STUDENT;
             $icon = Display::url(
-                Display::return_icon('add-user.png', get_lang('Add'), [], ICON_SIZE_MEDIUM),
+                Display::getMdiIcon(ActionIcon::ADD_USER, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Add')),
                 $url
             );
             break;
@@ -599,7 +603,7 @@ if ($canRead) {
             $selectedTab = 2;
             $url = api_get_path(WEB_CODE_PATH).'user/subscribe_user.php?'.api_get_cidreq().'&type='.COURSEMANAGER;
             $icon = Display::url(
-                Display::return_icon('add-teacher.png', get_lang('Add'), [], ICON_SIZE_MEDIUM),
+                Display::getMdiIcon(ActionIcon::ADD_USER, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Add')),
                 $url
             );
             break;
@@ -612,19 +616,19 @@ if ($canRead) {
 
     if ($canRead) {
         $actionsLeft .= '<a href="user.php?'.api_get_cidreq().'&action=export&format=csv&type='.$type.'">'.
-            Display::return_icon('export_csv.png', get_lang('CSV export'), [], ICON_SIZE_MEDIUM).'</a> ';
+            Display::getMdiIcon('export_csv', 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('CSV export')).'</a> ';
         $actionsLeft .= '<a href="user.php?'.api_get_cidreq().'&action=export&format=xls&type='.$type.'">'.
-            Display::return_icon('export_excel.png', get_lang('Excel export'), [], ICON_SIZE_MEDIUM).'</a> ';
+            Display::getMdiIcon('export_excel', 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Excel export')).'</a> ';
     }
 
     if ($canEditUsers && $canEdit) {
         $actionsLeft .= '<a href="user_import.php?'.api_get_cidreq().'&action=import&type='.$type.'">'.
-            Display::return_icon('import_csv.png', get_lang('Import users list'), [], ICON_SIZE_MEDIUM).'</a> ';
+            Display::getMdiIcon('import_csv', 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Import users list')).'</a> ';
     }
 
     if ($canRead) {
         $actionsLeft .= '<a href="user.php?'.api_get_cidreq().'&action=export&format=pdf&type='.$type.'">'.
-            Display::return_icon('pdf.png', get_lang('Export to PDF'), [], ICON_SIZE_MEDIUM).'</a> ';
+            Display::getMdiIcon('pdf', 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Export to PDF')).'</a> ';
     }
 
     // Build search-form
@@ -644,7 +648,7 @@ if ($canRead) {
 
     $allowTutors = api_get_setting('allow_tutors_to_assign_students_to_session');
     if (api_is_allowed_to_edit() && 'true' === $allowTutors) {
-        $actionsRight .= ' <a class="btn btn-default" href="session_list.php?'.api_get_cidreq().'">'.
+        $actionsRight .= ' <a class="btn btn--plain" href="session_list.php?'.api_get_cidreq().'">'.
             get_lang('Course sessions').'</a>';
     }
 
@@ -671,7 +675,14 @@ function get_number_of_users()
     $counter = 0;
     $sessionId = api_get_session_id();
     $courseCode = api_get_course_id();
-    $active = isset($_GET['active']) ? $_GET['active'] : null;
+    $active = $_GET['active'] ?? null;
+    if (isset($active)) {
+        if ($active) {
+            $active = true;
+        } else {
+            $active = false;
+        }
+    }
     $type = isset($_REQUEST['type']) ? (int) $_REQUEST['type'] : STUDENT;
 
     if (empty($sessionId)) {
@@ -820,6 +831,13 @@ function get_user_data($from, $number_of_items, $column, $direction)
     }
 
     $active = $_GET['active'] ?? null;
+    if (isset($active)) {
+        if ($active) {
+            $active = true;
+        } else {
+            $active = false;
+        }
+    }
 
     if (empty($sessionId)) {
         $status = $type;
@@ -839,7 +857,7 @@ function get_user_data($from, $number_of_items, $column, $direction)
         null,
         false,
         false,
-        null,
+        [],
         [],
         [],
         $active
@@ -1019,9 +1037,9 @@ function modify_filter($user_id, $row, $data)
 
     $result = '';
     if ($is_allowed_to_track) {
-        $result .= '<a href="../mySpace/myStudents.php?'.api_get_cidreq().'&student='.$user_id.'&details=true&course='.$courseId.'&origin=user_course&id_session='.api_get_session_id().'"
+        $result .= '<a href="../my_space/myStudents.php?'.api_get_cidreq().'&student='.$user_id.'&details=true&course='.$courseId.'&origin=user_course&id_session='.api_get_session_id().'"
         title="'.get_lang('Reporting').'">
-            '.Display::return_icon('statistics.png', get_lang('Reporting')).'
+            '.Display::getMdiIcon('statistics', 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Reporting')).'
         </a>';
     }
 
@@ -1030,7 +1048,7 @@ function modify_filter($user_id, $row, $data)
     if (api_is_platform_admin()) {
         $result .= ' <a
         href="'.api_get_path(WEB_CODE_PATH).'admin/user_list.php?action=login_as&user_id='.$user_id.'&sec_token='.Security::getTokenFromSession().'">'.
-            Display::return_icon('login_as.png', get_lang('Login as')).'</a>&nbsp;&nbsp;';
+            Display::getMdiIcon('login_as', 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Login as')).'</a>&nbsp;&nbsp;';
     }
 
     if (api_is_allowed_to_edit(null, true)) {
@@ -1054,7 +1072,7 @@ function modify_filter($user_id, $row, $data)
                 $result .= '<a href="'.
                     api_get_path(WEB_CODE_PATH).'extra/userInfo.php?'.api_get_cidreq().'&editMainUserInfo='.$user_id.'"
                     title="'.get_lang('Edit').'" >'.
-                    Display::return_icon('edit.png', get_lang('Edit'), '', ICON_SIZE_SMALL).
+                    Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Edit')).
                     '</a>&nbsp;';
             }
 
@@ -1062,7 +1080,7 @@ function modify_filter($user_id, $row, $data)
                 $result .= Display::url(
                     $text,
                     'user.php?'.api_get_cidreq().'&action=set_tutor&is_tutor='.$isTutor.'&user_id='.$user_id.'&type='.$type,
-                    ['class' => 'btn btn-default '.$disabled]
+                    ['class' => 'btn btn--plain '.$disabled]
                 ).'&nbsp;';
             }
         }
@@ -1072,7 +1090,7 @@ function modify_filter($user_id, $row, $data)
             // unregister
             if ($user_id != $current_user_id || api_is_platform_admin()) {
                 $result .= '<a
-                class="btn btn-sm btn-danger delete-swal"
+                class="btn btn-sm btn--danger delete-swal"
                 href="'.api_get_self().'?'.api_get_cidreq().'&type='.$type.'&unregister=yes&user_id='.$user_id.'"
                 title="'.addslashes(api_htmlentities(get_lang('Unsubscribe'))).' " >'.
                     get_lang('Unsubscribe').'</a>&nbsp;';
@@ -1083,7 +1101,7 @@ function modify_filter($user_id, $row, $data)
         if (1 == $course_info['unsubscribe']) {
             if ($user_id == $current_user_id) {
                 $result .= '<a
-                class="btn btn-sm btn-danger delete-swal"
+                class="btn btn-sm btn--danger delete-swal"
                 href="'.api_get_self().'?'.api_get_cidreq().'&type='.$type.'&unregister=yes&user_id='.$user_id.'"
                 title="'.addslashes(api_htmlentities(get_lang('Unsubscribe'))).' >'.
                     get_lang('Unsubscribe').'</a>&nbsp;';

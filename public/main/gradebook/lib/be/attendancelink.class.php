@@ -41,9 +41,9 @@ class AttendanceLink extends AbstractLink
      *
      * @return array 2-dimensional array - every element contains 2 subelements (id, name)
      */
-    public function get_all_links()
+    public function get_all_links(): array
     {
-        if (empty($this->course_code)) {
+        if (empty($this->getCourseId())) {
             return [];
         }
         $sessionId = $this->get_session_id();
@@ -53,7 +53,7 @@ class AttendanceLink extends AbstractLink
         $links = $qb->getQuery()->getResult();
 
         /*$tbl_attendance = $this->get_attendance_table();
-        $sql = 'SELECT att.iid, att.name, att.attendance_qualify_title
+        $sql = 'SELECT att.iid, att.title, att.attendance_qualify_title
                 FROM '.$tbl_attendance.' att
                 WHERE
                     att.c_id = '.$this->course_id.' AND
@@ -67,7 +67,7 @@ class AttendanceLink extends AbstractLink
             if (!empty($title)) {
                 $cats[] = [$link->getIid(), $title];
             } else {
-                $cats[] = [$link->getIid(), $link->getName()];
+                $cats[] = [$link->getIid(), $link->getTitle()];
             }
         }
 
@@ -85,8 +85,7 @@ class AttendanceLink extends AbstractLink
         $sql = 'SELECT count(*) AS number FROM '.$tbl_attendance_result."
                 WHERE
                     session_id = $sessionId AND
-                    c_id = '.$this->course_id.' AND
-                    attendance_id = '".$this->get_ref_id()."'";
+                    attendance_id = ".$this->get_ref_id();
         $result = Database::query($sql);
         $number = Database::fetch_row($result);
 
@@ -109,19 +108,19 @@ class AttendanceLink extends AbstractLink
                 WHERE
                     iid = '.$this->get_ref_id();
         $query = Database::query($sql);
-        $attendance = Database::fetch_array($query, 'ASSOC');
+        $attendance = Database::fetch_assoc($query);
 
         // Get results
         $sql = 'SELECT *
                 FROM '.$tbl_attendance_result.'
-                WHERE c_id = '.$this->course_id.' AND attendance_id = '.$this->get_ref_id();
+                WHERE attendance_id = '.$this->get_ref_id();
         if (isset($studentId)) {
             $sql .= ' AND user_id = '.intval($studentId);
         }
         $scores = Database::query($sql);
         // for 1 student
         if (isset($studentId)) {
-            if ($data = Database::fetch_array($scores, 'ASSOC')) {
+            if ($data = Database::fetch_assoc($scores)) {
                 return [
                     $data['score'],
                     $attendance['attendance_qualify_max'],
@@ -233,7 +232,7 @@ class AttendanceLink extends AbstractLink
         $sql = 'SELECT * FROM '.$this->get_attendance_table().'
                 WHERE iid = '.$this->get_ref_id();
         $result = Database::query($sql);
-        $row = Database::fetch_array($result, 'ASSOC');
+        $row = Database::fetch_assoc($result);
         $id = $row['iid'];
 
         return api_get_path(WEB_CODE_PATH).

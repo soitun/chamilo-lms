@@ -3,13 +3,18 @@
 /* For licensing terms, see /license.txt */
 
 use Chamilo\CoreBundle\Entity\AbstractResource;
+use Chamilo\CoreBundle\Entity\Course;
 use Chamilo\CoreBundle\Entity\ExtraField as ExtraFieldEntity;
 use Chamilo\CoreBundle\Entity\ExtraFieldValues;
+use Chamilo\CoreBundle\Entity\Session;
 use Chamilo\CoreBundle\Entity\User;
 use Chamilo\CoreBundle\Framework\Container;
 use Chamilo\CoreBundle\Security\Authorization\Voter\ResourceNodeVoter;
 use Chamilo\CourseBundle\Entity\CAnnouncement;
 use Chamilo\CourseBundle\Entity\CAnnouncementAttachment;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
+use Chamilo\CoreBundle\Component\Utils\StateIcon;
 
 /**
  * Include file with functions for the announcements module.
@@ -130,12 +135,12 @@ class AnnouncementManager
             if (!empty($readerInfo['extra'])) {
                 foreach ($readerInfo['extra'] as $extra) {
                     if (isset($extra['value'])) {
-                        /** @var \Chamilo\CoreBundle\Entity\ExtraFieldValues $value */
+                        /** @var ExtraFieldValues $value */
                         $value = $extra['value'];
                         if ($value instanceof ExtraFieldValues) {
                             $field = $value->getField();
                             if ($field instanceof ExtraFieldEntity) {
-                                $data['extra_'.$field->getVariable()] = $value->getValue();
+                                $data['extra_'.$field->getVariable()] = $value->getFieldValue();
                             }
                         }
                     }
@@ -212,24 +217,18 @@ class AnnouncementManager
     /**
      * This functions switches the visibility a course resource
      * using the visibility field in 'item_property'.
-     *
-     * @param array  $courseInfo
-     * @param int    $id
-     * @param string $status
-     *
-     * @return bool False on failure, True on success
      */
-    public static function change_visibility_announcement($courseInfo, $id, $status)
+    public static function change_visibility_announcement($id, $status, ?Course $course, ?Session $session): bool
     {
         $repo = Container::getAnnouncementRepository();
         $announcement = $repo->find($id);
         if ($announcement) {
             switch ($status) {
                 case 'invisible':
-                    $repo->setVisibilityDraft($announcement);
+                    $repo->setVisibilityDraft($announcement, $course, $session);
                     break;
                 case 'visible':
-                    $repo->setVisibilityPublished($announcement);
+                    $repo->setVisibilityPublished($announcement, $course, $session);
                     break;
             }
         }
@@ -495,25 +494,25 @@ class AnnouncementManager
             (1 === (int) api_get_course_setting('allow_user_edit_announcement') && !api_is_anonymous())
         ) {
             $modify_icons = "<a href=\"".$url."&action=modify&id=".$id."\">".
-                Display::return_icon('edit.png', get_lang('Edit'), '', ICON_SIZE_SMALL)."</a>";
+                Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Edit'))."</a>";
 
-            $image_visibility = 'invisible';
+            $image_visibility = StateIcon::INACTIVE;
             $alt_visibility = get_lang('Visible');
             $setNewStatus = 'visible';
             if ($isVisible) {
-                $image_visibility = 'visible';
+                $image_visibility = StateIcon::ACTIVE;
                 $alt_visibility = get_lang('Hide');
                 $setNewStatus = 'invisible';
             }
             $modify_icons .= "<a
                 href=\"".$url."&action=set_visibility&status=".$setNewStatus."&id=".$id."&sec_token=".$stok."\">".
-                Display::return_icon($image_visibility.'.png', $alt_visibility, '', ICON_SIZE_SMALL)."</a>";
+                Display::getMdiIcon($image_visibility, 'ch-tool-icon', null, ICON_SIZE_SMALL, $alt_visibility)."</a>";
 
             if (api_is_allowed_to_edit(false, true)) {
                 $modify_icons .= "<a
                     href=\"".$url."&action=delete&id=".$id."&sec_token=".$stok."\"
                     onclick=\"javascript:if(!confirm('".addslashes(api_htmlentities(get_lang('Please confirm your choice'), ENT_QUOTES))."')) return false;\">".
-                    Display::return_icon('delete.png', get_lang('Delete'), '', ICON_SIZE_SMALL).
+                    Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Delete')).
                     "</a>";
             }
             $html .= "<tr><th style='text-align:right'>$modify_icons</th></tr>";
@@ -539,7 +538,7 @@ class AnnouncementManager
         $html .= Display::dateToStringAgoAndLongDate($lastEdit);
         $html .= "</td></tr>";
 
-        $allow = !api_get_configuration_value('hide_announcement_sent_to_users_info');
+        $allow = ('true' !== api_get_setting('announcement.hide_announcement_sent_to_users_info'));
         if ($allow && api_is_allowed_to_edit(false, true)) {
             $sentTo = $announcement->getUsersAndGroupSubscribedToResource();
             $sentToForm = self::sent_to_form($sentTo);
@@ -562,18 +561,13 @@ class AnnouncementManager
                 $url = $repo->getResourceFileDownloadUrl($attachment).'?'.api_get_cidreq();
                 $html .= '<tr><td>';
                 $html .= '<br/>';
-                $html .= Display::getMdiIcon('paperclip');
+                $html .= Display::getMdiIcon(ObjectIcon::ATTACHMENT, 'ch-tool-icon', null, ICON_SIZE_SMALL);
                 $html .= '<a href="'.$url.' "> '.$attachment->getFilename().' </a>';
                 $html .= ' - <span class="forum_attach_comment" >'.$attachment->getComment().'</span>';
                 if (api_is_allowed_to_edit(false, true)) {
                     $url = $deleteUrl."&id_attach=".$attachmentId."&sec_token=".$stok;
                     $html .= Display::url(
-                        Display::return_icon(
-                            'delete.png',
-                            get_lang('Delete'),
-                            '',
-                            16
-                        ),
+                        Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_TINY, get_lang('Delete')),
                         $url
                     );
                 }
@@ -659,8 +653,6 @@ class AnnouncementManager
             $end_date = api_get_utc_datetime();
         }
 
-        $order = self::getLastAnnouncementOrder($courseInfo);
-
         $course = api_get_course_entity($courseId);
         $session = api_get_session_entity($sessionId);
         $group = api_get_group_entity();
@@ -672,7 +664,6 @@ class AnnouncementManager
             ->setContent($content)
             ->setTitle($title)
             ->setEndDate(new DateTime($end_date))
-            ->setDisplayOrder($order)
             ->setParent($course)
         ;
 
@@ -742,7 +733,6 @@ class AnnouncementManager
         $sendToUsersInSession = false
     ) {
         $courseInfo = api_get_course_info();
-        $order = self::getLastAnnouncementOrder($courseInfo);
         $em = Database::getManager();
         $now = api_get_utc_datetime();
         $courseId = api_get_course_int_id();
@@ -756,7 +746,6 @@ class AnnouncementManager
             ->setContent($newContent)
             ->setTitle($title)
             ->setEndDate(new DateTime($now))
-            ->setDisplayOrder($order)
             ->setParent($course)
             ;
 
@@ -1007,7 +996,7 @@ class AnnouncementManager
         $num_rows = Database::num_rows($rs);
         $result = [];
         if ($num_rows > 0) {
-            while ($row = Database::fetch_array($rs, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($rs)) {
                 if (empty($row['c_id'])) {
                     continue;
                 }
@@ -1088,7 +1077,7 @@ class AnnouncementManager
                     }
                     $output[] =
                         '<br />'.
-                        Display::label($groupList[$group_id]->getName(), 'info').
+                        Display::label($groupList[$group_id]->getTitle(), 'info').
                         '&nbsp;'.implode(', ', $userToArray);
                 }
             }
@@ -1123,7 +1112,7 @@ class AnnouncementManager
                 }
                 $output[] =
                     '<br />'.
-                    Display::label($groupList[$group_id]->getName(), 'info').
+                    Display::label($groupList[$group_id]->getTitle(), 'info').
                     '&nbsp;'.implode(', ', $userToArray);
             }
             if (empty($sent_to_array['groups']) && empty($sent_to_array['users'])) {
@@ -1162,7 +1151,7 @@ class AnnouncementManager
         $result = Database::query($sql);
         $repo = Container::getAnnouncementAttachmentRepository();
         if (0 != Database::num_rows($result)) {
-            $row = Database::fetch_array($result, 'ASSOC');
+            $row = Database::fetch_assoc($result);
         }
 
         return $row;
@@ -1343,54 +1332,38 @@ class AnnouncementManager
     /**
      * @param $stok
      * @param $announcement_number
-     * @param bool   $getCount
-     * @param null   $start
-     * @param null   $limit
-     * @param string $sidx
-     * @param string $sord
-     * @param string $titleToSearch
-     * @param int    $userIdToSearch
-     * @param int    $userId
-     * @param int    $courseId
-     * @param int    $sessionId
+     * @param int $courseId
+     * @param int $sessionId
      *
      * @return array
      */
     public static function getAnnouncements(
         $stok,
         $announcement_number,
-        $getCount = false,
-        $start = null,
-        $limit = null,
-        $sidx = '',
-        $sord = '',
-        $titleToSearch = '',
-        $userIdToSearch = 0,
-        $userId = 0,
-        $courseId = 0,
-        $sessionId = 0
-    ) {
-        $group_id = api_get_group_id();
-        $session_id = $sessionId ?: api_get_session_id();
-        if (empty($courseId)) {
-            $courseInfo = api_get_course_info();
-            $courseId = $courseInfo['real_id'];
-        } else {
-            $courseId = (int) $courseId;
-            $courseInfo = api_get_course_info_by_id($courseId);
-        }
+        ?int $courseId = null,
+        ?int $sessionId = null
+    ): array {
+        $groupId = api_get_group_id();
 
-        if (empty($courseInfo)) {
-            return [];
+        if (null === $courseId) {
+            $courseId = api_get_course_int_id();
+        }
+        if (null === $sessionId) {
+            $sessionId = api_get_session_id();
         }
 
         $repo = Container::getAnnouncementRepository();
         $course = api_get_course_entity($courseId);
-        $session = api_get_session_entity($session_id);
-        $group = api_get_group_entity(api_get_group_id());
+
+        if (null === $course) {
+            return [];
+        }
+
+        $session = api_get_session_entity($sessionId);
+        $group = api_get_group_entity($groupId);
 
         if (api_is_allowed_to_edit(false, true)) {
-            $qb = $repo->getResourcesByCourse($course, $session, $group);
+            $qb = $repo->getResourcesByCourse($course, $session, $group, null, true, true);
         } else {
             $user = api_get_user_entity();
             if (null === $user) {
@@ -1401,50 +1374,90 @@ class AnnouncementManager
 
         $announcements = $qb->getQuery()->getResult();
 
-        $iterator = 1;
+        $iterator = 0;
         $bottomAnnouncement = $announcement_number;
         $displayed = [];
 
-        $actionUrl = api_get_path(WEB_CODE_PATH).'announcements/announcements.php?'.api_get_cidreq();
-        $emailIcon = '<i class="fa fa-envelope-o" title="'.get_lang('Announcement sent by e-mail').'"></i>';
-        $attachmentIcon = '<i class="fa fa-paperclip" title="'.get_lang('Attachment').'"></i>';
+        $cidReq = 'cid='.$courseId.'&sid='.$sessionId.'&gid='.$groupId;
+        $actionUrl = api_get_path(WEB_CODE_PATH).'announcements/announcements.php?'.$cidReq;
+        $emailIcon = Display::getMdiIcon(StateIcon::MAIL_NOTIFICATION, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Announcement sent by e-mail'));
+        $attachmentIcon = Display::getMdiIcon(ObjectIcon::ATTACHMENT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Attachment'));
 
-        $editIcon = Display::return_icon(
-            'edit.png',
-            get_lang('Edit'),
-            '',
-            ICON_SIZE_SMALL
+        $editIcon = Display::getMdiIcon(
+            ActionIcon::EDIT,
+            'ch-tool-icon',
+            null,
+            ICON_SIZE_SMALL,
+            get_lang('Edit')
         );
 
-        $editIconDisable = Display::return_icon(
-            'edit_na.png',
-            get_lang('Edit'),
-            '',
-            ICON_SIZE_SMALL
+        $editIconDisable = Display::getMdiIcon(
+            ActionIcon::EDIT,
+            'ch_tool_icon-disabled',
+            null,
+            ICON_SIZE_SMALL,
+            get_lang('Edit')
         );
-        $deleteIcon = Display::return_icon(
-            'delete.png',
-            get_lang('Delete'),
-            '',
-            ICON_SIZE_SMALL
-        );
-
-        $deleteIconDisable = Display::return_icon(
-            'delete_na.png',
-            get_lang('Delete'),
-            '',
-            ICON_SIZE_SMALL
+        $deleteIcon = Display::getMdiIcon(
+            ActionIcon::DELETE,
+            'ch-tool-icon',
+            null,
+            ICON_SIZE_SMALL,
+            get_lang('Delete')
         );
 
-        /*$isTutor = false;
-        if (!empty($group_id)) {
-            $groupInfo = GroupManager::get_group_properties(api_get_group_id());
-            //User has access in the group?
-            $isTutor = GroupManager::is_tutor_of_group(
-                api_get_user_id(),
-                $groupInfo
-            );
-        }*/
+        $deleteIconDisable = Display::getMdiIcon(
+            ActionIcon::DELETE,
+            'ch-tool-icon-disabled',
+            null,
+            ICON_SIZE_SMALL,
+            get_lang('Delete')
+        );
+
+        $iconVisible = Display::getMdiIcon(
+            ActionIcon::VISIBLE,
+            'ch-tool-icon',
+            null,
+            ICON_SIZE_SMALL,
+            get_lang('Hide')
+        );
+        $iconInvisible = Display::getMdiIcon(
+            ActionIcon::INVISIBLE,
+            'ch-tool-icon',
+            null,
+            ICON_SIZE_SMALL,
+            get_lang('Visible')
+        );
+
+        $iconUp = Display::getMdiIcon(
+            ActionIcon::UP,
+            'ch-tool-icon',
+            null,
+            ICON_SIZE_SMALL,
+            get_lang('Up')
+        );
+        $iconUpDisabled = Display::getMdiIcon(
+            ActionIcon::UP,
+            'ch-tool-icon-disabled',
+            null,
+            ICON_SIZE_SMALL,
+            get_lang('Up')
+        );
+
+        $iconDown = Display::getMdiIcon(
+            ActionIcon::DOWN,
+            'ch-tool-icon',
+            null,
+            ICON_SIZE_SMALL,
+            get_lang('Down')
+        );
+        $iconDownDisabled = Display::getMdiIcon(
+            ActionIcon::DOWN,
+            'ch-tool-icon-disabled',
+            null,
+            ICON_SIZE_SMALL,
+            get_lang('Down')
+        );
 
         $results = [];
         /** @var CAnnouncement $announcement */
@@ -1461,7 +1474,7 @@ class AnnouncementManager
                 $disableEdit = false;
                 $to = [];
                 $separated = AbstractResource::separateUsersGroups($to);
-                if (!empty($group_id)) {
+                if (!empty($groupId)) {
                     // If the announcement was sent to many groups, disable edition inside a group
                     if (isset($separated['groups']) && count($separated['groups']) > 1) {
                         $disableEdit = true;
@@ -1473,7 +1486,7 @@ class AnnouncementManager
                     }
 
                     // Announcement sent to only a user
-                    if ($separated['groups'] > 1 && !in_array($group_id, $separated['groups'])) {
+                    if ($separated['groups'] > 1 && !in_array($groupId, $separated['groups'])) {
                         $disableEdit = true;
                     }
                 } else {
@@ -1483,12 +1496,6 @@ class AnnouncementManager
                 }
 
                 $title = $announcement->getTitle().$groupReference.$sent_to_icon;
-                /*$item_visibility = api_get_item_visibility(
-                    $courseInfo,
-                    TOOL_ANNOUNCEMENT,
-                    $row['id'],
-                    $session_id
-                );*/
                 $visibility = $announcement->isVisible($course, $session);
 
                 // show attachment list
@@ -1512,51 +1519,44 @@ class AnnouncementManager
                     $actionUrl.'&action=view&id='.$announcementId
                 );
 
-                // we can edit if : we are the teacher OR the element belongs to
-                // the session we are coaching OR the option to allow users to edit is on
-                /*if api_is_allowed_to_edit(false, true) ||
-                     (api_is_session_general_coach() && api_is_element_in_the_session(TOOL_ANNOUNCEMENT, $announcementId)) ||
-                     (api_get_course_setting('allow_user_edit_announcement') && !api_is_anonymous()) ||
-                     ($isTutor)
-                     //$row['to_group_id'] == $group_id &&
-                 ) {*/
                 if ($repo->isGranted(ResourceNodeVoter::EDIT, $announcement)) {
                     if (true === $disableEdit) {
-                        $modify_icons = "<a href='#'>".$editIconDisable."</a>";
+                        $modify_icons = $editIconDisable;
                     } else {
                         $modify_icons = "<a
                             href=\"".$actionUrl."&action=modify&id=".$announcementId."\">".$editIcon."</a>";
                     }
 
-                    $image_visibility = 'invisible';
+                    $iconVisibility = $iconInvisible;
                     $setNewStatus = 'visible';
-                    $alt_visibility = get_lang('Visible');
                     if ($visibility) {
-                        $image_visibility = 'visible';
+                        $iconVisibility = $iconVisible;
                         $setNewStatus = 'invisible';
-                        $alt_visibility = get_lang('Hide');
                     }
 
                     $modify_icons .= "<a
-                        href=\"".$actionUrl."&action=set_visibility&status=".$setNewStatus."&id=".$announcementId."&sec_token=".$stok."\">".
-                        Display::return_icon($image_visibility.'.png', $alt_visibility, '', ICON_SIZE_SMALL)."</a>";
+                        href=\"".$actionUrl."&action=set_visibility&status=".$setNewStatus."&id=".$announcementId."&sec_token=".$stok."\">"
+                        .$iconVisibility."</a>";
 
-                    // DISPLAY MOVE UP COMMAND only if it is not the top announcement
-                    if (1 != $iterator) {
-                        $modify_icons .= "<a href=\"".$actionUrl."&action=move&up=".$announcementId."&sec_token=".$stok."\">".
-                            Display::return_icon('up.gif', get_lang('Up'))."</a>";
+                    // Move up action
+                    if ($iterator == 0 ) {
+                        $move1 = $iconUpDisabled;
                     } else {
-                        $modify_icons .= Display::return_icon('up_na.gif', get_lang('Up'));
+                        $move1 = "<a href=\"".$actionUrl."&action=move&up=".$announcementId."&sec_token=".$stok."\">".$iconUp."</a>";
                     }
-                    if ($iterator < $bottomAnnouncement) {
-                        $modify_icons .= "<a href=\"".$actionUrl."&action=move&down=".$announcementId."&sec_token=".$stok."\">".
-                            Display::return_icon('down.gif', get_lang('down'))."</a>";
+                    $modify_icons .= $move1;
+
+                    // Move down action
+                    if ($iterator === count($announcements) - 1) {
+                        $move2 = $iconDownDisabled;
                     } else {
-                        $modify_icons .= Display::return_icon('down_na.gif', get_lang('down'));
+                        $move2 = "<a href=\"".$actionUrl."&action=move&down=".$announcementId."&sec_token=".$stok."\">".$iconDown."</a>";;
                     }
+                    $modify_icons .= $move2;
+
                     if (api_is_allowed_to_edit(false, true)) {
                         if (true === $disableEdit) {
-                            $modify_icons .= Display::url($deleteIconDisable, '#');
+                            $modify_icons .= $deleteIconDisable;
                         } else {
                             $modify_icons .= "<a
                                 href=\"".$actionUrl."&action=delete&id=".$announcementId."&sec_token=".$stok."\" onclick=\"javascript:if(!confirm('".addslashes(
@@ -1572,7 +1572,7 @@ class AnnouncementManager
                     $iterator++;
                 } else {
                     $modify_icons = Display::url(
-                        Display::return_icon('default.png'),
+                        Display::getMdiIcon(ObjectIcon::DEFAULT, 'ch-tool-icon', null, ICON_SIZE_SMALL),
                         $actionUrl.'&action=view&id='.$announcementId
                     );
                 }
@@ -1601,45 +1601,23 @@ class AnnouncementManager
     /**
      * @return int
      */
-    public static function getNumberAnnouncements()
+    public static function getNumberAnnouncements(?int $courseId = null, ?int $sessionId = null): int
     {
-        $session_id = api_get_session_id();
-        $courseInfo = api_get_course_info();
-        $courseId = $courseInfo['real_id'];
-        $userId = api_get_user_id();
+        if (null === $courseId) {
+            $courseId = api_get_course_int_id();
+        }
+        if (null === $sessionId) {
+            $sessionId = api_get_session_id();
+        }
 
+        $userId = api_get_user_id();
         $repo = Container::getAnnouncementRepository();
         $course = api_get_course_entity($courseId);
-        $session = api_get_session_entity($session_id);
+        $session = api_get_session_entity($sessionId);
         $group = api_get_group_entity(api_get_group_id());
         if (api_is_allowed_to_edit(false, true)) {
             // check teacher status
             if (empty($_GET['origin']) || 'learnpath' !== $_GET['origin']) {
-                /*if (0 == api_get_group_id()) {
-                    $group_condition = '';
-                } else {
-                    $group_condition = " AND (ip.to_group_id='".api_get_group_id()."' OR ip.to_group_id = 0 OR ip.to_group_id IS NULL)";
-                }
-
-                $sql = "SELECT
-                            announcement.*,
-                            ip.visibility,
-                            ip.to_group_id,
-                            ip.insert_user_id
-                        FROM $tbl_announcement announcement
-                        INNER JOIN $tbl_item_property ip
-                        ON (announcement.c_id = ip.c_id AND announcement.id = ip.ref)
-                        WHERE
-                            announcement.c_id = $courseId AND
-                            ip.c_id = $courseId AND
-                            ip.tool = 'announcement' AND
-                            ip.visibility <> '2'
-                            $group_condition
-                            $condition_session
-                        GROUP BY ip.ref
-                        ORDER BY display_order DESC
-                        LIMIT 0, $maximum";*/
-
                 $qb = $repo->getResourcesByCourse($course, $session, $group);
                 $qb->select('count(resource)');
 
@@ -1657,5 +1635,7 @@ class AnnouncementManager
 
             return $qb->getQuery()->getSingleScalarResult();
         }
+
+        return 0;
     }
 }

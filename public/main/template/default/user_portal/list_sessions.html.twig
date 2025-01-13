@@ -7,7 +7,7 @@
         {% set image %}
             {% if item.category %}
                 <div class="category" style="background: {{ item.color.color }}; color:{{ item.color.luminosity }}">
-                    {{ item.category.name }}
+                    {{ item.category.title }}
                 </div>
             {% endif %}
             <img src="{{ item.image }}" class="img-fluid">
@@ -16,9 +16,9 @@
 
             {% if item.show_actions %}
                 <div class="float-right">
-                    <a class="btn btn-outline-secondary btn-sm" title="{{ "Edit"|get_lang }}"
+                    <a class="btn btn--secondary-outline btn-sm" title="{{ 'Edit'|get_lang }}"
                        href="{{ url('legacy_main', { 'name' : 'session/resume_session.php', 'id_session' : row.id }) }}">
-                        {{ 'pencil' | mdi_icon }}
+                        {{ 'ActionIcon::EDIT' | mdi_icon }}
                     </a>
                 </div>
             {% endif %}
@@ -57,10 +57,10 @@
         {% set content %}
 
             <ul class="list-group list-group-flush">
-                {% for row in item.courses %}
+                {% for course in item.courses %}
                     <li class="list-group-item">
-                        <img src="{{ row.icon }}" width="32px">
-                        <a href="{{ row.link }}">{{ row.name }}</a>
+                        <img src="{{ course.icon }}" width="32px">
+                        <a href="{{ course.link }}">{{ course.title }}</a>
                     </li>
                 {% endfor %}
             </ul>
@@ -71,15 +71,15 @@
                     <div class="card-report">
                         <div class="student-info">
                             {% if (item.student_info.progress is not null) %}
-                                {{ "StudentCourseProgressX" | get_lang | format(item.student_info.progress) }}
+                                {{ 'Progress: %s %%' | get_lang | format(item.student_info.progress) }}
                             {% endif %}
 
                             {% if (item.student_info.score is not null) %}
-                                {{ "StudentCourseScoreX" | get_lang | format(item.student_info.score) }}
+                                {{ 'Score: %s %%' | get_lang | format(item.student_info.score) }}
                             {% endif %}
 
                             {% if (item.student_info.certificate is not null) %}
-                                {{ "StudentCourseCertificateX" | get_lang | format(item.student_info.certificate) }}
+                                {{ 'Certificate: %s' | get_lang | format(item.student_info.certificate) }}
                             {% endif %}
                         </div>
                     </div>

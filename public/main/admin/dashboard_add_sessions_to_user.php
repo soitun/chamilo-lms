@@ -4,6 +4,9 @@
 /**
  *  Interface for assigning sessions to Human Resources Manager.
  */
+
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
+
 // resetting the course id
 $cidReset = true;
 
@@ -72,15 +75,15 @@ function search_sessions($needle, $type)
         }
 
         if (api_is_multiple_url_enabled()) {
-            $sql = " SELECT s.id, s.name FROM $tbl_session s
-                     LEFT JOIN $tbl_session_rel_access_url a 
+            $sql = " SELECT s.id, s.title FROM $tbl_session s
+                     LEFT JOIN $tbl_session_rel_access_url a
                      ON (s.id = a.session_id)
-                     WHERE  
-                        s.name LIKE '$needle%' $without_assigned_sessions AND 
+                     WHERE
+                        s.title LIKE '$needle%' $without_assigned_sessions AND
                         access_url_id = ".api_get_current_access_url_id();
         } else {
-            $sql = "SELECT s.id, s.name FROM $tbl_session s
-                    WHERE  s.name LIKE '$needle%' $without_assigned_sessions ";
+            $sql = "SELECT s.id, s.title FROM $tbl_session s
+                    WHERE  s.title LIKE '$needle%' $without_assigned_sessions ";
         }
         $rs = Database::query($sql);
         $return .= '<select class="form-control" id="origin" name="NoAssignedSessionsList[]" multiple="multiple" size="20">';
@@ -175,9 +178,9 @@ Display::display_header($tool_name);
 // Actions
 if (!$isSessionAdmin) {
     $actionsLeft = '<a href="dashboard_add_users_to_user.php?user='.$user_id.'">'.
-        Display::return_icon('add-user.png', get_lang('Assign users'), null, ICON_SIZE_MEDIUM).'</a>';
+        Display::getMdiIcon(ObjectIcon::USER, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Assign users')).'</a>';
     $actionsLeft .= '<a href="dashboard_add_courses_to_user.php?user='.$user_id.'">'.
-        Display::return_icon('course-add.png', get_lang('Assign courses'), null, ICON_SIZE_MEDIUM).'</a>';
+        Display::getMdiIcon(ObjectIcon::COURSE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Assign courses')).'</a>';
 
     echo Display::toolbarAction('toolbar-dashboard', [$actionsLeft]);
 }
@@ -202,17 +205,17 @@ if (!empty($firstLetterSession)) {
 }
 
 if (api_is_multiple_url_enabled()) {
-    $sql = "SELECT s.id, s.name
+    $sql = "SELECT s.id, s.title
 	        FROM $tbl_session s
             LEFT JOIN $tbl_session_rel_access_url a ON (s.id = a.session_id)
             WHERE
-                s.name LIKE '$needle%' $without_assigned_sessions AND
+                s.title LIKE '$needle%' $without_assigned_sessions AND
                 access_url_id = ".api_get_current_access_url_id().'
-            ORDER BY s.name';
+            ORDER BY s.title';
 } else {
-    $sql = "SELECT s.id, s.name FROM $tbl_session s
-		    WHERE  s.name LIKE '$needle%' $without_assigned_sessions
-            ORDER BY s.name";
+    $sql = "SELECT s.id, s.title FROM $tbl_session s
+		    WHERE  s.title LIKE '$needle%' $without_assigned_sessions
+            ORDER BY s.title";
 }
 $result = Database::query($sql);
 ?>
@@ -254,27 +257,27 @@ $result = Database::query($sql);
                 if ($ajax_search) {
                     ?>
                     <div class="separate-action">
-                        <button class="btn btn-primary" type="button" onclick="remove_item(document.getElementById('destination'))">
-                            <em class="fa fa-arrow-left"></em>
+                        <button class="btn btn--primary" type="button" onclick="remove_item(document.getElementById('destination'))">
+                            <i class="mdi mdi-rewind-outline ch-tool-icon"></i>
                         </button>
                     </div>
                 <?php
                 } else {
                     ?>
                 <div class="separate-action">
-                    <button class="btn btn-primary" type="button" onclick="moveItem(document.getElementById('origin'), document.getElementById('destination'))" onclick="moveItem(document.getElementById('origin'), document.getElementById('destination'))">
-                        <em class="fa fa-arrow-right"></em>
+                    <button class="btn btn--primary" type="button" onclick="moveItem(document.getElementById('origin'), document.getElementById('destination'))" onclick="moveItem(document.getElementById('origin'), document.getElementById('destination'))">
+                        <i class="mdi mdi-fast-forward-outline ch-tool-icon"></i>
                     </button>
                 </div>
                 <div class="separate-action">
-                    <button class="btn btn-primary" type="button" onclick="moveItem(document.getElementById('destination'), document.getElementById('origin'))" onclick="moveItem(document.getElementById('destination'), document.getElementById('origin'))">
-                        <em class="fa fa-arrow-left"></em>
+                    <button class="btn btn--primary" type="button" onclick="moveItem(document.getElementById('destination'), document.getElementById('origin'))" onclick="moveItem(document.getElementById('destination'), document.getElementById('origin'))">
+                        <i class="mdi mdi-rewind-outline ch-tool-icon"></i>
                     </button>
                 </div>
 
                 <?php
                 }
-                echo '<button class="btn btn-success" type="button" value="" onclick="valide()" >'.$tool_name.'</button>';
+                echo '<button class="btn btn--success" type="button" value="" onclick="valide()" >'.$tool_name.'</button>';
                 ?>
             </div>
         </div>

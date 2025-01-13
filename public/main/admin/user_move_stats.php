@@ -4,6 +4,9 @@
 /**
  * User move script (to move between courses and sessions).
  */
+
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+
 $cidReset = true;
 require_once __DIR__.'/../inc/global.inc.php';
 $this_section = SECTION_PLATFORM_ADMIN;
@@ -146,7 +149,7 @@ if (isset($_REQUEST['load_ajax'])) {
                         WHERE c_id = $course_id AND exe_user_id = $user_id  $sessionCondition";
                 $res = Database::query($sql);
                 $list = [];
-                while ($row = Database::fetch_array($res, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($res)) {
                     $list[$row['exe_id']] = $row;
                 }
 
@@ -177,7 +180,7 @@ if (isset($_REQUEST['load_ajax'])) {
                             ";
                     $res = Database::query($sql);
                     $list = [];
-                    while ($row = Database::fetch_array($res, 'ASSOC')) {
+                    while ($row = Database::fetch_assoc($res)) {
                         $list[$row['exe_id']] = $row;
                     }
 
@@ -208,7 +211,7 @@ if (isset($_REQUEST['load_ajax'])) {
                         WHERE c_id  = $course_id AND session_id = $origin_session_id  AND user_id = $user_id ";
                 $res = Database::query($sql);
                 $list = [];
-                while ($row = Database::fetch_array($res, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($res)) {
                     $list[$row['course_access_id']] = $row;
                 }
 
@@ -230,11 +233,11 @@ if (isset($_REQUEST['load_ajax'])) {
                 //4. track_e_lastaccess
                 $sql = "SELECT access_id FROM $TBL_TRACK_E_LAST_ACCESS
                         WHERE c_id = $course_id
-                        AND access_session_id = $origin_session_id
+                        AND session_id = $origin_session_id
                         AND access_user_id = $user_id ";
                 $res = Database::query($sql);
                 $list = [];
-                while ($row = Database::fetch_array($res, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($res)) {
                     $list[] = $row['access_id'];
                 }
 
@@ -242,7 +245,7 @@ if (isset($_REQUEST['load_ajax'])) {
                     foreach ($list as $id) {
                         if ($update_database) {
                             $sql = "UPDATE $TBL_TRACK_E_LAST_ACCESS
-                                    SET access_session_id = $new_session_id
+                                    SET session_id = $new_session_id
                                     WHERE access_id = $id";
                             if ($debug) {
                                 echo $sql;
@@ -265,7 +268,7 @@ if (isset($_REQUEST['load_ajax'])) {
                 $flat_list = $lp_list->get_flat_list();
 
                 $list = [];
-                while ($row = Database::fetch_array($res, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($res)) {
                     //Checking if the LP exist in the new session
                     //if (in_array($row['lp_id'], array_keys($flat_list))) {
                     $list[$row['id']] = $row;
@@ -318,7 +321,7 @@ if (isset($_REQUEST['load_ajax'])) {
                     $flat_list = $lp_list->get_flat_list();
 
                     $list = [];
-                    while ($row = Database::fetch_array($res, 'ASSOC')) {
+                    while ($row = Database::fetch_assoc($res)) {
                         //Checking if the LP exist in the new session
                         //if (in_array($row['lp_id'], array_keys($flat_list))) {
                         $list[$row['id']] = $row;
@@ -353,7 +356,7 @@ if (isset($_REQUEST['load_ajax'])) {
                 $sql = "SELECT ref FROM $TBL_ITEM_PROPERTY
                         WHERE tool = 'calendar_event' AND insert_user_id = $user_id AND c_id = $course_id ";
                 $res = Database::query($sql);
-                while ($row = Database::fetch_array($res, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($res)) {
                     $id = $row['ref'];
                     if ($update_database) {
                         $sql = "UPDATE $TBL_AGENDA SET session_id = $new_session_id WHERE c_id = $course_id AND id = $id ";
@@ -376,7 +379,7 @@ if (isset($_REQUEST['load_ajax'])) {
                     echo $sql;
                 }
                 $res = Database::query($sql);
-                while ($row = Database::fetch_array($res, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($res)) {
                     $id = $row['ref'];
                     $sql = "SELECT * FROM $TBL_STUDENT_PUBLICATION WHERE id = $id AND session_id = $origin_session_id AND c_id = $course_id";
                     if ($debug) {
@@ -384,7 +387,7 @@ if (isset($_REQUEST['load_ajax'])) {
                     }
                     $sub_res = Database::query($sql);
                     if (Database::num_rows($sub_res) > 0) {
-                        $data = Database::fetch_array($sub_res, 'ASSOC');
+                        $data = Database::fetch_assoc($sub_res);
                         if ($debug) {
                             var_dump($data);
                         }
@@ -419,7 +422,7 @@ if (isset($_REQUEST['load_ajax'])) {
                             $num_rows = Database::num_rows($sub_res);
 
                             if ($num_rows > 0) {
-                                $new_result = Database::fetch_array($sub_res, 'ASSOC');
+                                $new_result = Database::fetch_assoc($sub_res);
                                 $created_dir = $new_result['url'];
                                 $new_parent_id = $new_result['id'];
                             } else {
@@ -462,7 +465,7 @@ if (isset($_REQUEST['load_ajax'])) {
                             $rest_select = Database::query($sql);
                             if (Database::num_rows($rest_select) > 0) {
                                 if ($update_database) {
-                                    $assignment_data = Database::fetch_array($rest_select, 'ASSOC');
+                                    $assignment_data = Database::fetch_assoc($rest_select);
                                     $sql_add_publication = "INSERT INTO ".$TBL_STUDENT_PUBLICATION_ASSIGNMENT." SET
                                     	c_id = '$course_id',
                                        expires_on          = '".$assignment_data['expires_on']."',
@@ -547,7 +550,7 @@ if (isset($_REQUEST['load_ajax'])) {
                     var_dump($sql);
                 }
                 $res = Database::query($sql);
-                while ($row = Database::fetch_array($res, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($res)) {
                     $id = $row['id'];
                     if ($update_database) {
                         $sql = "UPDATE $TBL_DROPBOX_FILE SET session_id = $new_session_id WHERE c_id = $course_id AND id = $id";
@@ -579,7 +582,7 @@ if (isset($_REQUEST['load_ajax'])) {
                     var_dump($sql);
                 }
                 $res = Database::query($sql);
-                while ($row = Database::fetch_array($res, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($res)) {
                     $id = $row['notebook_id'];
                     if ($update_database) {
                         $sql = "UPDATE $TBL_NOTEBOOK
@@ -682,7 +685,7 @@ function get_courses_list_by_user_id_based_in_exercises($user_id)
 
     $res = Database::query($sql);
     $course_list = [];
-    while ($row = Database::fetch_array($res, 'ASSOC')) {
+    while ($row = Database::fetch_assoc($res)) {
         $course_list[] = $row;
     }
 
@@ -698,7 +701,7 @@ Display::addFlash(
 );
 Display::display_header(get_lang('Move users results from/to a session'));
 echo '<div class="actions">';
-echo '<a href="../admin/index.php">'.Display::return_icon('back.png', get_lang('Back to').' '.get_lang('Administration'), '', ICON_SIZE_MEDIUM).'</a>';
+echo '<a href="../admin/index.php">'.Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back to').' '.get_lang('Administration')).'</a>';
 echo '</div>';
 
 // Some pagination
@@ -828,8 +831,8 @@ if (!empty($user_list)) {
                 echo $options;
                 echo '</select>';
                 echo '<br />';
-                echo '<button type="submit" class="btn btn-success" onclick="view_stat(\''.$unique_id.'\', \''.$user_id.'\');"> '.get_lang('Compare stats').'</button>';
-                echo '<button type="submit" class="btn btn-success" onclick="moveto(\''.$unique_id.'\', \''.$user_id.'\');"> '.get_lang('Move').'</button>';
+                echo '<button type="submit" class="btn btn--success" onclick="view_stat(\''.$unique_id.'\', \''.$user_id.'\');"> '.get_lang('Compare stats').'</button>';
+                echo '<button type="submit" class="btn btn--success" onclick="moveto(\''.$unique_id.'\', \''.$user_id.'\');"> '.get_lang('Move').'</button>';
                 echo '<div id ="reponse_'.$unique_id.'"></div>';
                 echo '</td>';
             }

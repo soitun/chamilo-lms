@@ -69,12 +69,20 @@ switch ($action) {
         }
         break;
     case 'export_table':
-        $hidePdfReport = api_get_configuration_value('gradebook_hide_pdf_report_button');
+        $hidePdfReport = ('true' === api_get_setting('gradebook.gradebook_hide_pdf_report_button'));
         if ($hidePdfReport) {
             api_not_allowed(true);
         }
         if (isset($_GET['category_id'])) {
-            $cats = Category::load($_GET['category_id'], null, null, null, null, null, false);
+            $cats = Category::load(
+                $_GET['category_id'],
+                null,
+                0,
+                null,
+                null,
+                null,
+                null
+            );
             GradebookUtils::generateTable($courseInfo, api_get_user_id(), $cats);
             exit;
         }
@@ -189,11 +197,11 @@ $courseInfo = api_get_course_info();
 $cats = Category::load(
     null,
     null,
-    $course_code,
+    $courseInfo['id'],
     null,
     null,
     $session_id,
-    'ORDER By id'
+    'ORDER BY id'
 );
 $first_time = null;
 
@@ -202,11 +210,11 @@ if (empty($cats)) {
     $cats = Category::load(
         0,
         null,
-        $course_code,
+        $courseInfo['id'],
         null,
         null,
         $session_id,
-        'ORDER By id'
+        'ORDER BY id'
     );
     $first_time = 1;
 }
@@ -231,7 +239,7 @@ if (isset($_GET['createallcategories'])) {
         foreach ($coursecat as $row) {
             $cat = new Category();
             $cat->set_name($row[1]);
-            $cat->set_course_code($row[0]);
+            $cat->setCourseId(api_get_course_int_id($row[0]));
             $cat->set_description(null);
             $cat->set_user_id($stud_id);
             $cat->set_parent_id(0);
@@ -271,7 +279,7 @@ if (isset($_GET['movecat'])) {
         }
     } else {
         $targetcat = Category::load($_GET['targetcat']);
-        $course_to_crsind = (null != $cats[0]->get_course_code() && null == $targetcat[0]->get_course_code());
+        $course_to_crsind = (null != $cats[0]->getCourseId() && null == $targetcat[0]->getCourseId());
 
         if (!($course_to_crsind && !isset($_GET['confirm']))) {
             $cats[0]->move_to_cat($targetcat[0]);
@@ -305,7 +313,7 @@ if (isset($_GET['moveeval'])) {
         }
     } else {
         $targetcat = Category::load($_GET['targetcat']);
-        $course_to_crsind = null != $evals[0]->get_course_code() && null == $targetcat[0]->get_course_code();
+        $course_to_crsind = null != $evals[0]->getCourseId() && null == $targetcat[0]->getCourseId();
 
         if (!($course_to_crsind && !isset($_GET['confirm']))) {
             $evals[0]->move_to_cat($targetcat[0]);
@@ -458,9 +466,9 @@ if (isset($_GET['deletelink'])) {
                         thread_qualify_max = 0,
                         thread_weight = 0,
                         thread_title_qualify = ""
-					WHERE c_id = '.$course_id.' AND iid = (
+					WHERE iid = (
 					    SELECT ref_id FROM '.$tbl_grade_links.'
-					    WHERE id='.$get_delete_link.' AND type = '.LINK_FORUM_THREAD.'
+					    WHERE id = '.$get_delete_link.' AND type = '.LINK_FORUM_THREAD.'
                     )';
             Database::query($sql);
             // clean attendance
@@ -469,7 +477,7 @@ if (isset($_GET['deletelink'])) {
                         attendance_qualify_title = ""
 				 	WHERE iid = (
 				 	    SELECT ref_id FROM '.$tbl_grade_links.'
-				 	    WHERE id='.$get_delete_link.' AND type = '.LINK_ATTENDANCE.'
+				 	    WHERE id = '.$get_delete_link.' AND type = '.LINK_ATTENDANCE.'
                     )';
             Database::query($sql);
             $link[0]->delete();
@@ -672,9 +680,10 @@ $simple_search_form = '';
 
 if (isset($_GET['studentoverview'])) {
     //@todo this code also seems to be deprecated ...
+    /** @var Category[] $cats */
     $cats = Category::load($selectCat);
     $stud_id = api_is_allowed_to_edit() ? null : $stud_id;
-    $allcat = $cats[0]->get_subcategories($stud_id, $course_code, $session_id);
+    $allcat = $cats[0]->get_subcategories($stud_id, $course_id, $session_id);
     $alleval = $cats[0]->get_evaluations($stud_id, true);
     $alllink = $cats[0]->get_links($stud_id, true);
     if (isset($_GET['exportpdf'])) {
@@ -745,11 +754,11 @@ if (isset($_GET['studentoverview'])) {
     $cats = Category:: load(
         null,
         null,
-        $course_code,
+        $course_id,
         null,
         null,
         $session_id,
-        false
+        null
     );
 
     if (empty($cats)) {
@@ -763,7 +772,7 @@ if (isset($_GET['studentoverview'])) {
             $cat->set_name($course_code);
             $cat->setIsRequirement(true);
         }
-        $cat->set_course_code($course_code);
+        $cat->setCourseId($course_id);
         $cat->set_description(null);
         $cat->set_user_id($stud_id);
         $cat->set_parent_id(0);
@@ -777,15 +786,28 @@ if (isset($_GET['studentoverview'])) {
         unset($cat);
     }
 
-    $cats = Category::load($selectCat, null, null, null, null, null, false);
+    /** @var Category[] $cats */
+    $cats = Category::load(
+        $selectCat,
+        null,
+        0,
+        null,
+        null,
+        null,
+        null
+    );
     // With this fix the teacher only can view 1 gradebook
     if (api_is_platform_admin()) {
         $stud_id = api_is_allowed_to_edit() ? null : api_get_user_id();
     }
 
-    $allcat = $cats[0]->get_subcategories($stud_id, $course_code, $session_id);
-    $alleval = $cats[0]->get_evaluations($stud_id);
-    $alllink = $cats[0]->get_links($stud_id);
+    if (!empty($cats)) {
+        $allcat = $cats[0]->get_subcategories($stud_id, $course_id, $session_id);
+        $alleval = $cats[0]->get_evaluations($stud_id);
+        $alllink = $cats[0]->get_links($stud_id);
+    } else {
+        $allcat = $alleval = $alling = [];
+    }
 }
 
 // add params to the future links (in the table shown)
@@ -810,7 +832,7 @@ if (!empty($selectCat)) {
     }
     $course_id = CourseManager::get_course_by_category($selectCat);
     $show_message = Category::show_message_resource_delete($course_id);
-    if ('' == $show_message) {
+    if (empty($show_message)) {
         // Student
         if (!api_is_allowed_to_edit() && !api_is_excluded_user_type()) {
             if ($category) {
@@ -819,7 +841,7 @@ if (!empty($selectCat)) {
                     $actionsLeft .= Display::url(
                         Display::getMdiIcon('file-pdf-box').get_lang('Download certificate in PDF'),
                         $certificate['pdf_url'],
-                        ['class' => 'btn btn-default']
+                        ['class' => 'btn btn--plain']
                     );
                 }
 
@@ -831,12 +853,12 @@ if (!empty($selectCat)) {
 }
 
 if (!api_is_allowed_to_edit(null, true)) {
-    $allowButton = false === api_get_configuration_value('gradebook_hide_pdf_report_button');
+    $allowButton = ('false' === api_get_setting('gradebook.gradebook_hide_pdf_report_button'));
     if ($allowButton) {
         $actionsLeft .= Display::url(
             Display::getMdiIcon('file-pdf-box').get_lang('Download report in PDF'),
             api_get_self().'?action=export_table&'.api_get_cidreq().'&category_id='.$selectCat,
-            ['class' => 'btn btn-default']
+            ['class' => 'btn btn--plain']
         );
     }
 }
@@ -859,11 +881,11 @@ if (isset($first_time) && 1 == $first_time && api_is_allowed_to_edit(null, true)
     $cats = Category::load(
         null,
         null,
-        $course_code,
+        $course_id,
         null,
         null,
         $session_id,
-        false
+        null
     );
 
     if (!empty($cats)) {
@@ -917,11 +939,11 @@ if (isset($first_time) && 1 == $first_time && api_is_allowed_to_edit(null, true)
                         $cats = Category:: load(
                             null,
                             null,
-                            $course_code,
+                            $course_id,
                             null,
                             null,
                             $session_id,
-                            false
+                            null
                         );
                     } else {
                         $form_grade->display();
@@ -933,19 +955,19 @@ if (isset($first_time) && 1 == $first_time && api_is_allowed_to_edit(null, true)
         $i = 0;
         $allcat = [];
         $model = ExerciseLib::getCourseScoreModel();
-        $allowGraph = false === api_get_configuration_value('gradebook_hide_graph');
+        $allowGraph = ('false' === api_get_setting('gradebook.gradebook_hide_graph'));
         $isAllow = api_is_allowed_to_edit(null, true);
 
-        $settings = api_get_configuration_value('gradebook_pdf_export_settings');
+        $settings = api_get_setting('gradebook.gradebook_pdf_export_settings', true);
         $showFeedBack = true;
         if (isset($settings['hide_feedback_textarea']) && $settings['hide_feedback_textarea']) {
             $showFeedBack = false;
         }
         /** @var Category $cat */
         foreach ($cats as $cat) {
-            $allcat = $cat->get_subcategories($stud_id, $course_code, $session_id);
-            $alleval = $cat->get_evaluations($stud_id, false, $course_code, $session_id);
-            $alllink = $cat->get_links($stud_id, true, $course_code, $session_id);
+            $allcat = $cat->get_subcategories($stud_id, $course_id, $session_id);
+            $alleval = $cat->get_evaluations($stud_id, false, $course_id, $session_id);
+            $alllink = $cat->get_links($stud_id, true, $course_id, $session_id);
 
             if (0 != $cat->get_parent_id()) {
                 $i++;
@@ -968,7 +990,7 @@ if (isset($first_time) && 1 == $first_time && api_is_allowed_to_edit(null, true)
                     // Showing the grading system
                     if (!empty($grade_models[$grade_model_id])) {
                         echo Display::return_message(
-                            get_lang('Grading model').': '.$grade_models[$grade_model_id]['name']
+                            get_lang('Grading model').': '.$grade_models[$grade_model_id]['title']
                         );
                     }
                 }
@@ -982,10 +1004,6 @@ if (isset($first_time) && 1 == $first_time && api_is_allowed_to_edit(null, true)
                 if (!$isAllow) {
                     if ('true' === api_get_setting('gradebook_detailed_admin_view')) {
                         $loadStats = [1, 2, 3];
-                    } else {
-                        if (false !== api_get_configuration_value('gradebook_enable_best_score')) {
-                            $loadStats = [2];
-                        }
                     }
                 }
 

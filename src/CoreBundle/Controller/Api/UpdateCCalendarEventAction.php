@@ -6,6 +6,8 @@ declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\Controller\Api;
 
+use Chamilo\CoreBundle\Entity\AgendaReminder;
+use Chamilo\CoreBundle\Settings\SettingsManager;
 use Chamilo\CourseBundle\Entity\CCalendarEvent;
 use Chamilo\CourseBundle\Repository\CCalendarEventRepository;
 use DateTime;
@@ -18,7 +20,8 @@ class UpdateCCalendarEventAction extends BaseResourceFileAction
         CCalendarEvent $calendarEvent,
         Request $request,
         CCalendarEventRepository $repo,
-        EntityManager $em
+        EntityManager $em,
+        SettingsManager $settingsManager,
     ): CCalendarEvent {
         $this->handleUpdateRequest($calendarEvent, $repo, $request, $em);
 
@@ -30,9 +33,22 @@ class UpdateCCalendarEventAction extends BaseResourceFileAction
             ->setColor($result['color'] ?? '')
             ->setStartDate(new DateTime($result['startDate'] ?? ''))
             ->setEndDate(new DateTime($result['endDate'] ?? ''))
-            //->setAllDay($result['allDay'] ?? false)
+            // ->setAllDay($result['allDay'] ?? false)
             ->setCollective($result['collective'] ?? false)
         ;
+
+        $calendarEvent->getReminders()->clear();
+
+        if (isset($result['reminders'])) {
+            foreach ($result['reminders'] as $reminderInfo) {
+                $reminder = new AgendaReminder();
+                $reminder->count = $reminderInfo['count'];
+                $reminder->period = $reminderInfo['period'];
+                $reminder->decodeDateInterval();
+
+                $calendarEvent->addReminder($reminder);
+            }
+        }
 
         return $calendarEvent;
     }

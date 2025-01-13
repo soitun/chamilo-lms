@@ -87,8 +87,8 @@
                                         <div class="btn-group">
                                             <a title="{{ 'Edit thematic section' | trans }}"
                                                href="index.php?{{ course_url_params }}&origin=thematic_details&action=thematic_plan_list&thematic_id={{ item.iid }}&width=700&height=500"
-                                               class="btn btn-outline-secondary btn-sm">
-                                                {{ 'pencil' | mdi_icon }}
+                                               class="btn btn--secondary-outline btn-sm">
+                                                {{ 'ActionIcon::EDIT' | mdi_icon }}
                                             </a>
                                         </div>
                                     {% endif %}
@@ -111,8 +111,8 @@
                                     <div class="btn-group">
                                         <a title="{{ 'New thematic advance' | trans }}"
                                            href="index.php?{{ course_url_params }}&action=thematic_advance_add&thematic_id={{ item.iid }}"
-                                           class="btn btn-outline-secondary btn-sm">
-                                            {{ 'plus-circle' | mdi_icon }}
+                                           class="btn btn--secondary-outline btn-sm">
+                                            {{ 'ActionIcon::ADD' | mdi_icon }}
                                         </a>
                                     </div>
                                 {% endif %}
@@ -131,16 +131,16 @@
                                                     <div class="toolbar-actions">
                                                         <div id="thematic_advance_tools_{{ advance.iid }}" class="thematic_advance_actions">
                                                             <div class="btn-group btn-group-sm">
-                                                                <a class="btn btn-default btn-sm"
+                                                                <a class="btn btn--plain btn-sm"
                                                                    href="index.php?{{ course_url_params }}&action=thematic_advance_edit&thematic_id={{ item.iid }}&thematic_advance_id={{ advance.iid }}"
                                                                    title="{{ 'Edit' |trans }}">
-                                                                    {{ 'pencil' | mdi_icon }}
+                                                                    {{ 'ActionIcon::EDIT' | mdi_icon }}
                                                                 </a>
-                                                                <a class="btn btn-default btn-sm"
+                                                                <a class="btn btn--plain btn-sm"
                                                                    onclick="javascript:if(!confirm('{{ 'Are you sure to delete' | trans }}')) return false;"
                                                                    href="index.php?{{ course_url_params }}&action=thematic_advance_delete&thematic_id={{ item.iid }}&thematic_advance_id={{ advance.iid }}"
                                                                    title="{{ 'Delete' |trans }}">
-                                                                    {{ 'delete' | mdi_icon }}
+                                                                    {{ 'ActionIcon::DELETE' | mdi_icon }}
                                                                 </a>
                                                             </div>
                                                         </div>

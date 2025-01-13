@@ -11,43 +11,30 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * CQuizQuestionOption.
- *
- * @ORM\Table(
- *     name="c_quiz_question_option",
- *     indexes={
- *     }
- * )
- * @ORM\Entity
  */
+#[ORM\Table(name: 'c_quiz_question_option')]
+#[ORM\Entity]
 class CQuizQuestionOption
 {
-    /**
-     * @ORM\Column(name="iid", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     */
-    protected int $iid;
+    #[ORM\Column(name: 'iid', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    protected ?int $iid = null;
 
-    /**
-     * @ORM\Column(name="name", type="string", length=255, nullable=false)
-     */
-    protected string $name;
+    #[ORM\Column(name: 'title', type: 'string', length: 255, nullable: false)]
+    protected string $title;
 
-    /**
-     * @ORM\Column(name="position", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'position', type: 'integer', nullable: false)]
     protected int $position;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CourseBundle\Entity\CQuizQuestion", cascade={"persist"}, inversedBy="options")
-     * @ORM\JoinColumn(name="question_id", referencedColumnName="iid", onDelete="CASCADE")
-     */
     #[Assert\NotBlank]
+    #[ORM\ManyToOne(targetEntity: CQuizQuestion::class, cascade: ['persist'], inversedBy: 'options')]
+    #[ORM\JoinColumn(name: 'question_id', referencedColumnName: 'iid', onDelete: 'CASCADE')]
     protected CQuizQuestion $question;
 
-    public function setName(string $name): self
+    public function setTitle(string $title): self
     {
-        $this->name = $name;
+        $this->title = $title;
 
         return $this;
     }
@@ -57,9 +44,9 @@ class CQuizQuestionOption
      *
      * @return string
      */
-    public function getName()
+    public function getTitle()
     {
-        return $this->name;
+        return $this->title;
     }
 
     public function setPosition(int $position): self

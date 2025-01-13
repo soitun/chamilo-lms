@@ -1,8 +1,8 @@
 <?php
 
-declare(strict_types=1);
-
 /* For licensing terms, see /license.txt */
+
+declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\Entity;
 
@@ -12,37 +12,28 @@ use Gedmo\Timestampable\Traits\TimestampableEntity;
 
 /**
  * SkillRelCourse.
- *
- * @ORM\Table(name="skill_rel_course")
- * @ORM\Entity
  */
+#[ORM\Table(name: 'skill_rel_course')]
+#[ORM\Entity]
 class SkillRelCourse
 {
     use TimestampableEntity;
 
-    /**
-     * @ORM\Column(name="id", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     */
-    protected int $id;
+    #[ORM\Column(name: 'id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    protected ?int $id = null;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\Skill", inversedBy="courses")
-     * @ORM\JoinColumn(name="skill_id", referencedColumnName="id", onDelete="CASCADE")
-     */
+    #[ORM\ManyToOne(targetEntity: Skill::class, inversedBy: 'courses')]
+    #[ORM\JoinColumn(name: 'skill_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
     protected Skill $skill;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\Course", inversedBy="skills", cascade={"persist"})
-     * @ORM\JoinColumn(name="c_id", referencedColumnName="id", nullable=false, onDelete="CASCADE")
-     */
+    #[ORM\ManyToOne(targetEntity: Course::class, cascade: ['persist'], inversedBy: 'skills')]
+    #[ORM\JoinColumn(name: 'c_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     protected Course $course;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\Session", inversedBy="skills", cascade={"persist"})
-     * @ORM\JoinColumn(name="session_id", referencedColumnName="id", nullable=false, onDelete="CASCADE")
-     */
+    #[ORM\ManyToOne(targetEntity: Session::class, cascade: ['persist'], inversedBy: 'skills')]
+    #[ORM\JoinColumn(name: 'session_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     protected ?Session $session = null;
 
     public function __construct()
@@ -51,10 +42,7 @@ class SkillRelCourse
         $this->updatedAt = new DateTime('now');
     }
 
-    /**
-     * @return int
-     */
-    public function getId()
+    public function getId(): ?int
     {
         return $this->id;
     }
@@ -95,36 +83,24 @@ class SkillRelCourse
         return $this;
     }
 
-    /**
-     * @return DateTime
-     */
-    public function getCreatedAt()
+    public function getCreatedAt(): DateTime
     {
         return $this->createdAt;
     }
 
-    /**
-     * @return SkillRelCourse
-     */
-    public function setCreatedAt(DateTime $createdAt)
+    public function setCreatedAt(DateTime $createdAt): static
     {
         $this->createdAt = $createdAt;
 
         return $this;
     }
 
-    /**
-     * @return DateTime
-     */
-    public function getUpdatedAt()
+    public function getUpdatedAt(): DateTime
     {
         return $this->updatedAt;
     }
 
-    /**
-     * @return SkillRelCourse
-     */
-    public function setUpdatedAt(DateTime $updatedAt)
+    public function setUpdatedAt(DateTime $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
 

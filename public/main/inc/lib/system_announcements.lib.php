@@ -107,7 +107,7 @@ class SystemAnnouncementManager
             ->setUrl(api_get_url_entity())
             ->setRoles($visibility);
 
-        if (api_get_configuration_value('allow_careers_in_global_announcements') && !empty($careerId)) {
+        if (('true' === api_get_setting('announcement.allow_careers_in_global_announcements')) && !empty($careerId)) {
             $careerRepo = Container::getCareerRepository();
             $sysAnnouncement->setCareer($careerRepo->find($careerId));
 
@@ -121,10 +121,10 @@ class SystemAnnouncementManager
         if ($resultId) {
             if ($sendEmailTest) {
                 self::send_system_announcement_by_email($sysAnnouncement, true);
-            } else {
-                if (1 == $send_mail) {
-                    self::send_system_announcement_by_email($sysAnnouncement);
-                }
+            }
+
+            if (1 == (int) $send_mail) {
+                self::send_system_announcement_by_email($sysAnnouncement);
             }
 
             if ($add_to_calendar) {
@@ -184,6 +184,19 @@ class SystemAnnouncementManager
         //$sql .= " AND (expiration_date = '' OR expiration_date IS NULL OR expiration_date > '$now') ";
 
         $userListToFilter = [];
+        if (in_array('ROLE_TEACHER', $announcement->getRoles(), true)) {
+            $users =  UserManager::get_user_list(['status' => COURSEMANAGER]);
+            if (!empty($users)) {
+                $userListToFilter = array_merge($users, $userListToFilter);
+            }
+        }
+
+        if (in_array('ROLE_STUDENT', $announcement->getRoles(), true)) {
+            $users = UserManager::get_user_list(['status' => STUDENT]);
+            if (!empty($users)) {
+                $userListToFilter = array_merge($users, $userListToFilter);
+            }
+        }
         // @todo check if other filters will apply for the career/promotion option.
         if (null !== $announcement->getCareer()) {
             $promotion = new Promotion();
@@ -284,25 +297,34 @@ class SystemAnnouncementManager
     /**
      * Gets the groups of this announce.
      *
-     * @param int announcement id
+     * @param int $announcement_id announcement id
      *
      * @return array array of group id
+     * @throws Exception
      */
-    public static function get_announcement_groups($announcement_id)
+    public static function get_announcement_groups(int $announcement_id): array
     {
+        if (empty($announcement_id)) {
+            return [];
+        }
         $tbl_announcement_group = Database::get_main_table(TABLE_MAIN_SYSTEM_ANNOUNCEMENTS_GROUPS);
         $tbl_group = Database::get_main_table(TABLE_USERGROUP);
         //first delete all group associations for this announcement
         $sql = "SELECT
                     g.id as group_id,
-                    g.name as group_name
+                    g.title as group_name
                 FROM $tbl_group g , $tbl_announcement_group ag
                 WHERE
-                    announcement_id =".intval($announcement_id)." AND
+                    announcement_id = $announcement_id AND
                     ag.group_id = g.id";
         $res = Database::query($sql);
 
-        return Database::fetch_array($res);
+        $array = Database::fetch_array($res);
+        if (!empty($array)) {
+            return $array;
+        }
+
+        return [];
     }
 
     /**
@@ -409,7 +431,7 @@ class SystemAnnouncementManager
         //$list = self::getVisibilityList();
         $table = Database::get_main_table(TABLE_MAIN_SYSTEM_ANNOUNCEMENTS);
 
-        if (api_get_configuration_value('allow_careers_in_global_announcements') && !empty($careerId)) {
+        if (('true' === api_get_setting('announcement.allow_careers_in_global_announcements')) && !empty($careerId)) {
             $params = [];
             $params['career_id'] = (int) $careerId;
             $params['promotion_id'] = (int) $promotionId;

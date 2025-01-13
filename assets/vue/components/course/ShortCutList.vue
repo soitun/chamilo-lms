@@ -1,50 +1,39 @@
 <template>
-  <div
-      class="bg-gray-100 rounded-xl p-2 shadow-md"
-  >
-    <div class="flex flex-col flex-center">
-      <div class="mx-auto">
-        <a :href="goToShortCut(shortcut)">
-          <img
-              :alt="shortcut.name"
-              :src="'/img/tools/' + shortcut.type + '.png'"
-              class="w-32 h-32 object-contain"
-          />
-        </a>
-      </div>
-
-      <div class="flex flex-row gap-2 text-gray-500 pt-3">
-        <a
-
-        >
-          {{ shortcut.name }}
-        </a>
-      </div>
-    </div>
+  <div class="course-tool">
+    <BaseAppLink
+      :url="url"
+      class="course-tool__link"
+    >
+      <img
+        :alt="shortcut.title"
+        :src="`/img/tools/${shortcut.type}.png`"
+        class="course-tool__icon"
+      />
+    </BaseAppLink>
+    <BaseAppLink
+      :url="url"
+      class="course-tool__title"
+    >
+      {{ shortcut.title }}
+    </BaseAppLink>
   </div>
 </template>
 
-<script>
+<script setup>
+import { computed } from "vue"
+import { storeToRefs } from "pinia"
+import BaseAppLink from "../basecomponents/BaseAppLink.vue"
+import { useCidReqStore } from "../../store/cidReq"
 
-import {mapGetters} from "vuex";
+const cidReqStore = useCidReqStore()
+const { course, session } = storeToRefs(cidReqStore)
 
-export default {
-  name: 'ShortCutList',
-  props: {
-    shortcut: Object,
-    goToShortCut: {
-      type: Function,
-      required: true
-    },
-    changeVisibility: {
-      type: Function,
-      required: false
-    },
+const props = defineProps({
+  shortcut: {
+    type: Object,
+    required: true,
   },
-  computed: {
-    ...mapGetters({
-      'isCurrentTeacher': 'security/isCurrentTeacher',
-    }),
-  },
-};
+})
+
+const url = computed(() => `${props.shortcut.url}?cid=${course.value.id}&sid=${session.value?.id || 0}`)
 </script>

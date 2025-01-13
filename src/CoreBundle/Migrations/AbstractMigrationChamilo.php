@@ -7,8 +7,13 @@ declare(strict_types=1);
 namespace Chamilo\CoreBundle\Migrations;
 
 use Chamilo\CoreBundle\Entity\AbstractResource;
+use Chamilo\CoreBundle\Entity\AccessUrl;
+use Chamilo\CoreBundle\Entity\Admin;
+use Chamilo\CoreBundle\Entity\Course;
 use Chamilo\CoreBundle\Entity\ResourceInterface;
 use Chamilo\CoreBundle\Entity\ResourceLink;
+use Chamilo\CoreBundle\Entity\ResourceType;
+use Chamilo\CoreBundle\Entity\Session;
 use Chamilo\CoreBundle\Entity\SettingsCurrent;
 use Chamilo\CoreBundle\Entity\SettingsOptions;
 use Chamilo\CoreBundle\Entity\User;
@@ -16,44 +21,50 @@ use Chamilo\CoreBundle\Repository\Node\UserRepository;
 use Chamilo\CoreBundle\Repository\ResourceRepository;
 use Chamilo\CoreBundle\Repository\SessionRepository;
 use Chamilo\CourseBundle\Repository\CGroupRepository;
+use DateTime;
+use DateTimeZone;
+use Doctrine\DBAL\Connection;
 use Doctrine\Migrations\AbstractMigration;
-use Doctrine\ORM\EntityManager;
-use Symfony\Component\DependencyInjection\ContainerAwareInterface;
+use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
-abstract class AbstractMigrationChamilo extends AbstractMigration implements ContainerAwareInterface
+abstract class AbstractMigrationChamilo extends AbstractMigration
 {
     public const BATCH_SIZE = 20;
 
-    private ?EntityManager $manager = null;
-    private ?ContainerInterface $container = null;
+    protected ?EntityManagerInterface $entityManager = null;
+    protected ?ContainerInterface $container = null;
 
-    public function setEntityManager(EntityManager $manager): void
+    private LoggerInterface $logger;
+
+    public function __construct(Connection $connection, LoggerInterface $logger)
     {
-        $this->manager = $manager;
+        parent::__construct($connection, $logger);
+        $this->logger = $logger;
     }
 
-    public function setContainer(ContainerInterface $container = null): void
+    protected function getLogger(): LoggerInterface
+    {
+        return $this->logger;
+    }
+
+    public function setEntityManager(EntityManagerInterface $entityManager): void
+    {
+        $this->entityManager = $entityManager;
+    }
+
+    public function setContainer(?ContainerInterface $container = null): void
     {
         $this->container = $container;
     }
 
-    /**
-     * @return ContainerInterface
-     */
-    public function getContainer()
-    {
-        return $this->container;
-    }
-
     public function adminExist(): bool
     {
-        $em = $this->getEntityManager();
-        $connection = $em->getConnection();
-
         $sql = 'SELECT user_id FROM admin WHERE user_id IN (SELECT id FROM user) ORDER BY id LIMIT 1';
-        $result = $connection->executeQuery($sql);
+        $result = $this->connection->executeQuery($sql);
         $adminRow = $result->fetchAssociative();
 
         if (empty($adminRow)) {
@@ -65,25 +76,12 @@ abstract class AbstractMigrationChamilo extends AbstractMigration implements Con
 
     public function getAdmin(): User
     {
-        $container = $this->getContainer();
-        $em = $this->getEntityManager();
-        $connection = $em->getConnection();
-        $userRepo = $container->get(UserRepository::class);
+        $admin = $this->entityManager
+            ->getRepository(Admin::class)
+            ->findOneBy([], ['id' => 'ASC'])
+        ;
 
-        $sql = 'SELECT user_id FROM admin ORDER BY id LIMIT 1';
-        $result = $connection->executeQuery($sql);
-        $adminRow = $result->fetchAssociative();
-        $adminId = $adminRow['user_id'];
-
-        return $userRepo->find($adminId);
-    }
-
-    /**
-     * @return EntityManager
-     */
-    public function getEntityManager()
-    {
-        return $this->getContainer()->get('doctrine')->getManager();
+        return $admin->getUser();
     }
 
     /**
@@ -120,7 +118,8 @@ abstract class AbstractMigrationChamilo extends AbstractMigration implements Con
         $accessUrlLocked = true,
         $options = []
     ): void {
-        $em = $this->getEntityManager();
+        $accessUrl = $this->entityManager->find(AccessUrl::class, $accessUrl);
+
         $setting = new SettingsCurrent();
         $setting
             ->setVariable($variable)
@@ -133,11 +132,11 @@ abstract class AbstractMigrationChamilo extends AbstractMigration implements Con
             ->setScope($scope)
             ->setSubkeytext($subKeyText)
             ->setUrl($accessUrl)
-            ->setAccessUrlChangeable($accessUrlChangeable)
-            ->setAccessUrlLocked($accessUrlLocked)
+            ->setAccessUrlChangeable((int) $accessUrlChangeable)
+            ->setAccessUrlLocked((int) $accessUrlLocked)
         ;
 
-        $em->persist($setting);
+        $this->entityManager->persist($setting);
 
         if (\count($options) > 0) {
             foreach ($options as $option) {
@@ -156,20 +155,41 @@ abstract class AbstractMigrationChamilo extends AbstractMigration implements Con
                     ->setDisplayText($option['text'])
                 ;
 
-                $em->persist($settingOption);
+                $this->entityManager->persist($settingOption);
             }
         }
-        $em->flush();
+        $this->entityManager->flush();
     }
 
     /**
-     * @param string $variable
+     * @param string     $variable
+     * @param null|mixed $configuration
      */
-    public function getConfigurationValue($variable)
+    public function getConfigurationValue($variable, $configuration = null)
     {
         global $_configuration;
+
+        if (isset($configuration)) {
+            $_configuration = $configuration;
+        }
+
         if (isset($_configuration[$variable])) {
             return $_configuration[$variable];
+        }
+
+        return false;
+    }
+
+    public function getMailConfigurationValue(string $variable, array $configuration = []): mixed
+    {
+        global $platform_email;
+
+        if ($configuration) {
+            $platform_email = $configuration;
+        }
+
+        if (isset($platform_email[$variable])) {
+            return $platform_email[$variable];
         }
 
         return false;
@@ -182,7 +202,7 @@ abstract class AbstractMigrationChamilo extends AbstractMigration implements Con
      */
     public function removeSettingCurrent($variable): void
     {
-        //to be implemented
+        // to be implemented
     }
 
     public function addLegacyFileToResource(
@@ -193,7 +213,7 @@ abstract class AbstractMigrationChamilo extends AbstractMigration implements Con
         $fileName = '',
         $description = ''
     ): bool {
-        $class = \get_class($resource);
+        $class = $resource::class;
         $documentPath = basename($filePath);
 
         if (is_dir($filePath) || (!is_dir($filePath) && !file_exists($filePath))) {
@@ -219,19 +239,16 @@ abstract class AbstractMigrationChamilo extends AbstractMigration implements Con
         $admin,
         ResourceInterface $resource,
         $parentResource,
-        array $items = []
+        array $items = [],
+        ?ResourceType $resourceType = null,
     ) {
-        $container = $this->getContainer();
-        $em = $this->getEntityManager();
-        $connection = $em->getConnection();
-
         $courseId = $course->getId();
         $id = $resource->getResourceIdentifier();
 
         if (empty($items)) {
             $sql = "SELECT * FROM c_item_property
                     WHERE tool = '{$tool}' AND c_id = {$courseId} AND ref = {$id}";
-            $result = $connection->executeQuery($sql);
+            $result = $this->connection->executeQuery($sql);
             $items = $result->fetchAllAssociative();
         }
 
@@ -240,9 +257,11 @@ abstract class AbstractMigrationChamilo extends AbstractMigration implements Con
             return false;
         }
 
-        $sessionRepo = $container->get(SessionRepository::class);
-        $groupRepo = $container->get(CGroupRepository::class);
-        $userRepo = $container->get(UserRepository::class);
+        $sessionRepo = $this->container->get(SessionRepository::class);
+        $groupRepo = $this->container->get(CGroupRepository::class);
+        $userRepo = $this->container->get(UserRepository::class);
+
+        $resourceType = $resourceType ?: $repo->getResourceType();
 
         $resource->setParent($parentResource);
         $resourceNode = null;
@@ -254,39 +273,35 @@ abstract class AbstractMigrationChamilo extends AbstractMigration implements Con
             $userId = (int) $item['insert_user_id'];
             $sessionId = $item['session_id'] ?? 0;
             $groupId = $item['to_group_id'] ?? 0;
-
+            if (empty($item['lastedit_date'])) {
+                $lastUpdatedAt = new DateTime('now', new DateTimeZone('UTC'));
+            } else {
+                $lastUpdatedAt = new DateTime($item['lastedit_date'], new DateTimeZone('UTC'));
+            }
             $newVisibility = ResourceLink::VISIBILITY_DRAFT;
+
             // Old 1.11.x visibility (item property) is based in this switch:
             switch ($visibility) {
                 case 0:
                     $newVisibility = ResourceLink::VISIBILITY_DRAFT;
 
                     break;
+
                 case 1:
                     $newVisibility = ResourceLink::VISIBILITY_PUBLISHED;
-
-                    break;
-                case 2:
-                    $newVisibility = ResourceLink::VISIBILITY_DELETED;
 
                     break;
             }
 
             // If c_item_property.insert_user_id doesn't exist we use the first admin id.
-            $user = null;
-            if (isset($userList[$userId])) {
-                $user = $userList[$userId];
-            } else {
-                if (!empty($userId)) {
-                    $userFound = $userRepo->find($userId);
-                    if ($userFound) {
-                        $user = $userList[$userId] = $userRepo->find($userId);
-                    }
-                }
-            }
+            $user = $admin;
 
-            if (null === $user) {
-                $user = $admin;
+            if ($userId) {
+                if (isset($userList[$userId])) {
+                    $user = $userList[$userId];
+                } elseif ($userFound = $userRepo->find($userId)) {
+                    $user = $userList[$userId] = $userFound;
+                }
             }
 
             $session = null;
@@ -308,11 +323,22 @@ abstract class AbstractMigrationChamilo extends AbstractMigration implements Con
             }
 
             if (null === $resourceNode) {
-                $resourceNode = $repo->addResourceNode($resource, $user, $parentResource);
-                $em->persist($resourceNode);
+                $resourceNode = $repo->addResourceNode(
+                    $resource,
+                    $user,
+                    $parentResource,
+                    $resourceType
+                );
+                $this->entityManager->persist($resourceNode);
             }
             $resource->addCourseLink($course, $session, $group, $newVisibility);
-            $em->persist($resource);
+
+            if (2 === $visibility) {
+                $link = $resource->getResourceNode()->getResourceLinkByContext($course, $session, $group);
+                $link->setDeletedAt($lastUpdatedAt);
+            }
+
+            $this->entityManager->persist($resource);
         }
 
         return true;
@@ -321,5 +347,94 @@ abstract class AbstractMigrationChamilo extends AbstractMigration implements Con
     public function fileExists($filePath): bool
     {
         return file_exists($filePath) && !is_dir($filePath) && is_readable($filePath);
+    }
+
+    public function findCourse(int $id): ?Course
+    {
+        if (0 === $id) {
+            return null;
+        }
+
+        return $this->entityManager->find(Course::class, $id);
+    }
+
+    public function findSession(int $id): ?Session
+    {
+        if (0 === $id) {
+            return null;
+        }
+
+        return $this->entityManager->find(Session::class, $id);
+    }
+
+    public function getMailConfigurationValueFromFile(string $variable): ?string
+    {
+        global $platform_email;
+
+        $rootPath = $this->container->get('kernel')->getProjectDir();
+        $oldConfigPath = $this->getUpdateRootPath().'/app/config/mail.conf.php';
+
+        $configFileLoaded = \in_array($oldConfigPath, get_included_files(), true);
+
+        if (!$configFileLoaded) {
+            include_once $oldConfigPath;
+        }
+
+        $settingValue = $this->getConfigurationValue($variable, $platform_email);
+
+        if (\is_bool($settingValue)) {
+            $selectedValue = var_export($settingValue, true);
+        } else {
+            $selectedValue = (string) $settingValue;
+        }
+
+        return $selectedValue;
+    }
+
+    private function generateFilePath(string $filename): string
+    {
+        $cacheDir = $this->container->get('kernel')->getCacheDir();
+
+        return $cacheDir.'/migration_'.$filename;
+    }
+
+    protected function writeFile(string $filename, string $content): void
+    {
+        $fullFilename = $this->generateFilePath($filename);
+
+        $fs = new Filesystem();
+        $fs->dumpFile($fullFilename, $content);
+    }
+
+    protected function readFile(string $filename): string
+    {
+        $fullFilename = $this->generateFilePath($filename);
+
+        if ($this->fileExists($fullFilename)) {
+            return file_get_contents($fullFilename);
+        }
+
+        return '';
+    }
+
+    protected function removeFile(string $filename): void
+    {
+        $fullFilename = $this->generateFilePath($filename);
+
+        $fs = new Filesystem();
+        $fs->remove($fullFilename);
+    }
+
+    protected function getUpdateRootPath(): string
+    {
+        $updateRootPath = getenv('UPDATE_PATH');
+
+        if (!empty($updateRootPath)) {
+            error_log('getUpdateRootPath ::: '.$updateRootPath);
+
+            return rtrim($updateRootPath, '/');
+        }
+
+        return $this->container->getParameter('kernel.project_dir');
     }
 }

@@ -4,6 +4,7 @@
 
 use Chamilo\CoreBundle\Entity\ExtraFieldOptions;
 use Chamilo\CoreBundle\Framework\Container;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
 
 /**
  * Handles the extra fields for various objects (users, sessions, courses).
@@ -62,7 +63,7 @@ class ExtraFieldOption extends Model
         if (empty($fieldId)) {
             return false;
         }
-        $extraFieldType = $this->getExtraField()->getExtraFieldType();
+        $extraFieldType = $this->getExtraField()->getItemType();
         $fieldId = (int) $fieldId;
 
         $sql = "SELECT count(*) as count
@@ -71,7 +72,7 @@ class ExtraFieldOption extends Model
                 ON o.field_id = e.id
                 WHERE
                     o.field_id = $fieldId AND
-                    e.extra_field_type = $extraFieldType ";
+                    e.item_type = $extraFieldType ";
         $result = Database::query($sql);
         $result = Database::fetch_array($result);
 
@@ -167,7 +168,7 @@ class ExtraFieldOption extends Model
         }
 
         $parseOptions = in_array(
-            $params['field_type'],
+            $params['value_type'],
             [
                 ExtraField::FIELD_TYPE_RADIO,
                 ExtraField::FIELD_TYPE_SELECT,
@@ -182,7 +183,7 @@ class ExtraFieldOption extends Model
             return true;
         }
 
-        switch ($params['field_type']) {
+        switch ($params['value_type']) {
             case ExtraField::FIELD_TYPE_DOUBLE_SELECT:
                 //$params['field_options'] = France:Paris;Bretagne;Marseilles;Lyon|Belgique:Bruxelles;Namur;Liège;Bruges|Peru:Lima;Piura;
             case ExtraField::FIELD_TYPE_SELECT_WITH_TEXT_FIELD:
@@ -216,7 +217,7 @@ class ExtraFieldOption extends Model
                         parent::update($new_params, $showQuery);
                     }
 
-                    if (ExtraField::FIELD_TYPE_SELECT_WITH_TEXT_FIELD == $params['field_type']) {
+                    if (ExtraField::FIELD_TYPE_SELECT_WITH_TEXT_FIELD == $params['value_type']) {
                         continue;
                     }
 
@@ -410,7 +411,7 @@ class ExtraFieldOption extends Model
     {
         $field_id = (int) $field_id;
         $option_value = Database::escape_string($option_value);
-        $extraFieldType = $this->getExtraField()->getExtraFieldType();
+        $extraFieldType = $this->getExtraField()->getItemType();
 
         $sql = "SELECT s.* FROM {$this->table} s
                 INNER JOIN {$this->tableExtraField} sf
@@ -418,7 +419,7 @@ class ExtraFieldOption extends Model
                 WHERE
                     field_id = $field_id AND
                     option_value = '".$option_value."' AND
-                    sf.extra_field_type = $extraFieldType
+                    sf.item_type = $extraFieldType
                 ";
         $result = Database::query($sql);
         if (Database::num_rows($result) > 0) {
@@ -441,7 +442,7 @@ class ExtraFieldOption extends Model
     {
         $field_id = (int) $field_id;
         $option_display_text = Database::escape_string($option_display_text);
-        $extraFieldType = $this->getExtraField()->getExtraFieldType();
+        $extraFieldType = $this->getExtraField()->getItemType();
 
         $sql = "SELECT s.* FROM {$this->table} s
                 INNER JOIN {$this->tableExtraField} sf
@@ -449,11 +450,11 @@ class ExtraFieldOption extends Model
                 WHERE
                     field_id = $field_id AND
                     s.display_text = '".$option_display_text."' AND
-                    sf.extra_field_type = $extraFieldType
+                    sf.item_type = $extraFieldType
                 ";
         $result = Database::query($sql);
         if (Database::num_rows($result) > 0) {
-            return Database::fetch_array($result, 'ASSOC');
+            return Database::fetch_assoc($result);
         }
 
         return false;
@@ -477,7 +478,7 @@ class ExtraFieldOption extends Model
         $field_id = (int) $field_id;
         $option_display_text = Database::escape_string($option_display_text);
         $option_value = Database::escape_string($option_value);
-        $extraFieldType = $this->getExtraField()->getExtraFieldType();
+        $extraFieldType = $this->getExtraField()->getItemType();
 
         $sql = "SELECT s.* FROM {$this->table} s
                 INNER JOIN {$this->tableExtraField} sf
@@ -486,11 +487,11 @@ class ExtraFieldOption extends Model
                     field_id = $field_id AND
                     sf.display_text = '".$option_display_text."' AND
                     option_value = '$option_value' AND
-                    sf.extra_field_type = ".$extraFieldType."
+                    sf.item_type = ".$extraFieldType."
                 ";
         $result = Database::query($sql);
         if (Database::num_rows($result) > 0) {
-            return Database::fetch_array($result, 'ASSOC');
+            return Database::fetch_assoc($result);
         }
 
         return false;
@@ -534,8 +535,7 @@ class ExtraFieldOption extends Model
                 break;
         }
 
-        $extraFieldOptionsRepo = Container::getExtraFieldOptionsRepository();
-        $result = $extraFieldOptionsRepo->findBy(['field' => $field_id], $orderBy);
+        $result = Container::getExtraFieldOptionsRepository()->findBy(['field' => $field_id], $orderBy);
 
         if (!$result) {
             return false;
@@ -626,7 +626,7 @@ class ExtraFieldOption extends Model
         $options = self::get_field_options_by_field($field_id, false, $ordered_by);
         $elements = [];
         if (!empty($options)) {
-            switch ($field_info['field_type']) {
+            switch ($field_info['value_type']) {
                 case ExtraField::FIELD_TYPE_DOUBLE_SELECT:
                     $html = ExtraField::extra_field_double_select_convert_array_to_string($options);
                     break;
@@ -683,7 +683,7 @@ class ExtraFieldOption extends Model
         echo '<div class="actions">';
         $field_id = isset($_REQUEST['field_id']) ? intval($_REQUEST['field_id']) : null;
         echo '<a href="'.api_get_self().'?action=add&type='.$this->type.'&field_id='.$field_id.'">'.
-                Display::return_icon('add_user_fields.png', get_lang('Add'), '', ICON_SIZE_MEDIUM).'</a>';
+                Display::getMdiIcon(ActionIcon::ADD, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Add')).'</a>';
         echo '</div>';
         echo Display::grid_html('extra_field_options');
     }
@@ -858,9 +858,12 @@ class ExtraFieldOption extends Model
     {
         $info = parent::get($id);
 
-        if ($info && $translateDisplayText) {
-            $extraFieldOptionsRepo = Container::getExtraFieldOptionsRepository();
-            $option = $extraFieldOptionsRepo->find($id);
+        if ($info) {
+            $option = Container::getExtraFieldOptionsRepository()->find($id);
+            if (!$translateDisplayText) {
+                $option->setLocale(Container::getParameter('locale'));
+                Database::getManager()->refresh($option);
+            }
             $info['display_text'] = $option->getDisplayText();
         }
 
@@ -872,8 +875,7 @@ class ExtraFieldOption extends Model
         $result = parent::get_all($options);
 
         foreach ($result as &$row) {
-            $extraFieldOptionsRepo = Container::getExtraFieldOptionsRepository();
-            $option = $extraFieldOptionsRepo->find($row['id']);
+            $option = Container::getExtraFieldOptionsRepository()->find($row['id']);
             $row['display_text'] = $option->getDisplayText();
         }
 
@@ -887,16 +889,16 @@ class ExtraFieldOption extends Model
      */
     public function getOptionsByFieldVariable($variable)
     {
-        $extraFieldType = $this->getExtraField()->getExtraFieldType();
+        $extraFieldType = $this->getExtraField()->getItemType();
 
         $dql = "SELECT o FROM ChamiloCoreBundle:ExtraFieldOptions o
             INNER JOIN ChamiloCoreBundle:ExtraField f WITH o.field = f.id
-            WHERE f.variable = :variable AND f.extraFieldType = :extra_field_type
+            WHERE f.variable = :variable AND f.itemType = :item_type
             ORDER BY o.value ASC";
 
         $result = Database::getManager()
             ->createQuery($dql)
-            ->setParameters(['variable' => $variable, 'extra_field_type' => $extraFieldType])
+            ->setParameters(['variable' => $variable, 'item_type' => $extraFieldType])
             ->getResult();
 
         return $result;

@@ -6,43 +6,32 @@ declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\Entity;
 
+use Chamilo\CoreBundle\Traits\UserTrait;
 use DateTime;
 use Doctrine\ORM\Mapping as ORM;
 
-/**
- * @ORM\Table(
- *     name="ticket_assigned_log",
- * )
- * @ORM\Entity
- */
+#[ORM\Table(name: 'ticket_assigned_log')]
+#[ORM\Entity]
 class TicketAssignedLog
 {
-    /**
-     * @ORM\Column(name="id", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     */
-    protected int $id;
+    use UserTrait;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\Ticket")
-     * @ORM\JoinColumn(name="ticket_id", referencedColumnName="id", onDelete="CASCADE")
-     */
+    #[ORM\Column(name: 'id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    protected ?int $id = null;
+
+    #[ORM\ManyToOne(targetEntity: Ticket::class)]
+    #[ORM\JoinColumn(name: 'ticket_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
     protected Ticket $ticket;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\User")
-     * @ORM\JoinColumn(name="user_id", referencedColumnName="id")
-     */
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
     protected User $user;
 
-    /**
-     * @ORM\Column(name="sys_insert_user_id", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'sys_insert_user_id', type: 'integer', nullable: false)]
     protected int $insertUserId;
 
-    /**
-     * @ORM\Column(name="assigned_date", type="datetime", nullable=false)
-     */
+    #[ORM\Column(name: 'assigned_date', type: 'datetime', nullable: false)]
     protected DateTime $assignedDate;
 }

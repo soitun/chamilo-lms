@@ -2,6 +2,8 @@
 
 /* For licensing terms, see /license.txt */
 
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+
 /**
  * Exercise preview.
  *
@@ -17,11 +19,13 @@ $this_section = SECTION_COURSES;
 
 // Notice for unauthorized people.
 api_protect_course_script(true);
-$sessionId = api_get_session_id();
-$courseCode = api_get_course_id();
+$courseId = isset($_REQUEST['cid']) ? (int) $_REQUEST['cid'] : api_get_course_int_id();
+$sessionId = isset($_REQUEST['sid']) ? (int) $_REQUEST['sid'] : api_get_session_id();
+$courseInfo = api_get_course_info_by_id($courseId);
+$courseCode = $courseInfo['code'];
 $exercise_id = isset($_REQUEST['exerciseId']) ? (int) $_REQUEST['exerciseId'] : 0;
 
-$objExercise = new Exercise();
+$objExercise = new Exercise($courseId);
 $result = $objExercise->read($exercise_id, true);
 
 if (!$result) {
@@ -30,7 +34,7 @@ if (!$result) {
 
 if ('true' === api_get_plugin_setting('positioning', 'tool_enable')) {
     $plugin = Positioning::create();
-    if ($plugin->blockFinalExercise(api_get_user_id(), $exercise_id, api_get_course_int_id(), $sessionId)) {
+    if ($plugin->blockFinalExercise(api_get_user_id(), $exercise_id, $courseId, $sessionId)) {
         api_not_allowed(true);
     }
 }
@@ -61,7 +65,7 @@ if (0 != $objExercise->expired_time && !empty($clock_expired_time)) {
     $time_control = true;
 }
 
-$htmlHeadXtra[] = api_get_build_js('exercise.js');
+$htmlHeadXtra[] = api_get_build_js('legacy_exercise.js');
 if ($time_control) {
     // Get time left for expiring time
     $time_left = api_strtotime($clock_expired_time, 'UTC') - time();
@@ -87,7 +91,7 @@ if (!in_array($origin, ['learnpath', 'embeddable', 'mobileapp'])) {
 
 if ('mobileapp' === $origin) {
     $actions = '<a href="javascript:window.history.go(-1);">'.
-        Display::return_icon('back.png', get_lang('GoBackToQuestionList'), [], 32).'</a>';
+        Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('GoBackToQuestionList')).'</a>';
     echo Display::toolbarAction('toolbar', [$actions]);
 }
 
@@ -99,21 +103,21 @@ $editLink = '';
 if ($is_allowed_to_edit) {
     if ($objExercise->sessionId == $sessionId) {
         $editLink = Display::url(
-            Display::return_icon('edit.png', get_lang('Edit'), [], ICON_SIZE_SMALL),
+            Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Edit')),
             api_get_path(WEB_CODE_PATH).'exercise/admin.php?'.api_get_cidreq().'&exerciseId='.$objExercise->id
         );
     }
     $editLink .= Display::url(
-        Display::return_icon('test_results.png', get_lang('Results and feedback and feedback'), [], ICON_SIZE_SMALL),
+        Display::getMdiIcon('chart-box', 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Results and feedback and feedback')),
         api_get_path(WEB_CODE_PATH).'exercise/exercise_report.php?'.api_get_cidreq().'&exerciseId='.$objExercise->id,
         ['title' => get_lang('Results and feedback and feedback')]
     );
 }
 
-$iconExercise = Display::return_icon('test-quiz.png', null, [], ICON_SIZE_MEDIUM);
+$iconExercise = Display::getMdiIcon('order-bool-ascending-variant', 'ch-tool-icon-gradient', null, ICON_SIZE_MEDIUM, get_lang('Exercise'));
 
 // Exercise name.
-if (api_get_configuration_value('save_titles_as_html')) {
+if ('true' === api_get_setting('editor.save_titles_as_html')) {
     $html .= Display::div(
         $objExercise->get_formated_title().PHP_EOL.$editLink
     );
@@ -125,7 +129,7 @@ if (api_get_configuration_value('save_titles_as_html')) {
 
 // Exercise description.
 if (!empty($objExercise->description)) {
-    $html .= Display::div($objExercise->description, ['class' => 'exercise_description']);
+    $html .= Display::div($objExercise->description, ['class' => 'exercise_description wysiwyg']);
 }
 
 $extra_params = '';
@@ -156,11 +160,11 @@ $exercise_url = api_get_path(WEB_CODE_PATH).'exercise/exercise_submit.php?'.
 $exercise_url_button = Display::url(
     $label,
     $exercise_url,
-    ['class' => 'btn btn-success btn-large']
+    ['class' => 'btn btn--success btn-large']
 );
 
 $btnCheck = '';
-$quizCheckButtonEnabled = api_get_configuration_value('quiz_check_button_enable');
+$quizCheckButtonEnabled = ('true' === api_get_setting('exercise.quiz_check_button_enable'));
 if ($quizCheckButtonEnabled) {
     $btnCheck = Display::button(
             'quiz_check_request_button',
@@ -169,7 +173,7 @@ if ($quizCheckButtonEnabled) {
                 'type' => 'button',
                 'role' => 'button',
                 'id' => 'quiz-check-request-button',
-                'class' => 'btn btn-default',
+                'class' => 'btn btn--plain',
                 'data-loading-text' => get_lang('Loading'),
                 'autocomplete' => 'off',
             ]
@@ -201,8 +205,8 @@ if (!api_is_allowed_to_session_edit()) {
 $attempts = Event::getExerciseResultsByUser(
     api_get_user_id(),
     $objExercise->id,
-    api_get_course_int_id(),
-    api_get_session_id(),
+    $courseId,
+    $sessionId,
     $learnpath_id,
     $learnpath_item_id,
     'desc'
@@ -241,7 +245,7 @@ if (!empty($attempts)) {
                 $attempt_result['max_score'],
                 $objExercise,
                 $attempt_result['exe_user_id'],
-                api_get_course_int_id(),
+                $courseId,
                 $sessionId
             );
         }
@@ -256,7 +260,7 @@ if (!empty($attempts)) {
             get_lang('Show'),
             $attempt_url,
             [
-                'class' => $btn_class.'btn btn-default',
+                'class' => $btn_class.'btn btn--plain',
                 'data-title' => get_lang('Show'),
                 'data-size' => 'lg',
             ]
@@ -434,7 +438,7 @@ if ($time_control) {
 
 $html .= $message;
 
-$disable = api_get_configuration_value('exercises_disable_new_attempts');
+$disable = ('true' === api_get_setting('exercise.exercises_disable_new_attempts'));
 if ($disable && empty($exercise_stat_info)) {
     $exercise_url_button = Display::return_message(get_lang('The portal do not allowed to start new test for the moment, please come back later.'));
 }
@@ -442,8 +446,8 @@ if ($disable && empty($exercise_stat_info)) {
 $isLimitReached = ExerciseLib::isQuestionsLimitPerDayReached(
     api_get_user_id(),
     count($objExercise->get_validated_question_list()),
-    api_get_course_int_id(),
-    api_get_session_id()
+    $courseId,
+    $sessionId
 );
 
 if (!empty($exercise_url_button) && !$isLimitReached) {
@@ -509,10 +513,10 @@ if ($quizCheckButtonEnabled) {
             btnTest.on('click', function (e) {
                 e.preventDefault();
 
-                btnTest.prop('disabled', true).removeClass('btn-success btn-danger').addClass('btn-default');
+                btnTest.prop('disabled', true).removeClass('btn--success btn--danger').addClass('btn--plain');
                 iconBtnTest.removeClass('hidden');
 
-                var txtResult = $('#quiz-check-request-text').removeClass('text-success text-danger').hide();
+                var txtResult = $('#quiz-check-request-text').removeClass('text-success text-error').hide();
 
                 $
                     .when(
@@ -533,16 +537,16 @@ if ($quizCheckButtonEnabled) {
                             var xhr2IsOk = !!xhr2 && xhr2[1] === 'success' && !!xhr2[0] && 'ok' === xhr2[0];
 
                             if (xhr1IsOk && xhr2IsOk) {
-                                btnTest.removeClass('btn-default btn-danger').addClass('btn-success');
+                                btnTest.removeClass('btn--plain btn--danger').addClass('btn--success');
                                 txtResult.text(\"".get_lang('QuizBrowserCheckOK')."\").addClass('text-success').show();
                             } else {
-                                btnTest.removeClass('btn-default btn-success').addClass('btn-danger');
-                                txtResult.text(\"".get_lang('QuizBrowserCheckKO')."\").addClass('text-danger').show();
+                                btnTest.removeClass('btn--plain btn--success').addClass('btn--danger');
+                                txtResult.text(\"".get_lang('QuizBrowserCheckKO')."\").addClass('text-error').show();
                             }
                         },
                         function () {
-                            txtResult.text(\"".get_lang('QuizBrowserCheckKO')."\").addClass('text-danger').show();
-                            btnTest.removeClass('btn-default btn-success').addClass('btn-danger');
+                            txtResult.text(\"".get_lang('QuizBrowserCheckKO')."\").addClass('text-error').show();
+                            btnTest.removeClass('btn--plain btn--success').addClass('btn--danger');
                         }
                     )
                     .always(function () {

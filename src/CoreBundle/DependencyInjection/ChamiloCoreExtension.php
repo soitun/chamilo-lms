@@ -33,10 +33,7 @@ class ChamiloCoreExtension extends Extension
         $loader->load('services.xml');
     }
 
-    /**
-     * @return string
-     */
-    public function getAlias()
+    public function getAlias(): string
     {
         return 'chamilo_core';
     }

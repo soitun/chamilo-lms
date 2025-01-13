@@ -32,7 +32,7 @@
 
     <div class="legal-terms-buttons legal-terms-popup">
         <a
-            class="btn btn-success btn-advanced-subscription btn-accept"
+            class="btn btn--success btn-advanced-subscription btn-accept"
             href="#" id="asp-close-window">
             <em class="fa fa-check"></em>
             {{ "AcceptInfinitive"|get_plugin_lang('AdvancedSubscriptionPlugin') }}
@@ -40,15 +40,15 @@
     </div>
 {% else %}
     <div class="alert alert-success legal-terms-popup">
-        {{ 'SuccessSubscriptionToSessionX'|get_plugin_lang('AdvancedSubscriptionPlugin')|format(session.name) }}
+        {{ 'SuccessSubscriptionToSessionX'|get_plugin_lang('AdvancedSubscriptionPlugin')|format(session.title) }}
     </div>
 
     <div class="text-right legal-terms-popup">
         <a
-            class="btn btn-success btn-advanced-subscription btn-accept"
+            class="btn btn--success btn-advanced-subscription btn-accept"
             href="#" id="asp-go-to">
             <em class="fa fa-external-link"></em>
-            {{ "GoToSessionX"|get_plugin_lang('AdvancedSubscriptionPlugin')|format(session.name) }}
+            {{ "GoToSessionX"|get_plugin_lang('AdvancedSubscriptionPlugin')|format(session.title) }}
         </a>
     </div>
 {% endif %}

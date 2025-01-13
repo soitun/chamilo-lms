@@ -1,47 +1,58 @@
 <template>
   <div>
-    <Toolbar :handle-submit="onSendForm" :handle-reset="resetForm"></Toolbar>
-    <PageForm ref="createForm" :values="item" :errors="violations" />
+    <PageForm
+      v-model="item"
+      @submit="createItem"
+    />
     <Loading :visible="isLoading" />
   </div>
 </template>
 
-<script>
-import { mapActions } from 'vuex';
-import { createHelpers } from 'vuex-map-fields';
-import PageForm from '../../components/page/Form.vue';
-import Loading from '../../components/Loading.vue';
-import Toolbar from '../../components/Toolbar.vue';
-import CreateMixin from '../../mixins/CreateMixin';
+<script setup>
+import { computed, ref, watch } from "vue"
+import { useStore } from "vuex"
+import { useSecurityStore } from "../../store/securityStore"
 
-const servicePrefix = 'Page';
+import PageForm from "../../components/page/Form.vue"
+import Loading from "../../components/Loading.vue"
 
-const { mapFields } = createHelpers({
-  getterType: 'page/getField',
-  mutationType: 'page/updateField'
-});
+import { useDatatableCreate } from "../../composables/datatableCreate"
+import { useToast } from "primevue/usetoast"
 
-export default {
-  name: 'PageCreate',
-  servicePrefix,
-  mixins: [CreateMixin],
-  components: {
-    Loading,
-    Toolbar,
-    PageForm
-  },
-  data() {
-    return {
-      item: {
-        enabled: true
-      }
-    };
-  },
-  computed: {
-    ...mapFields(['error', 'isLoading', 'created', 'violations'])
-  },
-  methods: {
-    ...mapActions('page', ['create', 'reset'])
+const store = useStore()
+const securityStore = useSecurityStore()
+
+const { createItem, onCreated } = useDatatableCreate("Page")
+
+const toast = useToast()
+
+const error = computed(() => store.state["page"].error)
+const isLoading = computed(() => store.state["page"].isLoading)
+const created = computed(() => store.state["page"].created)
+
+const item = ref({
+  enabled: true,
+  creator: securityStore.user["@id"],
+  url: "/api/access_urls/" + window.access_url_id,
+})
+
+watch(created, (newCreated) => {
+  if (!newCreated) {
+    return
   }
-};
+
+  onCreated(item)
+})
+
+watch(error, (newError) => {
+  if (!newError) {
+    return
+  }
+
+  toast.add({
+    severity: "error",
+    detail: newError,
+    life: 3500,
+  })
+})
 </script>

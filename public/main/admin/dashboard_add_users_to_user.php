@@ -5,6 +5,8 @@
  *  Interface for assigning users to Human Resources Manager.
  */
 
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
+
 // resetting the course id
 $cidReset = true;
 
@@ -101,7 +103,7 @@ function search_users($needle, $type = 'multiple')
             $sql = "SELECT user.id as user_id, username, lastname, firstname
                     FROM $tbl_user user
                     LEFT JOIN $tbl_access_url_rel_user au ON (au.user_id = user.id)
-                    WHERE
+                    WHERE user.active <> ".USER_SOFT_DELETED." AND
                         ".(api_sort_by_first_name() ? 'firstname' : 'lastname')." LIKE '$needle%' AND
                         status NOT IN(".DRH.', '.SESSIONADMIN.', '.STUDENT_BOSS.") AND
                         user.id NOT IN ($user_anonymous, $current_user_id, $user_id)
@@ -112,7 +114,7 @@ function search_users($needle, $type = 'multiple')
         } else {
             $sql = "SELECT id as user_id, username, lastname, firstname
                     FROM $tbl_user user
-                    WHERE
+                    WHERE user.active <> ".USER_SOFT_DELETED." AND
                         ".(api_sort_by_first_name() ? 'firstname' : 'lastname')." LIKE '$needle%' AND
                         status NOT IN(".DRH.', '.SESSIONADMIN.', '.STUDENT_BOSS.") AND
                         id NOT IN ($user_anonymous, $current_user_id, $user_id)
@@ -130,7 +132,7 @@ function search_users($needle, $type = 'multiple')
             $sql = 'SELECT user.id as user_id, username, lastname, firstname
                     FROM '.$tbl_user.' user
                     INNER JOIN '.$tbl_user_rel_access_url.' url_user ON (url_user.user_id=user.id)
-                    WHERE
+                    WHERE user.active <> '.USER_SOFT_DELETED.' AND
                         access_url_id = '.$access_url_id.'  AND
                         (
                             username LIKE "'.$needle.'%" OR
@@ -318,12 +320,12 @@ Display::display_header($tool_name);
 $actionsLeft = '';
 if (STUDENT_BOSS != $userStatus) {
     $actionsLeft = Display::url(
-        Display::return_icon('course-add.png', get_lang('Assign courses'), null, ICON_SIZE_MEDIUM),
+        Display::getMdiIcon(ObjectIcon::COURSE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Assign courses')),
         "dashboard_add_courses_to_user.php?user=$user_id"
     );
 
     $actionsLeft .= Display::url(
-        Display::return_icon('session-add.png', get_lang('Assign sessions'), null, ICON_SIZE_MEDIUM),
+        Display::getMdiIcon(ObjectIcon::SESSION, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Assign sessions')),
         "dashboard_add_sessions_to_user.php?user=$user_id"
     );
 }
@@ -331,7 +333,7 @@ if (STUDENT_BOSS != $userStatus) {
 $actionsRight = Display::url(
     '<em class="fa fa-search"></em> '.get_lang('Advanced search'),
     '#',
-    ['class' => 'btn btn-default advanced_options', 'id' => 'advanced_search']
+    ['class' => 'btn btn--plain advanced_options', 'id' => 'advanced_search']
 );
 
 $toolbar = Display::toolbarAction('toolbar-dashboard', [$actionsLeft, $actionsRight]);
@@ -398,7 +400,7 @@ if (api_is_multiple_url_enabled()) {
             FROM $tbl_user user
             LEFT JOIN $tbl_access_url_rel_user au
             ON (au.user_id = user.id)
-            WHERE
+            WHERE user.active <> ".USER_SOFT_DELETED." AND
                 $without_assigned_users
                 user.id NOT IN ($user_anonymous, $current_user_id, $user_id) AND
                 status NOT IN(".DRH.', '.SESSIONADMIN.', '.ANONYMOUS.") $search_user AND
@@ -408,7 +410,7 @@ if (api_is_multiple_url_enabled()) {
 } else {
     $sql = "SELECT id as user_id, username, lastname, firstname
             FROM $tbl_user user
-            WHERE
+            WHERE user.active <> -1 AND
                 $without_assigned_users
                 id NOT IN ($user_anonymous, $current_user_id, $user_id) AND
                 status NOT IN(".DRH.', '.SESSIONADMIN.', '.ANONYMOUS.")
@@ -458,18 +460,18 @@ $result = Database::query($sql);
         <?php if ($ajax_search) {
                             ?>
             <div class="separate-action">
-                <button class="btn btn-primary" type="button" onclick="remove_item(document.getElementById('destination'))"></button>
+                <button class="btn btn--primary" type="button" onclick="remove_item(document.getElementById('destination'))"></button>
             </div>
         <?php
                         } else {
                             ?>
             <div class="separate-action">
-                <button id="add_user_button" class="btn btn-primary" type="button" onclick="moveItem(document.getElementById('origin'), document.getElementById('destination'))" onclick="moveItem(document.getElementById('origin'), document.getElementById('destination'))">
+                <button id="add_user_button" class="btn btn--primary" type="button" onclick="moveItem(document.getElementById('origin'), document.getElementById('destination'))" onclick="moveItem(document.getElementById('origin'), document.getElementById('destination'))">
                 <em class="fa fa-chevron-right"></em>
             </button>
             </div>
             <div class="separate-action">
-                <button id="remove_user_button" class="btn btn-primary" type="button" onclick="moveItem(document.getElementById('destination'), document.getElementById('origin'))" onclick="moveItem(document.getElementById('destination'), document.getElementById('origin'))">
+                <button id="remove_user_button" class="btn btn--primary" type="button" onclick="moveItem(document.getElementById('destination'), document.getElementById('origin'))" onclick="moveItem(document.getElementById('destination'), document.getElementById('origin'))">
                 <em class="fa fa-chevron-left"></em>
                 </button>
             </div>
@@ -477,7 +479,7 @@ $result = Database::query($sql);
                         } ?>
             <div class="separate-action">
         <?php
-        echo '<button id="assign_user" class="btn btn-success" type="button" value="" onclick="valide()" >'.$tool_name.'</button>';
+        echo '<button id="assign_user" class="btn btn--success" type="button" value="" onclick="valide()" >'.$tool_name.'</button>';
         ?>
             </div>
         </div>

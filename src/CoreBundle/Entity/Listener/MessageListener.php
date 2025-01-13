@@ -1,41 +1,30 @@
 <?php
 
-declare(strict_types=1);
-
 /* For licensing terms, see /license.txt */
+
+declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\Entity\Listener;
 
 use Chamilo\CoreBundle\Entity\Message;
-use Doctrine\ORM\Event\LifecycleEventArgs;
-use Symfony\Component\Messenger\MessageBusInterface;
+use Chamilo\CoreBundle\Entity\MessageRelUser;
+use Doctrine\ORM\Event\PostLoadEventArgs;
 
 class MessageListener
 {
-    private MessageBusInterface $bus;
-
-    public function __construct(MessageBusInterface $bus)
+    public function postLoad(Message $message, PostLoadEventArgs $args): void
     {
-        $this->bus = $bus;
-    }
+        $om = $args->getObjectManager();
+        $messageRelUserRepo = $om->getRepository(MessageRelUser::class);
 
-    public function postPersist(Message $message, LifecycleEventArgs $args): void
-    {
-        if ($message) {
-            // Creates an outbox version, if message is sent in the inbox.
-            if (Message::MESSAGE_TYPE_INBOX === $message->getMsgType()) {
-                /*$messageSent = clone $message;
-                $messageSent
-                    ->setMsgType(Message::MESSAGE_TYPE_OUTBOX)
-                    ->setRead(true)
-                    ->setReceivers(null)
-                ;
-                $args->getEntityManager()->persist($messageSent);
-                $args->getEntityManager()->flush();*/
+        $softDeleteable = $om->getFilters()->enable('softdeleteable');
 
-                // Dispatch to the Messenger bus. Function MessageHandler.php will send the message.
-                $this->bus->dispatch($message);
-            }
-        }
+        $softDeleteable->disableForEntity(MessageRelUser::class);
+
+        $message->setReceiversFromArray(
+            $messageRelUserRepo->findBy(['message' => $message])
+        );
+
+        $softDeleteable->enableForEntity(Message::class);
     }
 }

@@ -10,6 +10,9 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
+/**
+ * @template-extends AbstractType<object>
+ */
 class CurriculumItemRelUserType extends AbstractType
 {
     /**
@@ -18,8 +21,6 @@ class CurriculumItemRelUserType extends AbstractType
     public $itemId;
 
     /**
-     * CurriculumItemRelUserType constructor.
-     *
      * @param null $itemId
      */
     public function __construct($itemId = null)

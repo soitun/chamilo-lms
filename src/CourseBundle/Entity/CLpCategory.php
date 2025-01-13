@@ -8,60 +8,42 @@ namespace Chamilo\CourseBundle\Entity;
 
 use Chamilo\CoreBundle\Entity\AbstractResource;
 use Chamilo\CoreBundle\Entity\ResourceInterface;
+use Chamilo\CoreBundle\Entity\ResourceShowCourseResourcesInSessionInterface;
 use Chamilo\CoreBundle\Entity\User;
+use Chamilo\CourseBundle\Repository\CLpCategoryRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\Common\Collections\Criteria;
 use Doctrine\ORM\Mapping as ORM;
-use Gedmo\Mapping\Annotation as Gedmo;
+use Stringable;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * Learning paths categories.
- *
- * @ORM\Table(
- *     name="c_lp_category",
- * )
- * @ORM\Entity(repositoryClass="Gedmo\Sortable\Entity\Repository\SortableRepository")
  */
-class CLpCategory extends AbstractResource implements ResourceInterface
+#[ORM\Table(name: 'c_lp_category')]
+#[ORM\Entity(repositoryClass: CLpCategoryRepository::class)]
+class CLpCategory extends AbstractResource implements ResourceInterface, ResourceShowCourseResourcesInSessionInterface, Stringable
 {
-    /**
-     * @ORM\Column(name="iid", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     */
+    #[ORM\Column(name: 'iid', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
     protected ?int $iid = null;
 
-    /**
-     * @ORM\Column(name="name", type="text")
-     */
     #[Assert\NotBlank]
-    protected string $name;
+    #[ORM\Column(name: 'title', type: 'text')]
+    protected string $title;
 
     /**
-     * @Gedmo\SortablePosition
-     * @ORM\Column(name="position", type="integer")
+     * @var Collection<int, CLpCategoryRelUser>
      */
-    protected int $position;
-
-    /**
-     * @var Collection|CLpCategoryUser[]
-     *
-     * @ORM\OneToMany(
-     *     targetEntity="Chamilo\CourseBundle\Entity\CLpCategoryUser",
-     *     mappedBy="category",
-     *     cascade={"persist", "remove"},
-     *     orphanRemoval=true
-     * )
-     */
+    #[ORM\OneToMany(mappedBy: 'category', targetEntity: CLpCategoryRelUser::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     protected Collection $users;
 
     /**
-     * @var Collection|CLp[]
-     *
-     * @ORM\OneToMany(targetEntity="Chamilo\CourseBundle\Entity\CLp", mappedBy="category", cascade={"detach"})
+     * @var Collection<int, CLp>
      */
+    #[ORM\OneToMany(mappedBy: 'category', targetEntity: CLp::class, cascade: ['detach', 'persist'])]
     protected Collection $lps;
 
     public function __construct()
@@ -72,7 +54,7 @@ class CLpCategory extends AbstractResource implements ResourceInterface
 
     public function __toString(): string
     {
-        return $this->getName();
+        return $this->getTitle();
     }
 
     public function getIid(): ?int
@@ -80,9 +62,9 @@ class CLpCategory extends AbstractResource implements ResourceInterface
         return $this->iid;
     }
 
-    public function setName(string $name): self
+    public function setTitle(string $title): self
     {
-        $this->name = $name;
+        $this->title = $title;
 
         return $this;
     }
@@ -90,38 +72,23 @@ class CLpCategory extends AbstractResource implements ResourceInterface
     /**
      * Get category name.
      */
-    public function getName(): string
+    public function getTitle(): string
     {
-        return $this->name;
-    }
-
-    public function setPosition(int $position): self
-    {
-        $this->position = $position;
-
-        return $this;
+        return $this->title;
     }
 
     /**
-     * @return int
+     * @return Collection<int, CLp>
      */
-    public function getPosition()
-    {
-        return $this->position;
-    }
-
-    /**
-     * @return Collection|CLp[]
-     */
-    public function getLps()
+    public function getLps(): Collection
     {
         return $this->lps;
     }
 
     /**
-     * @return Collection
+     * @return Collection<int, CLpCategoryRelUser>
      */
-    public function getUsers()
+    public function getUsers(): Collection
     {
         return $this->users;
     }
@@ -134,7 +101,7 @@ class CLpCategory extends AbstractResource implements ResourceInterface
         }
     }
 
-    public function addUser(CLpCategoryUser $categoryUser): void
+    public function addUser(CLpCategoryRelUser $categoryUser): void
     {
         $categoryUser->setCategory($this);
 
@@ -143,7 +110,7 @@ class CLpCategory extends AbstractResource implements ResourceInterface
         }
     }
 
-    public function hasUser(CLpCategoryUser $categoryUser): bool
+    public function hasUser(CLpCategoryRelUser $categoryUser): bool
     {
         if (0 !== $this->getUsers()->count()) {
             $criteria = Criteria::create()->where(
@@ -163,7 +130,7 @@ class CLpCategory extends AbstractResource implements ResourceInterface
     public function hasUserAdded(User $user): bool
     {
         if (0 !== $this->getUsers()->count()) {
-            $categoryUser = new CLpCategoryUser();
+            $categoryUser = new CLpCategoryRelUser();
             $categoryUser->setCategory($this);
             $categoryUser->setUser($user);
 
@@ -173,7 +140,7 @@ class CLpCategory extends AbstractResource implements ResourceInterface
         return false;
     }
 
-    public function removeUsers(CLpCategoryUser $user): self
+    public function removeUsers(CLpCategoryRelUser $user): self
     {
         $this->users->removeElement($user);
 
@@ -190,11 +157,11 @@ class CLpCategory extends AbstractResource implements ResourceInterface
 
     public function getResourceName(): string
     {
-        return $this->getName();
+        return $this->getTitle();
     }
 
     public function setResourceName(string $name): self
     {
-        return $this->setName($name);
+        return $this->setTitle($name);
     }
 }

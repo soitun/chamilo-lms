@@ -10,22 +10,28 @@ use Chamilo\CoreBundle\Controller\BaseController;
 use Chamilo\LtiBundle\Component\OutcomeDeleteRequest;
 use Chamilo\LtiBundle\Component\OutcomeReadRequest;
 use Chamilo\LtiBundle\Component\OutcomeReplaceRequest;
+use Chamilo\LtiBundle\Component\OutcomeResponse;
 use Chamilo\LtiBundle\Component\OutcomeUnsupportedRequest;
 use Chamilo\LtiBundle\Entity\ExternalTool;
+use Doctrine\Persistence\ManagerRegistry;
 use OAuthUtil;
 use SimpleXMLElement;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 class ServiceController extends BaseController
 {
-    /**
-     * @Route("/lti/os", name="chamilo_lti_os")
-     */
-    public function outcomeServiceAction(Request $request): Response
+    public function __construct(
+        private ManagerRegistry $managerRegistry,
+        private TranslatorInterface $translator,
+    ) {}
+
+    #[Route(path: '/lti/os', name: 'chamilo_lti_os')]
+    public function outcomeService(Request $request): Response
     {
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->managerRegistry->getManager();
         $toolRepo = $em->getRepository(ExternalTool::class);
 
         $headers = $request->headers;
@@ -85,10 +91,7 @@ class ServiceController extends BaseController
         return $response;
     }
 
-    /**
-     * @return \Chamilo\LtiBundle\Component\OutcomeResponse|null
-     */
-    private function processServiceRequest()
+    private function processServiceRequest(): ?OutcomeResponse
     {
         $requestContent = file_get_contents('php://input');
 
@@ -115,14 +118,17 @@ class ServiceController extends BaseController
                 $serviceRequest = new OutcomeReplaceRequest($xml);
 
                 break;
+
             case 'readResultRequest':
                 $serviceRequest = new OutcomeReadRequest($xml);
 
                 break;
+
             case 'deleteResultRequest':
                 $serviceRequest = new OutcomeDeleteRequest($xml);
 
                 break;
+
             default:
                 $name = str_replace(['ResultRequest', 'Request'], '', $name);
 
@@ -131,8 +137,8 @@ class ServiceController extends BaseController
                 break;
         }
 
-        $serviceRequest->setEntityManager($this->getDoctrine()->getManager());
-        $serviceRequest->setTranslator($this->get('translator'));
+        $serviceRequest->setEntityManager($this->managerRegistry->getManager());
+        $serviceRequest->setTranslator($this->translator);
 
         return $serviceRequest->process();
     }

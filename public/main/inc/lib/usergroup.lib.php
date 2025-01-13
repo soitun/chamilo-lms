@@ -6,6 +6,9 @@ use Chamilo\CoreBundle\Entity\ResourceFile;
 use Chamilo\CoreBundle\Entity\Usergroup;
 use Chamilo\CoreBundle\Framework\Container;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
+use Chamilo\CoreBundle\Component\Utils\ToolIcon;
 
 /**
  * Class UserGroup.
@@ -15,9 +18,11 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
  */
 class UserGroupModel extends Model
 {
+    public const SOCIAL_CLASS = 1;
+    public const NORMAL_CLASS = 0;
     public $columns = [
         'id',
-        'name',
+        'title',
         'description',
         'group_type',
         'picture',
@@ -56,7 +61,7 @@ class UserGroupModel extends Model
         $this->access_url_rel_user = Database::get_main_table(TABLE_MAIN_ACCESS_URL_REL_USER);
         $this->table_course = Database::get_main_table(TABLE_MAIN_COURSE);
         $this->table_user = Database::get_main_table(TABLE_MAIN_USER);
-        $this->useMultipleUrl = api_get_configuration_value('multiple_access_urls');
+        $this->useMultipleUrl = api_get_multiple_access_url();
         if ($this->allowTeachers()) {
             $this->columns[] = 'author_id';
         }
@@ -153,7 +158,7 @@ class UserGroupModel extends Model
             while ($data = Database::fetch_array($result)) {
                 $userId = $data['user_id'];
                 $userInfo = api_get_user_info($userId);
-                $data['name'] = $userInfo['complete_name_with_username'];
+                $data['title'] = $userInfo['complete_name_with_username'];
 
                 if ($showCalendar) {
                     $calendar = $calendarPlugin->getUserCalendar($userId);
@@ -311,7 +316,7 @@ class UserGroupModel extends Model
         $row = Database::select(
             'id',
             $this->table,
-            ['where' => ['name = ?' => $name]],
+            ['where' => ['title = ?' => $name]],
             'first'
         );
 
@@ -331,24 +336,25 @@ class UserGroupModel extends Model
         $actions = '';
         if (api_is_platform_admin()) {
             $actions .= '<a href="../admin/index.php">'.
-                Display::return_icon(
-                    'back.png',
-                    get_lang('Back to').' '.get_lang('Administration'),
-                    '',
-                    ICON_SIZE_MEDIUM
+                Display::getMdiIcon(
+                    ActionIcon::BACK,
+                    'ch-tool-icon',
+                    null,
+                    ICON_SIZE_MEDIUM,
+                    get_lang('Back to').' '.get_lang('Administration')
                 ).
                 '</a>';
         }
 
         $actions .= '<a href="'.api_get_self().'?action=add">'.
-            Display::return_icon('new_class.png', get_lang('Add classes'), '', ICON_SIZE_MEDIUM).
+            Display::getMdiIcon(ActionIcon::ADD, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Add classes')).
             '</a>';
         $actions .= Display::url(
-            Display::return_icon('import_csv.png', get_lang('Import'), [], ICON_SIZE_MEDIUM),
+            Display::getMdiIcon(ActionIcon::IMPORT_ARCHIVE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Import')),
             'usergroup_import.php'
         );
         $actions .= Display::url(
-            Display::return_icon('export_csv.png', get_lang('Export'), [], ICON_SIZE_MEDIUM),
+            Display::getMdiIcon(ActionIcon::EXPORT_CSV, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Export')),
             'usergroup_export.php'
         );
         $html .= Display::toolbarAction('toolbar', [$actions]);
@@ -367,11 +373,23 @@ class UserGroupModel extends Model
         $courseInfo = api_get_course_info();
         if (empty($courseInfo)) {
             echo '<a href="../admin/usergroups.php">'.
-                Display::return_icon('back.png', get_lang('Back to').' '.get_lang('Administration'), '', '32').
+                Display::getMdiIcon(
+                    ActionIcon::BACK,
+                    'ch-tool-icon',
+                    null,
+                    ICON_SIZE_MEDIUM,
+                    get_lang('Back to').' '.get_lang('Administration')
+                ).
                 '</a>';
         } else {
             echo Display::url(
-                Display::return_icon('back.png', get_lang('Back to').' '.get_lang('Administration'), '', '32'),
+                Display::getMdiIcon(
+                    ActionIcon::BACK,
+                    'ch-tool-icon',
+                    null,
+                    ICON_SIZE_MEDIUM,
+                    get_lang('Back to').' '.get_lang('Administration')
+                ),
                 api_get_path(WEB_CODE_PATH).'user/class.php?'.api_get_cidreq()
             );
         }
@@ -591,14 +609,14 @@ class UserGroupModel extends Model
         }
         if (!empty($result)) {
             if (Database::num_rows($result) > 0) {
-                while ($row = Database::fetch_array($result, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($result)) {
                     $data[] = $row;
                 }
             }
         }
         if (!empty($sqlClasses)) {
             if (Database::num_rows($resultClasess) > 0) {
-                while ($row = Database::fetch_array($resultClasess, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($resultClasess)) {
                     $data[] = $row;
                 }
             }
@@ -719,7 +737,7 @@ class UserGroupModel extends Model
         if ($getCount) {
             if (!empty($result)) {
                 $result = Database::query($sql);
-                $array = Database::fetch_array($result, 'ASSOC');
+                $array = Database::fetch_assoc($result);
 
                 return $array['count'];
             }
@@ -733,14 +751,14 @@ class UserGroupModel extends Model
         }
         if (!empty($result)) {
             if (Database::num_rows($result) > 0) {
-                while ($row = Database::fetch_array($result, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($result)) {
                     $data[] = $row;
                 }
             }
         }
         if (!empty($sqlClasses)) {
             if (Database::num_rows($resultClasess) > 0) {
-                while ($row = Database::fetch_array($resultClasess, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($resultClasess)) {
                     $data[] = $row;
                 }
             }
@@ -1285,21 +1303,22 @@ class UserGroupModel extends Model
     }
 
     /**
-     * @param string $name
+     * @param string $title
      *
      * @return bool
+     * @throws Exception
      */
-    public function usergroup_exists($name)
+    public function usergroup_exists(string $title): bool
     {
-        $name = Database::escape_string($name);
+        $title = Database::escape_string($title);
         if ($this->getUseMultipleUrl()) {
             $urlId = api_get_current_access_url_id();
             $sql = "SELECT * FROM $this->table u
                     INNER JOIN {$this->access_url_rel_usergroup} a
                     ON (a.usergroup_id = u.id)
-                    WHERE name = '".$name."' AND access_url_id = $urlId";
+                    WHERE title = '".$title."' AND access_url_id = $urlId";
         } else {
-            $sql = "SELECT * FROM $this->table WHERE name = '".$name."'";
+            $sql = "SELECT * FROM $this->table WHERE title = '".$title."'";
         }
 
         $res = Database::query($sql);
@@ -1312,7 +1331,7 @@ class UserGroupModel extends Model
      */
     public function allowTeachers()
     {
-        return true === api_get_configuration_value('allow_teachers_to_classes');
+        return 'true' === api_get_setting('profile.allow_teachers_to_classes');
     }
 
     /**
@@ -1352,7 +1371,7 @@ class UserGroupModel extends Model
         }
 
         $result = Database::store_result(
-            Database::query("SELECT u.* FROM $sqlFrom WHERE $sqlWhere ORDER BY name $sord LIMIT $start, $limit")
+            Database::query("SELECT DISTINCT u.* FROM $sqlFrom WHERE $sqlWhere ORDER BY title $sord LIMIT $start, $limit")
         );
 
         $new_result = [];
@@ -1384,10 +1403,10 @@ class UserGroupModel extends Model
             }
             $result = $new_result;
         }
-        $columns = ['name', 'users', 'courses', 'sessions', 'group_type'];
+        $columns = ['title', 'users', 'courses', 'sessions', 'group_type'];
 
         if (!in_array($sidx, $columns)) {
-            $sidx = 'name';
+            $sidx = 'title';
         }
 
         // Multidimensional sort
@@ -1412,12 +1431,12 @@ class UserGroupModel extends Model
             if ($this->allowTeachers()) {
                 $options['where'] = [' author_id = ? ' => api_get_user_id()];
             }
-            $classes = Database::select('a.id, name, description', $from, $options);
+            $classes = Database::select('a.id, title, description', $from, $options);
         } else {
             if ($this->allowTeachers()) {
                 $options['where'] = [' author_id = ? ' => api_get_user_id()];
             }
-            $classes = Database::select('id, name, description', $this->table, $options);
+            $classes = Database::select('id, title, description', $this->table, $options);
         }
 
         $result = [];
@@ -1451,7 +1470,7 @@ class UserGroupModel extends Model
         $firstLetter = Database::escape_string($firstLetter);
         $limit = (int) $limit;
 
-        $sql = ' SELECT g.id, name ';
+        $sql = ' SELECT g.id, title ';
 
         $urlCondition = '';
         if ($this->getUseMultipleUrl()) {
@@ -1465,10 +1484,10 @@ class UserGroupModel extends Model
         }
         $sql .= "
 		        WHERE
-		            name LIKE '".$firstLetter."%' OR
-		            name LIKE '".api_strtolower($firstLetter)."%'
+		            title LIKE '".$firstLetter."%' OR
+		            title LIKE '".api_strtolower($firstLetter)."%'
 		            $urlCondition
-		        ORDER BY name DESC ";
+		        ORDER BY title DESC ";
 
         if (!empty($limit)) {
             $sql .= " LIMIT $limit ";
@@ -1525,12 +1544,12 @@ class UserGroupModel extends Model
         $params['group_type'] = isset($params['group_type']) ? Usergroup::SOCIAL_CLASS : Usergroup::NORMAL_CLASS;
         $params['allow_members_leave_group'] = isset($params['allow_members_leave_group']) ? 1 : 0;
 
-        $userGroupExists = $this->usergroup_exists(trim($params['name']));
+        $userGroupExists = $this->usergroup_exists(trim($params['title']));
         if (false === $userGroupExists) {
             $userGroup = new Usergroup();
             $repo = Container::getUsergroupRepository();
             $userGroup
-                ->setName(trim($params['name']))
+                ->setTitle(trim($params['title']))
                 ->setDescription($params['description'])
                 ->setUrl($params['url'])
                 ->setVisibility($params['visibility'])
@@ -1569,8 +1588,9 @@ class UserGroupModel extends Model
         return false;
     }
 
-    public function update($params, $showQuery = false)
+    public function update($params, $showQuery = false): bool
     {
+        $em = Database::getManager();
         $repo = Container::getUsergroupRepository();
         /** @var Usergroup $userGroup */
         $userGroup = $repo->find($params['id']);
@@ -1578,7 +1598,22 @@ class UserGroupModel extends Model
             return false;
         }
 
-        //$params['updated_on'] = api_get_utc_datetime();
+        if (isset($params['title'])) {
+            $userGroup->setTitle($params['title']);
+        }
+
+        if (isset($params['description'])) {
+            $userGroup->setDescription($params['description']);
+        }
+
+        if (isset($params['visibility'])) {
+            $userGroup->setVisibility($params['visibility']);
+        }
+
+        if (isset($params['url'])) {
+            $userGroup->setUrl($params['url']);
+        }
+
         $userGroup
             ->setGroupType(isset($params['group_type']) ? Usergroup::SOCIAL_CLASS : Usergroup::NORMAL_CLASS)
             ->setAllowMembersToLeaveGroup(isset($params['allow_members_leave_group']) ? 1 : 0)
@@ -1593,7 +1628,8 @@ class UserGroupModel extends Model
             }
         }
 
-        $repo->update($userGroup);
+        $em->persist($userGroup);
+        $em->flush();
 
         if (isset($params['delete_picture'])) {
             $this->delete_group_picture($params['id']);
@@ -1709,10 +1745,10 @@ class UserGroupModel extends Model
             $needle = api_convert_encoding($needle, $charset, 'utf-8');
             $needle = Database::escape_string($needle);
 
-            $sql = 'SELECT id, name
+            $sql = 'SELECT id, title
                     FROM '.Database::get_main_table(TABLE_USERGROUP).' u
-                    WHERE name LIKE "'.$needle.'%"
-                    ORDER BY name
+                    WHERE title LIKE "'.$needle.'%"
+                    ORDER BY title
                     LIMIT 11';
             $result = Database::query($sql);
             $i = 0;
@@ -1721,7 +1757,7 @@ class UserGroupModel extends Model
                 if ($i <= 10) {
                     $return .= '<a
                     href="javascript: void(0);"
-                    onclick="javascript: add_user_to_url(\''.addslashes($data['id']).'\',\''.addslashes($data['name']).' \')">'.$data['name'].' </a><br />';
+                    onclick="javascript: add_user_to_url(\''.addslashes($data['id']).'\',\''.addslashes($data['title']).' \')">'.$data['title'].' </a><br />';
                 } else {
                     $return .= '...<br />';
                 }
@@ -1746,7 +1782,7 @@ class UserGroupModel extends Model
         $sql = "SELECT u.* FROM $this->table_user u
                 INNER JOIN $this->usergroup_rel_user_table c
                 ON c.user_id = u.id
-                WHERE c.usergroup_id = $id"
+                WHERE u.active <> ".USER_SOFT_DELETED." AND c.usergroup_id = $id"
                 ;
         if (!empty($orderBy)) {
             $orderBy = Database::escape_string($orderBy);
@@ -1776,11 +1812,11 @@ class UserGroupModel extends Model
         $form->addHeader($header);
 
         // Name
-        $form->addElement('text', 'name', get_lang('Name'), ['maxlength' => 255]);
-        $form->applyFilter('name', 'trim');
+        $form->addElement('text', 'title', get_lang('Title'), ['maxlength' => 255]);
+        $form->applyFilter('title', 'trim');
 
-        $form->addRule('name', get_lang('Required field'), 'required');
-        $form->addRule('name', '', 'maxlength', 255);
+        $form->addRule('title', get_lang('Required field'), 'required');
+        $form->addRule('title', '', 'maxlength', 255);
 
         // Description
         $form->addHtmlEditor(
@@ -2025,7 +2061,7 @@ class UserGroupModel extends Model
                         user_id = $user_id ";
             $result = Database::query($sql);
             if (Database::num_rows($result) > 0) {
-                $row = Database::fetch_array($result, 'ASSOC');
+                $row = Database::fetch_assoc($result);
                 $return_value = $row['relation_type'];
             }
         }
@@ -2222,7 +2258,7 @@ class UserGroupModel extends Model
 
         $sql = 'SELECT
                     g.picture,
-                    g.name,
+                    g.title,
                     g.description,
                     g.id ,
                     gu.relation_type';
@@ -2251,7 +2287,7 @@ class UserGroupModel extends Model
         $result = Database::query($sql);
         $array = [];
         if (Database::num_rows($result) > 0) {
-            while ($row = Database::fetch_array($result, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($result)) {
                 if ($with_image) {
                     $picture = $this->get_picture_group($row['id'], $row['picture'], 80);
                     $img = '<img src="'.$picture['file'].'" />';
@@ -2287,7 +2323,7 @@ class UserGroupModel extends Model
                               gu.relation_type IN
                               ('".GROUP_USER_PERMISSION_ADMIN."' , '".GROUP_USER_PERMISSION_READER."', '".GROUP_USER_PERMISSION_HRM."') ";
 
-        $sql = 'SELECT DISTINCT count(user_id) as count, g.picture, g.name, g.description, g.id ';
+        $sql = 'SELECT DISTINCT count(user_id) as count, g.picture, g.title, g.description, g.id ';
 
         $urlCondition = '';
         if ($this->getUseMultipleUrl()) {
@@ -2313,7 +2349,7 @@ class UserGroupModel extends Model
 
         $result = Database::query($sql);
         $array = [];
-        while ($row = Database::fetch_array($result, 'ASSOC')) {
+        while ($row = Database::fetch_assoc($result)) {
             if ($with_image) {
                 $picture = $this->get_picture_group($row['id'], $row['picture'], 80);
                 $img = '<img src="'.$picture['file'].'" />';
@@ -2358,7 +2394,7 @@ class UserGroupModel extends Model
         $sql = 'SELECT DISTINCT
                   count(user_id) as count,
                   g.picture,
-                  g.name,
+                  g.title,
                   g.description,
                   g.id ';
 
@@ -2385,7 +2421,7 @@ class UserGroupModel extends Model
 
         $result = Database::query($sql);
         $array = [];
-        while ($row = Database::fetch_array($result, 'ASSOC')) {
+        while ($row = Database::fetch_assoc($result)) {
             if ($withImage) {
                 $picture = $this->get_picture_group($row['id'], $row['picture'], 80);
                 $img = '<img src="'.$picture['file'].'" />';
@@ -2458,6 +2494,7 @@ class UserGroupModel extends Model
     		    INNER JOIN $table_group_rel_user gu
     			ON (gu.user_id = u.id)
     			WHERE
+    			    u.active <> ".USER_SOFT_DELETED." AND
     			    gu.usergroup_id= $group_id
     			    $where_relation_condition
     			ORDER BY relation_type, firstname
@@ -2465,7 +2502,7 @@ class UserGroupModel extends Model
 
         $result = Database::query($sql);
         $array = [];
-        while ($row = Database::fetch_array($result, 'ASSOC')) {
+        while ($row = Database::fetch_assoc($result)) {
             if ($withImage) {
                 $userInfo = api_get_user_info($row['id']);
                 $userPicture = UserManager::getUserPicture($row['id']);
@@ -2502,12 +2539,12 @@ class UserGroupModel extends Model
                 FROM $tbl_user u
 			    INNER JOIN $table_group_rel_user gu
 			    ON (gu.user_id = u.id)
-			    WHERE gu.usergroup_id= $group_id
+			    WHERE u.active <> ".USER_SOFT_DELETED." AND gu.usergroup_id= $group_id
 			    ORDER BY relation_type, firstname";
 
         $result = Database::query($sql);
         $array = [];
-        while ($row = Database::fetch_array($result, 'ASSOC')) {
+        while ($row = Database::fetch_assoc($result)) {
             $array[$row['id']] = $row;
         }
 
@@ -2538,23 +2575,23 @@ class UserGroupModel extends Model
                 // I'm just a reader
                 $relation_group_title = get_lang('I am a reader');
                 $links .= '<li class="'.('invite_friends' == $show ? 'active' : '').'"><a href="group_invitation.php?id='.$group_id.'">'.
-                            Display::return_icon('invitation_friend.png', get_lang('Invite friends')).get_lang('Invite friends').'</a></li>';
+                            Display::getMdiIcon(ObjectIcon::INVITATION, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Invite friends')).get_lang('Invite friends').'</a></li>';
                 if (self::canLeave($group_info)) {
                     $links .= '<li><a href="group_view.php?id='.$group_id.'&action=leave&u='.api_get_user_id().'">'.
-                        Display::return_icon('group_leave.png', get_lang('Leave group')).get_lang('Leave group').'</a></li>';
+                        Display::getMdiIcon(ActionIcon::EXIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Leave group')).get_lang('Leave group').'</a></li>';
                 }
                 break;
             case GROUP_USER_PERMISSION_ADMIN:
                 $relation_group_title = get_lang('I am an admin');
                 $links .= '<li class="'.('group_edit' == $show ? 'active' : '').'"><a href="group_edit.php?id='.$group_id.'">'.
-                            Display::return_icon('group_edit.png', get_lang('Edit this group')).get_lang('Edit this group').'</a></li>';
+                            Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Edit this group')).get_lang('Edit this group').'</a></li>';
                 $links .= '<li class="'.('member_list' == $show ? 'active' : '').'"><a href="group_waiting_list.php?id='.$group_id.'">'.
-                            Display::return_icon('waiting_list.png', get_lang('Waiting list')).get_lang('Waiting list').'</a></li>';
+                            Display::getMdiIcon(ObjectIcon::WAITING_LIST, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Waiting list')).get_lang('Waiting list').'</a></li>';
                 $links .= '<li class="'.('invite_friends' == $show ? 'active' : '').'"><a href="group_invitation.php?id='.$group_id.'">'.
-                            Display::return_icon('invitation_friend.png', get_lang('Invite friends')).get_lang('Invite friends').'</a></li>';
+                            Display::getMdiIcon(ObjectIcon::INVITATION, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Invite friends')).get_lang('Invite friends').'</a></li>';
                 if (self::canLeave($group_info)) {
                     $links .= '<li><a href="group_view.php?id='.$group_id.'&action=leave&u='.api_get_user_id().'">'.
-                        Display::return_icon('group_leave.png', get_lang('Leave group')).get_lang('Leave group').'</a></li>';
+                        Display::getMdiIcon(ActionIcon::EXIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Leave group')).get_lang('Leave group').'</a></li>';
                 }
                 break;
             case GROUP_USER_PERMISSION_PENDING_INVITATION:
@@ -2565,32 +2602,32 @@ class UserGroupModel extends Model
                 break;
             case GROUP_USER_PERMISSION_MODERATOR:
                 $relation_group_title = get_lang('I am a moderator');
-                //$links .=  '<li><a href="'.api_get_path(WEB_CODE_PATH).'social/message_for_group_form.inc.php?view_panel=1&height=400&width=610&&user_friend='.api_get_user_id().'&group_id='.$group_id.'&action=add_message_group" class="thickbox" title="'.get_lang('Compose message').'">'.Display::return_icon('compose_message.png', get_lang('Create thread'), array('hspace'=>'6')).'<span class="social-menu-text4" >'.get_lang('Create thread').'</span></a></li>';
-                //$links .=  '<li><a href="groups.php?id='.$group_id.'">'.				Display::return_icon('message_list.png', get_lang('Messages list'), array('hspace'=>'6')).'<span class="'.($show=='messages_list'?'social-menu-text-active':'social-menu-text4').'" >'.get_lang('Messages list').'</span></a></li>';
-                //$links .=  '<li><a href="group_members.php?id='.$group_id.'">'.		Display::return_icon('member_list.png', get_lang('Members list'), array('hspace'=>'6')).'<span class="'.($show=='member_list'?'social-menu-text-active':'social-menu-text4').'" >'.get_lang('Members list').'</span></a></li>';
+                //$links .=  '<li><a href="'.api_get_path(WEB_CODE_PATH).'social/message_for_group_form.inc.php?view_panel=1&height=400&width=610&&user_friend='.api_get_user_id().'&group_id='.$group_id.'&action=add_message_group" class="thickbox" title="'.get_lang('Compose message').'">'.Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Create thread')).'<span class="social-menu-text4" >'.get_lang('Create thread').'</span></a></li>';
+                //$links .=  '<li><a href="groups.php?id='.$group_id.'">'.				Display::getMdiIcon(ToolIcon::MESSAGE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Messages list')).'<span class="'.($show=='messages_list'?'social-menu-text-active':'social-menu-text4').'" >'.get_lang('Messages list').'</span></a></li>';
+                //$links .=  '<li><a href="group_members.php?id='.$group_id.'">'.		Display::getMdiIcon(ObjectIcon::GROUP, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Members list')).'<span class="'.($show=='member_list'?'social-menu-text-active':'social-menu-text4').'" >'.get_lang('Members list').'</span></a></li>';
                 if (GROUP_PERMISSION_CLOSED == $group_info['visibility']) {
                     $links .= '<li><a href="group_waiting_list.php?id='.$group_id.'">'.
-                                Display::return_icon('waiting_list.png', get_lang('Waiting list')).get_lang('Waiting list').'</a></li>';
+                                Display::getMdiIcon(ObjectIcon::WAITING_LIST, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Waiting list')).get_lang('Waiting list').'</a></li>';
                 }
                 $links .= '<li><a href="group_invitation.php?id='.$group_id.'">'.
-                            Display::return_icon('invitation_friend.png', get_lang('Invite friends')).get_lang('Invite friends').'</a></li>';
+                            Display::getMdiIcon(ObjectIcon::INVITATION, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Invite friends')).get_lang('Invite friends').'</a></li>';
                 if (self::canLeave($group_info)) {
                     $links .= '<li><a href="group_view.php?id='.$group_id.'&action=leave&u='.api_get_user_id().'">'.
-                        Display::return_icon('group_leave.png', get_lang('Leave group')).get_lang('Leave group').'</a></li>';
+                        Display::getMdiIcon(ActionIcon::EXIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Leave group')).get_lang('Leave group').'</a></li>';
                 }
                 break;
             case GROUP_USER_PERMISSION_HRM:
                 $relation_group_title = get_lang('I am a human resources manager');
                 $links .= '<li><a href="'.api_get_path(WEB_CODE_PATH).'social/message_for_group_form.inc.php?view_panel=1&height=400&width=610&&user_friend='.api_get_user_id().'&group_id='.$group_id.'&action=add_message_group" class="ajax" title="'.get_lang('Compose message').'" data-size="lg" data-title="'.get_lang('Compose message').'">'.
-                            Display::return_icon('new-message.png', get_lang('Create thread')).get_lang('Create thread').'</a></li>';
+                            Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Create thread')).get_lang('Create thread').'</a></li>';
                 $links .= '<li><a href="group_view.php?id='.$group_id.'">'.
-                            Display::return_icon('message_list.png', get_lang('Messages list')).get_lang('Messages list').'</a></li>';
+                            Display::getMdiIcon(ToolIcon::MESSAGE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Messages list')).get_lang('Messages list').'</a></li>';
                 $links .= '<li><a href="group_invitation.php?id='.$group_id.'">'.
-                            Display::return_icon('invitation_friend.png', get_lang('Invite friends')).get_lang('Invite friends').'</a></li>';
+                            Display::getMdiIcon(ObjectIcon::INVITATION, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Invite friends')).get_lang('Invite friends').'</a></li>';
                 $links .= '<li><a href="group_members.php?id='.$group_id.'">'.
-                            Display::return_icon('member_list.png', get_lang('Members list')).get_lang('Members list').'</a></li>';
+                            Display::getMdiIcon(ObjectIcon::GROUP, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Members list')).get_lang('Members list').'</a></li>';
                 $links .= '<li><a href="group_view.php?id='.$group_id.'&action=leave&u='.api_get_user_id().'">'.
-                            Display::return_icon('delete_data.gif', get_lang('Leave group')).get_lang('Leave group').'</a></li>';
+                            Display::getMdiIcon(ActionIcon::EXIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Leave group')).get_lang('Leave group').'</a></li>';
                 break;
             default:
                 //$links .=  '<li><a href="groups.php?id='.$group_id.'&action=join&u='.api_get_user_id().'">'.Display::return_icon('addd.gif', get_lang('Join group'), array('hspace'=>'6')).'<span class="social-menu-text4" >'.get_lang('Join group').'</a></span></li>';
@@ -2665,7 +2702,7 @@ class UserGroupModel extends Model
 
         $result = Database::query($sql);
         if (Database::num_rows($result) > 0) {
-            $row = Database::fetch_array($result, 'ASSOC');
+            $row = Database::fetch_assoc($result);
 
             return $row['count'];
         }
@@ -2689,7 +2726,7 @@ class UserGroupModel extends Model
         $return = [];
 
         $keyword = $tag;
-        $sql = 'SELECT  g.id, g.name, g.description, g.url, g.picture ';
+        $sql = 'SELECT  g.id, g.title, g.description, g.url, g.picture ';
         $urlCondition = '';
         if ($this->getUseMultipleUrl()) {
             $urlId = api_get_current_access_url_id();
@@ -2702,7 +2739,7 @@ class UserGroupModel extends Model
         }
         if (isset($keyword)) {
             $sql .= " WHERE (
-                        g.name LIKE '%".$keyword."%' OR
+                        g.title LIKE '%".$keyword."%' OR
                         g.description LIKE '%".$keyword."%' OR
                         g.url LIKE '%".$keyword."%'
                      ) $urlCondition
@@ -2720,7 +2757,7 @@ class UserGroupModel extends Model
 
         $res = Database::query($sql);
         if (Database::num_rows($res) > 0) {
-            while ($row = Database::fetch_array($res, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($res)) {
                 if (!in_array($row['id'], $return)) {
                     $return[$row['id']] = $row;
                 }
@@ -2925,7 +2962,7 @@ class UserGroupModel extends Model
     {
         $userClasses = $this->getUserGroupListByUser($userId, $filterByType);
 
-        return array_column($userClasses, 'name');
+        return array_column($userClasses, 'title');
     }
 
     /**

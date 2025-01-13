@@ -201,16 +201,16 @@ $url_list = UrlManager::get_url_data();
   <td width="10%" valign="middle" align="center">
   <?php if ($ajax_search) {
         ?>
-	<button class="btn btn-default" type="button" onclick="remove_item(document.getElementById('destination_users'))" ></button>
+	<button class="btn btn--plain" type="button" onclick="remove_item(document.getElementById('destination_users'))" ></button>
   <?php
     } else {
         ?>
-	<button class="btn btn-default" type="button" onclick="moveItem(document.getElementById('origin_users'), document.getElementById('destination_users'))" >
-        <em class="fa fa-arrow-right"></em>
+	<button class="btn btn--plain" type="button" onclick="moveItem(document.getElementById('origin_users'), document.getElementById('destination_users'))" >
+           <i class="mdi mdi-fast-forward-outline ch-tool-icon"></i>
     </button>
 	<br /><br />
-	<button class="btn btn-default" type="button" onclick="moveItem(document.getElementById('destination_users'), document.getElementById('origin_users'))" >
-        <em class="fa fa-arrow-left"></em>
+	<button class="btn btn--plain" type="button" onclick="moveItem(document.getElementById('destination_users'), document.getElementById('origin_users'))" >
+        <i class="mdi mdi-rewind-outline ch-tool-icon"></i>
     </button>
    <?php
     } ?>

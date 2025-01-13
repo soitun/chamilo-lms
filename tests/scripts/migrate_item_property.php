@@ -15,15 +15,15 @@ use Chamilo\CoreBundle\Security\Authorization\Voter\ResourceNodeVoter;
  * Migrate content from c_item_property and c_document tables to the new "Resource" system.
  *
  */
-
+die('Remove the "die()" statement on line '.__LINE__.' to execute this script'.PHP_EOL);
 echo 'First check if table "classification__category" has a default category; if not then run: <br />';
 echo 'bin/console sonata:media:fix-media-context';
 echo 'change course id in the query';
-//exit;
+
 // For tests to clean all resource stuff:
 //
 
-require_once __DIR__.'/../../main/inc/global.inc.php';
+require_once __DIR__.'/../../public/main/inc/global.inc.php';
 
 $sql = "SELECT
           d.id,
@@ -54,7 +54,7 @@ $documentManager = $em->getRepository('ChamiloCourseBundle:CDocument');
 $contextManager = Container::$container->get('sonata.classification.manager.context');
 $defaultContext = $contextManager->findOneBy(['id' => 'default']);
 
-while ($row = Database::fetch_array($result, 'ASSOC')) {
+while ($row = Database::fetch_assoc($result)) {
     $itemIid = $row['iid'];
     $courseId = $row['c_id'];
     $sessionId = $row['session_id'];
@@ -106,7 +106,7 @@ while ($row = Database::fetch_array($result, 'ASSOC')) {
             // Creating node
             $node = new ResourceNode();
             $node
-                ->setName($documentData['title'])
+                ->setTitle($documentData['title'])
                 ->setDescription($documentData['comment'] ?? '')
                 ->setCreator($author)
                 ->setParent($parentNode)
@@ -142,9 +142,6 @@ while ($row = Database::fetch_array($result, 'ASSOC')) {
                 case '1':
                     $newVisibility = ResourceLink::VISIBILITY_PUBLISHED;
                     break;
-                case '2':
-                    $newVisibility = ResourceLink::VISIBILITY_DELETED;
-                    break;
             }
 
             $link = new ResourceLink();
@@ -156,6 +153,10 @@ while ($row = Database::fetch_array($result, 'ASSOC')) {
                 ->setResourceNode($node)
                 ->setVisibility($newVisibility)
             ;
+
+            if (2 === (int) $row['visibility']) {
+                $link->setDeletedAt($lastUpdatedAt);
+            }
 
             if (!empty($rights)) {
                 foreach ($rights as $right) {
@@ -191,10 +192,9 @@ while ($row = Database::fetch_array($result, 'ASSOC')) {
 
                     $resourceFile = new ResourceFile();
                     $resourceFile->setMedia($media);
-                    $resourceFile->setName($documentData['title']);
-                    $node->setResourceFile($resourceFile);
+                    $resourceFile->setTitle($documentData['title']);
+                    $node->addResourceFile($resourceFile);
 
-                    $em->persist($resourceFile);
                     $em->persist($node);
                     break;
             }

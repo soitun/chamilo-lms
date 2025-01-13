@@ -46,7 +46,7 @@ class ForumThreadLink extends AbstractLink
      */
     public function get_all_links()
     {
-        if (empty($this->course_code)) {
+        if (empty($this->getCourseId())) {
             return [];
         }
 
@@ -76,7 +76,7 @@ class ForumThreadLink extends AbstractLink
         $result = Database::query($sql);*/
         $cats = [];
         foreach ($threads as $thread) {
-            $title = $thread->getThreadTitle();
+            $title = $thread->getTitle();
             $threadQualify = $thread->getThreadTitleQualify();
             if (!empty($threadQualify)) {
                 $title = $threadQualify;
@@ -167,7 +167,7 @@ class ForumThreadLink extends AbstractLink
                 $score = 0;
                 $counter = 0;
                 if (Database::num_rows($scores)) {
-                    while ($data = Database::fetch_array($scores, 'ASSOC')) {
+                    while ($data = Database::fetch_assoc($scores)) {
                         $score += $data['qualify'];
                         $counter++;
                     }
@@ -246,7 +246,7 @@ class ForumThreadLink extends AbstractLink
     public function get_name()
     {
         $this->getThreadData();
-        $thread_title = isset($this->exercise_data['thread_title']) ? $this->exercise_data['thread_title'] : '';
+        $thread_title = isset($this->exercise_data['title']) ? $this->exercise_data['title'] : '';
         $thread_title_qualify = isset($this->exercise_data['thread_title_qualify']) ? $this->exercise_data['thread_title_qualify'] : '';
         if (isset($thread_title_qualify) && '' != $thread_title_qualify) {
             return $this->exercise_data['thread_title_qualify'];
@@ -289,7 +289,7 @@ class ForumThreadLink extends AbstractLink
                     iid = '".$this->get_ref_id()."' AND
                     session_id = $sessionId ";
         $result = Database::query($sql);
-        $row = Database::fetch_array($result, 'ASSOC');
+        $row = Database::fetch_assoc($result);
 
         if ($row) {
             $forum_id = $row['forum_id'];

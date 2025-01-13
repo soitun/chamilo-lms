@@ -11,7 +11,7 @@ use Chamilo\CourseBundle\Entity\CLinkCategory;
 
 class Link extends AbstractTool implements ToolInterface
 {
-    public function getName(): string
+    public function getTitle(): string
     {
         return 'link';
     }
@@ -28,7 +28,7 @@ class Link extends AbstractTool implements ToolInterface
 
     public function getLink(): string
     {
-        return '/main/link/link.php';
+        return '/resources/links/:nodeId/';
     }
 
     public function getResourceTypes(): ?array

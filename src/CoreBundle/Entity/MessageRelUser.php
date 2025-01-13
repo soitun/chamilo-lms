@@ -6,91 +6,118 @@ declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\Entity;
 
-use ApiPlatform\Core\Annotation\ApiFilter;
-use ApiPlatform\Core\Annotation\ApiResource;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Doctrine\Orm\Filter\ExistsFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Put;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Gedmo\Mapping\Annotation as Gedmo;
+use Gedmo\SoftDeleteable\Traits\SoftDeleteableEntity;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
-/**
- * @ORM\Table(name="message_rel_user",
- * uniqueConstraints={
- *     @ORM\UniqueConstraint(name="message_receiver", columns={"message_id", "user_id"})
- *  },
- * )
- * @ORM\Entity()
- */
+#[ApiResource(
+    operations: [
+        new Get(security: "is_granted('VIEW', object)"),
+        new Put(security: "is_granted('EDIT', object)"),
+        new Patch(security: "is_granted('EDIT', object)"),
+        new Delete(security: "is_granted('DELETE', object)"),
+    ],
+    normalizationContext: [
+        'groups' => ['message_rel_user:read'],
+    ],
+    denormalizationContext: [
+        'groups' => ['message_rel_user:write'],
+    ],
+)]
 #[UniqueEntity(
     fields: ['message', 'receiver'],
-    errorPath: 'message',
     message: 'This message-receiver relation is already used.',
+    errorPath: 'message',
+    groups: ['create']
 )]
-// @todo add security checks.
-#[ApiResource]
-#[ApiFilter(SearchFilter::class, properties: [
-    'star' => 'exact',
-    'receiver' => 'exact',
-    'read' => 'exact',
-    'starred' => 'exact',
-    'tags.tag' => 'exact',
-])]
+#[ORM\Table(name: 'message_rel_user')]
+#[ORM\UniqueConstraint(name: 'message_receiver', columns: ['message_id', 'user_id', 'receiver_type'])]
+#[ORM\Entity]
+#[Gedmo\SoftDeleteable(timeAware: true)]
+#[ApiFilter(
+    filterClass: SearchFilter::class,
+    properties: [
+        'star' => 'exact',
+        'receiver' => 'exact',
+        'read' => 'exact',
+        'starred' => 'exact',
+        'tags.tag' => 'exact',
+    ]
+)]
+#[ApiFilter(
+    ExistsFilter::class,
+    properties: ['deletedAt']
+)]
 class MessageRelUser
 {
-    public const TYPE_TO = 1;
-    public const TYPE_CC = 2;
+    use SoftDeleteableEntity;
 
-    /**
-     * @ORM\Column(name="id", type="bigint")
-     * @ORM\Id
-     * @ORM\GeneratedValue()
-     */
-    #[Groups(['message:read', 'message:write'])]
+    // Type indicating the message is sent to the main recipient
+    public const TYPE_TO = 1;
+    // Type indicating the message is sent as a carbon copy (CC) to the recipient
+    public const TYPE_CC = 2;
+    // Type indicating the message is promoted
+    public const TYPE_PROMOTED = 3;
+    // Type indicating the message is posted on the user's wall
+    public const TYPE_WALL = 4;
+    // Type indicating the message is sent to a group
+    public const TYPE_GROUP = 5;
+    // Type indicating the message is an invitation
+    public const TYPE_INVITATION = 6;
+    // Type indicating the message is part of a conversation
+    public const TYPE_CONVERSATION = 7;
+    // Type indicating the message is sent by the sender and should appear in the sender's outbox
+    public const TYPE_SENDER = 8;
+
+    #[Groups(['message_rel_user:read'])]
+    #[ORM\Column(name: 'id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
     protected ?int $id = null;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\Message", inversedBy="receivers", cascade={"persist"})
-     * @ORM\JoinColumn(name="message_id", referencedColumnName="id", nullable=false)
-     */
+    #[Groups(['message_rel_user:read'])]
+    #[ORM\ManyToOne(targetEntity: Message::class, cascade: ['persist'], inversedBy: 'receivers')]
+    #[ORM\JoinColumn(name: 'message_id', referencedColumnName: 'id', nullable: false)]
     protected Message $message;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\User", cascade={"persist"}, inversedBy="receivedMessages")
-     * @ORM\JoinColumn(name="user_id", referencedColumnName="id", nullable=false, onDelete="CASCADE")
-     */
     #[Assert\NotNull]
-    #[Groups(['message:read', 'message:write'])]
+    #[Groups(['message:read', 'message:write', 'message_rel_user:read'])]
+    #[ORM\ManyToOne(targetEntity: User::class, cascade: ['persist'], inversedBy: 'receivedMessages')]
+    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     protected User $receiver;
 
-    /**
-     * @ORM\Column(name="msg_read", type="boolean", nullable=false)
-     */
-    #[Groups(['message:read', 'message:write'])]
+    #[Groups(['message:read', 'message:write', 'message_rel_user:read', 'message_rel_user:write'])]
+    #[ORM\Column(name: 'msg_read', type: 'boolean', nullable: false)]
     protected bool $read;
 
-    /**
-     * @ORM\Column(name="receiver_type", type="smallint", nullable=false)
-     */
     #[Groups(['message:read', 'message:write'])]
+    #[ORM\Column(name: 'receiver_type', type: 'smallint', nullable: false)]
     protected int $receiverType;
 
-    /**
-     * @ORM\Column(name="starred", type="boolean", nullable=false)
-     */
-    #[Groups(['message:read', 'message:write'])]
+    #[Groups(['message:read', 'message:write', 'message_rel_user:read', 'message_rel_user:write'])]
+    #[ORM\Column(name: 'starred', type: 'boolean', nullable: false)]
     protected bool $starred;
 
     /**
-     * @var Collection|MessageTag[]
-     *
-     * @ORM\ManyToMany(targetEntity="Chamilo\CoreBundle\Entity\MessageTag", inversedBy="messageRelUsers", cascade={"persist", "remove"})
-     * @ORM\JoinTable(name="message_rel_user_rel_tags")
+     * @var Collection<int, MessageTag>
      */
     #[Assert\Valid]
-    #[Groups(['message:read', 'message:write'])]
+    #[Groups(['message:read', 'message_rel_user:read', 'message_rel_user:write'])]
+    #[ORM\JoinTable(name: 'message_rel_user_rel_tags')]
+    #[ORM\ManyToMany(targetEntity: MessageTag::class, inversedBy: 'messageRelUsers', cascade: ['persist', 'remove'])]
     protected Collection $tags;
 
     public function __construct()
@@ -107,9 +134,9 @@ class MessageRelUser
     }
 
     /**
-     * @return Collection|MessageTag[]
+     * @return Collection<int, MessageTag>
      */
-    public function getTags()
+    public function getTags(): Collection
     {
         return $this->tags;
     }

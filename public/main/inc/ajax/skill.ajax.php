@@ -387,7 +387,7 @@ switch ($action) {
         foreach ($skills as $skill) {
             $returnSkills[] = [
                 'id' => $skill->getSkill()->getId(),
-                'text' => $skill->getSkill()->getName(),
+                'text' => $skill->getSkill()->getTitle(),
             ];
         }
         echo json_encode([
@@ -395,7 +395,7 @@ switch ($action) {
         ]);
         break;
     case 'update_skill_rel_user':
-        $allowSkillInTools = api_get_configuration_value('allow_skill_rel_items');
+        $allowSkillInTools = ('true' === api_get_setting('skill.allow_skill_rel_items'));
         if (empty($allowSkillInTools)) {
             exit;
         }
@@ -458,7 +458,7 @@ switch ($action) {
         }
         break;
     case 'assign_user_to_skill':
-        $allowSkillInTools = api_get_configuration_value('allow_skill_rel_items');
+        $allowSkillInTools = ('true' === api_get_setting('skill.allow_skill_rel_items'));
         if (empty($allowSkillInTools)) {
             exit;
         }

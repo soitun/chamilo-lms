@@ -21,7 +21,7 @@ if (!$is_allowedToTrack) {
 $this_section = SECTION_TRACKING;
 
 $interbreadcrumb[] = [
-    "url" => api_is_student_boss() ? "#" : api_get_path(WEB_CODE_PATH)."mySpace/index.php?".api_get_cidreq(),
+    "url" => api_is_student_boss() ? "#" : api_get_path(WEB_CODE_PATH)."my_space/index.php?".api_get_cidreq(),
     "name" => get_lang("Reporting"),
 ];
 
@@ -47,7 +47,7 @@ if (api_is_student_boss()) {
 }
 
 foreach ($sessionsList as $session) {
-    $sessions[$session['id']] = $session['name'];
+    $sessions[$session['id']] = $session['title'];
 }
 
 $selfUrl = api_get_self();
@@ -118,7 +118,7 @@ if ($searchSessionAndCourse || $searchCourseOnly) {
     $gradebookCategories = Category::load(
         null,
         null,
-        $selectedCourseInfo['code'],
+        $selectedCourse,
         null,
         false,
         $selectedSession
@@ -220,7 +220,7 @@ if ($searchSessionAndCourse || $searchCourseOnly) {
             $gradebookCategories = Category::load(
                 null,
                 null,
-                $sessionCourse['code'],
+                $sessionCourse['real_id'],
                 null,
                 false,
                 $session['id']
@@ -233,7 +233,7 @@ if ($searchSessionAndCourse || $searchCourseOnly) {
             }
 
             if (!is_null($gradebook)) {
-                $sessionName = $session['name'];
+                $sessionName = $session['title'];
                 $courseName = $sessionCourse['title'];
 
                 $certificateStudent = [
@@ -303,6 +303,8 @@ $form->setDefaults([
     'month' => $selectedMonth,
     'year' => $selectedYear,
 ]);
+
+$template->assign('search_form', '');
 
 if (api_is_student_boss()) {
     foreach ($userList as $studentId) {

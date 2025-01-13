@@ -2,6 +2,7 @@
 
 /* For licensing terms, see /license.txt */
 
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
 use Chamilo\CoreBundle\Framework\Container;
 use Chamilo\CourseBundle\Entity\CForum;
 
@@ -116,7 +117,7 @@ if ('group' === $origin) {
     ];
     $interbreadcrumb[] = [
         'url' => api_get_path(WEB_CODE_PATH).'forum/viewforum.php?origin='.$origin.'&forum='.$forumId.'&'.api_get_cidreq(),
-        'name' => prepare4display($forumEntity->getForumTitle()),
+        'name' => prepare4display($forumEntity->getTitle()),
     ];
     $interbreadcrumb[] = [
         'url' => api_get_path(WEB_CODE_PATH).'forum/forumsearch.php?'.api_get_cidreq(),
@@ -135,6 +136,20 @@ if ('learnpath' === $origin) {
     Display::display_reduced_header();
 } else {
     Display::display_header($nameTools);
+}
+
+if ('learnpath' !== $origin) {
+    $actions = '';
+    if ('group' === $origin) {
+        $actions .= '<a href="../group/group_space.php?'.api_get_cidreq().'">'.
+            Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back to').' '.get_lang('Groups')).
+            '</a>';
+    } else {
+        $actions .= '<a href="index.php?'.api_get_cidreq().'">'.
+            Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back toForumOverview')).
+            '</a>';
+    }
+    echo Display::toolbarAction('toolbar', [$actions]);
 }
 
 // Tool introduction

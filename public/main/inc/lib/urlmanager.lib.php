@@ -158,7 +158,7 @@ class UrlManager
         $table = Database::get_main_table(TABLE_MAIN_ACCESS_URL);
         $sql = "SELECT count(id) as count_result FROM $table";
         $res = Database::query($sql);
-        $url = Database::fetch_array($res, 'ASSOC');
+        $url = Database::fetch_assoc($res);
         $result = $url['count_result'];
 
         return $result;
@@ -225,11 +225,11 @@ class UrlManager
     public static function get_url_rel_user_data($urlId = 0, $order_by = null)
     {
         $urlId = (int) $urlId;
-        $where = '';
+        $where = ' WHERE u.active <> '.USER_SOFT_DELETED.' ';
         $table_url_rel_user = Database::get_main_table(TABLE_MAIN_ACCESS_URL_REL_USER);
         $tbl_user = Database::get_main_table(TABLE_MAIN_USER);
         if (!empty($urlId)) {
-            $where = "WHERE $table_url_rel_user.access_url_id = ".$urlId;
+            $where = " AND $table_url_rel_user.access_url_id = ".$urlId;
         }
         if (empty($order_by)) {
             $order_clause = api_sort_by_first_name(
@@ -354,12 +354,12 @@ class UrlManager
             $where = " WHERE $table_url_rel_usergroup.access_url_id = ".$urlId;
         }
 
-        $sql = "SELECT u.id, u.name, access_url_id
+        $sql = "SELECT u.id, u.title, access_url_id
                 FROM $table_user_group u
                 INNER JOIN $table_url_rel_usergroup
                 ON $table_url_rel_usergroup.usergroup_id = u.id
                 $where
-                ORDER BY name";
+                ORDER BY u.title";
 
         $result = Database::query($sql);
         $courses = Database::store_result($result);
@@ -388,12 +388,12 @@ class UrlManager
         }
         $where .= ' AND (parent_id IS NULL) ';
 
-        $sql = "SELECT u.id, name, access_url_id
+        $sql = "SELECT u.id, u.title, access_url_id
                 FROM $table u
                 INNER JOIN $table_url_rel
                 ON $table_url_rel.course_category_id = u.id
                 $where
-                ORDER BY name";
+                ORDER BY u.title";
 
         $result = Database::query($sql);
         $courses = Database::store_result($result, 'ASSOC');
@@ -1258,7 +1258,7 @@ class UrlManager
 
         $result = Database::query($sql);
         if ($result) {
-            $row = Database::fetch_array($result, 'ASSOC');
+            $row = Database::fetch_assoc($result);
 
             return (int) $row['count'];
         }
@@ -1318,12 +1318,12 @@ class UrlManager
             $needle = api_convert_encoding($needle, $charset, 'utf-8');
             $needle = Database::escape_string($needle);
             // search courses where username or firstname or lastname begins likes $needle
-            $sql = 'SELECT id, name
+            $sql = 'SELECT id, u.title
                     FROM '.Database::get_main_table(TABLE_MAIN_CATEGORY).' u
                     WHERE
                         name LIKE "'.$needle.'%" AND
                         (parent_id IS NULL or parent_id = 0)
-                    ORDER BY name
+                    ORDER BY u.title
                     LIMIT 11';
             $result = Database::query($sql);
             $i = 0;
@@ -1332,7 +1332,7 @@ class UrlManager
                 if ($i <= 10) {
                     $return .= '<a
                     href="javascript: void(0);"
-                    onclick="javascript: add_user_to_url(\''.addslashes($data['id']).'\',\''.addslashes($data['name']).' \')">'.$data['name'].' </a><br />';
+                    onclick="javascript: add_user_to_url(\''.addslashes($data['id']).'\',\''.addslashes($data['name']).' \')">'.$data['title'].' </a><br />';
                 } else {
                     $return .= '...<br />';
                 }

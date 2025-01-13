@@ -488,7 +488,7 @@ class ImportCsv
         $extraField = new ExtraField('calendar_event');
         $extraField->save(
             [
-                'field_type' => ExtraField::FIELD_TYPE_TEXT,
+                'value_type' => ExtraField::FIELD_TYPE_TEXT,
                 'variable' => $this->extraFieldIdNameList['calendar_event'],
                 'display_text' => 'External calendar event id',
             ]
@@ -498,7 +498,7 @@ class ImportCsv
         $extraField->save(
             [
                 'visible_to_self' => 1,
-                'field_type' => ExtraField::FIELD_TYPE_TEXT,
+                'value_type' => ExtraField::FIELD_TYPE_TEXT,
                 'variable' => $this->extraFieldIdNameList['career'],
                 'display_text' => 'External career id',
             ]
@@ -507,7 +507,7 @@ class ImportCsv
         $extraField->save(
             [
                 'visible_to_self' => 1,
-                'field_type' => ExtraField::FIELD_TYPE_TEXTAREA,
+                'value_type' => ExtraField::FIELD_TYPE_TEXTAREA,
                 'variable' => $this->extraFieldIdNameList['career_diagram'],
                 'display_text' => 'Career diagram',
             ]
@@ -516,7 +516,7 @@ class ImportCsv
         $extraField->save(
             [
                 'visible_to_self' => 1,
-                'field_type' => ExtraField::FIELD_TYPE_TEXTAREA,
+                'value_type' => ExtraField::FIELD_TYPE_TEXTAREA,
                 'variable' => $this->extraFieldIdNameList['career_urls'],
                 'display_text' => 'Career urls',
             ]
@@ -851,7 +851,7 @@ class ImportCsv
                             $value = $extraFieldValue['value'];
                         }
                         if (!empty($user_id) && $value != $user_id) {
-                            $emails = api_get_configuration_value('cron_notification_help_desk');
+                            $emails = api_get_setting('mail.cron_notification_help_desk', true);
                             if (!empty($emails)) {
                                 $this->logger->addInfo('Preparing email to users in configuration: "cron_notification_help_desk"');
                                 $subject = 'User not added due to same username';
@@ -1667,7 +1667,7 @@ class ImportCsv
                     if (!empty($eventId)) {
                         $extraFieldValue->save(
                             [
-                                'value' => $externalEventId,
+                                'field_value' => $externalEventId,
                                 'field_id' => $extraFieldInfo['id'],
                                 'item_id' => $eventId,
                             ]
@@ -3017,7 +3017,7 @@ class ImportCsv
                 $result = Database::query($sql);
                 $rows = Database::num_rows($result);
                 if ($rows > 0) {
-                    $userCourseData = Database::fetch_array($result, 'ASSOC');
+                    $userCourseData = Database::fetch_assoc($result);
                     if (!empty($userCourseData)) {
                         $teacherBackup[$userId][$courseInfo['code']] = $userCourseData;
                     }
@@ -3030,7 +3030,7 @@ class ImportCsv
                         ";
 
                 $result = Database::query($sql);
-                while ($groupData = Database::fetch_array($result, 'ASSOC')) {
+                while ($groupData = Database::fetch_assoc($result)) {
                     $groupBackup['user'][$userId][$courseInfo['code']][$groupData['group_id']] = $groupData;
                 }
 
@@ -3041,7 +3041,7 @@ class ImportCsv
                         ";
 
                 $result = Database::query($sql);
-                while ($groupData = Database::fetch_array($result, 'ASSOC')) {
+                while ($groupData = Database::fetch_assoc($result)) {
                     $groupBackup['tutor'][$userId][$courseInfo['code']][$groupData['group_id']] = $groupData;
                 }
 
@@ -3113,7 +3113,7 @@ class ImportCsv
             Database::get_main_table(TABLE_STATISTIC_TRACK_E_DOWNLOADS),
             Database::get_main_table(TABLE_STATISTIC_TRACK_E_EXERCISES),
             Database::get_main_table(TABLE_STATISTIC_TRACK_E_ATTEMPT),
-            Database::get_main_table(TABLE_STATISTIC_TRACK_E_ATTEMPT_RECORDING),
+            Database::get_main_table(TABLE_STATISTIC_TRACK_E_ATTEMPT_QUALIFY),
             Database::get_main_table(TABLE_STATISTIC_TRACK_E_DEFAULT),
             Database::get_main_table(TABLE_STATISTIC_TRACK_E_UPLOADS),
             Database::get_main_table(TABLE_STATISTIC_TRACK_E_HOTSPOT),
@@ -3201,7 +3201,7 @@ class ImportCsv
 }
 
 $logger = new Logger('cron');
-$emails = isset($_configuration['cron_notification_mails']) ? $_configuration['cron_notification_mails'] : null;
+$emails = api_get_setting('mail.cron_notification_help_desk', true);
 
 $minLevel = Logger::DEBUG;
 
@@ -3256,7 +3256,8 @@ if (isset($_configuration['import_csv_disable_dump']) &&
     $import->setDumpValues($dump);
 }
 
-$import->setUpdateEmailToDummy(api_get_configuration_value('update_users_email_to_dummy_except_admins'));
+$settingEmailDummy = ('true' === api_get_setting('mail.update_users_email_to_dummy_except_admins'));
+$import->setUpdateEmailToDummy($settingEmailDummy);
 
 // Do not moves the files to treated
 if (isset($_configuration['import_csv_test'])) {

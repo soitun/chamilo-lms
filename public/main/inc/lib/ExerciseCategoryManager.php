@@ -2,7 +2,8 @@
 /* For licensing terms, see /license.txt */
 
 use Chamilo\CoreBundle\Framework\Container;
-use Chamilo\CourseBundle\Entity\CExerciseCategory;
+use Chamilo\CourseBundle\Entity\CQuizCategory;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
 
 /**
  * Class ExtraFieldValue
@@ -14,7 +15,7 @@ class ExerciseCategoryManager extends Model
     public $type = '';
     public $columns = [
         'id',
-        'name',
+        'title',
         'c_id',
         'description',
         'created_at',
@@ -30,7 +31,7 @@ class ExerciseCategoryManager extends Model
     {
         parent::__construct();
         $this->is_course_model = true;
-        $this->table = Database::get_course_table('exercise_category');
+        $this->table = Database::get_course_table('quiz_category');
     }
 
     /**
@@ -40,7 +41,7 @@ class ExerciseCategoryManager extends Model
      */
     public function getCategories($courseId)
     {
-        return Container::getExerciseCategoryRepository()->getCategories($courseId);
+        return Container::getQuizCategoryRepository()->getCategories($courseId);
     }
 
     /**
@@ -54,9 +55,9 @@ class ExerciseCategoryManager extends Model
         $options = [];
 
         if (!empty($categories)) {
-            /** @var CExerciseCategory $category */
+            /** @var CQuizCategory $category */
             foreach ($categories as $category) {
-                $options[$category->getId()] = $category->getName();
+                $options[$category->getId()] = $category->getTitle();
             }
         }
 
@@ -68,7 +69,7 @@ class ExerciseCategoryManager extends Model
      */
     public function delete($id)
     {
-        $repo = Container::getExerciseCategoryRepository();
+        $repo = Container::getQuizCategoryRepository();
         $category = $repo->find($id);
         $repo->hardDelete($category);
 
@@ -87,8 +88,8 @@ class ExerciseCategoryManager extends Model
         Symfony\Component\HttpFoundation\Session\Session $session,
         $parameters
     ) {
-        $repo = Container::getExerciseCategoryRepository();
-        $translator = Container::getTranslator();
+        $repo = Container::getQuizCategoryRepository();
+        $translator = Container::$container->get('translator');
         foreach ($primaryKeys as $id) {
             $category = $repo->find($id);
             $repo->hardDelete($category);
@@ -109,13 +110,13 @@ class ExerciseCategoryManager extends Model
     {
         $id = $params['id'];
 
-        $repo = Container::getExerciseCategoryRepository();
-        /** @var CExerciseCategory $category */
+        $repo = Container::getQuizCategoryRepository();
+        /** @var CQuizCategory $category */
         $category = $repo->find($id);
 
         if ($category) {
             $category
-                ->setName($params['name'])
+                ->setTitle($params['title'])
                 ->setDescription($params['description'])
             ;
 
@@ -138,10 +139,10 @@ class ExerciseCategoryManager extends Model
         $courseId = api_get_course_int_id();
         $course = api_get_course_entity($courseId);
 
-        $repo = Container::getExerciseCategoryRepository();
-        $category = new CExerciseCategory();
+        $repo = Container::getQuizCategoryRepository();
+        $category = new CQuizCategory();
         $category
-            ->setName($params['name'])
+            ->setTitle($params['title'])
             ->setCourse($course)
             ->setDescription($params['description'])
             ->setParent($course)
@@ -150,7 +151,7 @@ class ExerciseCategoryManager extends Model
 
         /*
             // Update position
-            $query = $em->getRepository('ChamiloCourseBundle:CExerciseCategory')->createQueryBuilder('e');
+            $query = $em->getRepository('ChamiloCourseBundle:CQuizCategory')->createQueryBuilder('e');
             $query
                 ->where('e.cId = :cId')
                 ->setParameter('cId', $courseId)
@@ -176,8 +177,8 @@ class ExerciseCategoryManager extends Model
     public function getJqgridActionLinks($token)
     {
         //With this function we can add actions to the jgrid (edit, delete, etc)
-        $editIcon = Display::return_icon('edit.png', get_lang('Edit'), '', ICON_SIZE_SMALL);
-        $deleteIcon = Display::return_icon('delete.png', get_lang('Delete'), '', ICON_SIZE_SMALL);
+        $editIcon = Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Edit'));
+        $deleteIcon = Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Delete'));
         $confirmMessage = addslashes(
             api_htmlentities(get_lang('Please confirm your choice'), ENT_QUOTES)
         );
@@ -228,7 +229,7 @@ JAVASCRIPT;
         $form->addElement('header', $header);
 
         $form->addText(
-            'name',
+            'title',
             get_lang('Name')
         );
 
@@ -242,7 +243,7 @@ JAVASCRIPT;
         $form->setDefaults($defaults);
 
         // Setting the rules
-        $form->addRule('name', get_lang('Required field'), 'required');
+        $form->addRule('title', get_lang('Required field'), 'required');
 
         return $form;
     }
@@ -258,20 +259,10 @@ JAVASCRIPT;
         // Action links
         $content = '<div class="actions">';
         $content .= '<a href="'.api_get_path(WEB_CODE_PATH).'exercise/exercise.php?'.api_get_cidreq().'">';
-        $content .= Display::return_icon(
-            'back.png',
-            get_lang('Back to').' '.get_lang('Administration'),
-            '',
-            ICON_SIZE_MEDIUM
-        );
+        $content .= Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back to').' '.get_lang('Administration'));
         $content .= '</a>';
         $content .= '<a href="'.api_get_self().'?action=add&'.api_get_cidreq().'">';
-        $content .= Display::return_icon(
-            'add.png',
-            get_lang('Add'),
-            '',
-            ICON_SIZE_MEDIUM
-        );
+        $content .= Display::getMdiIcon(ActionIcon::ADD, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Add'));
         $content .= '</a>';
         $content .= '</div>';
 

@@ -23,7 +23,7 @@ if (0 == $session_id) {
     $all_categories = Category::load(
         null,
         null,
-        api_get_course_id(),
+        api_get_course_int_id(),
         null,
         null,
         $session_id
@@ -71,7 +71,8 @@ if (isset($typeSelected) && '0' != $typeSelected) {
         $addvalues = $addform->exportValues();
         $link = LinkFactory::create($typeSelected);
         $link->set_user_id(api_get_user_id());
-        $link->set_course_code(api_get_course_id());
+        // Set course code *and* id
+        $link->setCourseId(api_get_course_int_id());
         $link->set_category_id($addvalues['select_gradebook']);
 
         if ($link->needs_name_and_description()) {
@@ -98,7 +99,7 @@ if (isset($typeSelected) && '0' != $typeSelected) {
             5 == $typeSelected &&
             (isset($addvalues['select_link']) && "" != $addvalues['select_link'])
         ) {
-            $sql1 = 'SELECT thread_title from '.$tbl_forum_thread.'
+            $sql1 = 'SELECT title from '.$tbl_forum_thread.'
 					 WHERE
 					    c_id = '.$course_info['real_id'].' AND
 					    iid  = '.$addvalues['select_link'];

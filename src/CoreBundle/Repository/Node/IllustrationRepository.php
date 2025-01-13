@@ -28,20 +28,18 @@ final class IllustrationRepository extends ResourceRepository
     }
 
     /*public function getResources(User $user, ResourceNode $parentNode, Course $course = null, Session $session = null, CGroup $group = null): QueryBuilder
-    {
-        $qb = $this->createQueryBuilder('resource')
-            ->select('resource')
-            ->innerJoin(
-                'resource.resourceNode',
-                'node'
-            )
-        ;
-
-        $qb->andWhere('node.creator = :creator');
-        $qb->setParameter('creator', $user);
-
-        return $qb;
-    }*/
+     * {
+     * $qb = $this->createQueryBuilder('resource')
+     * ->select('resource')
+     * ->innerJoin(
+     * 'resource.resourceNode',
+     * 'node'
+     * )
+     * ;
+     * $qb->andWhere('node.creator = :creator');
+     * $qb->setParameter('creator', $user);
+     * return $qb;
+     * }*/
 
     /**
      * @param ResourceInterface|User $resource
@@ -49,7 +47,7 @@ final class IllustrationRepository extends ResourceRepository
     public function addIllustration(
         ResourceInterface $resource,
         User $creator,
-        UploadedFile $uploadFile = null,
+        ?UploadedFile $uploadFile = null,
         string $crop = ''
     ): ?ResourceFile {
         if (null === $uploadFile) {
@@ -92,9 +90,9 @@ final class IllustrationRepository extends ResourceRepository
             ->select('node')
             ->from(ResourceNode::class, 'node')
             ->innerJoin('node.resourceType', 'type')
-            ->innerJoin('node.resourceFile', 'file')
+            ->innerJoin('node.resourceFiles', 'file')
             ->where('node.parent = :parent')
-            ->andWhere('type.name = :name')
+            ->andWhere('type.title = :name')
             ->setParameters([
                 'parent' => $resourceNode->getId(),
                 'name' => $name,
@@ -130,7 +128,13 @@ final class IllustrationRepository extends ResourceRepository
         string $filter = '',
         int $size = 32
     ): string {
-        $illustration = $this->getIllustrationUrlFromNode($resource->getResourceNode(), $filter);
+        $node = $resource->getResourceNode();
+
+        if (null === $node) {
+            return $resource->getDefaultIllustration($size);
+        }
+
+        $illustration = $this->getIllustrationUrlFromNode($node, $filter);
 
         if (empty($illustration)) {
             $illustration = $resource->getDefaultIllustration($size);
@@ -147,7 +151,7 @@ final class IllustrationRepository extends ResourceRepository
             $params = [
                 'id' => $node->getUuid(),
                 'tool' => $node->getResourceType()->getTool(),
-                'type' => $node->getResourceType()->getName(),
+                'type' => $node->getResourceType()->getTitle(),
             ];
 
             if (!empty($filter)) {

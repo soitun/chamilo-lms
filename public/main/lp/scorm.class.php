@@ -267,17 +267,15 @@ class scorm extends learnpath
                 $row = Database::fetch_array($res_max);
                 $dsp = $row[0] + 1;
             }*/
-            $dsp = 1;
 
             $name = $oOrganization->get_name();
             $lp = (new CLp())
                 ->setLpType(CLp::SCORM_TYPE)
-                ->setName($name)
+                ->setTitle($name)
                 ->setRef($oOrganization->get_ref())
                 ->setPath($this->subdir)
                 ->setDefaultEncoding($this->manifest_encoding)
                 ->setJsLib('scorm_api.php')
-                ->setDisplayOrder($dsp)
                 ->setUseMaxScore($userMaxScore)
                 ->setAsset($this->asset)
                 ->setParent($course)

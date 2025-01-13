@@ -9,7 +9,7 @@ namespace Chamilo\CoreBundle\Controller;
 use Chamilo\CoreBundle\Traits\ControllerTrait;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 class BadgeController extends AbstractController
 {
@@ -19,7 +19,7 @@ class BadgeController extends AbstractController
     public function issued(int $id): Response
     {
         return $this->redirect(
-            '/main/badge/issued.php?'.http_build_query(['issue' => $id])
+            '/main/skills/issued.php?'.http_build_query(['issue' => $id])
         );
     }
 
@@ -28,7 +28,7 @@ class BadgeController extends AbstractController
     public function issuedAll(int $skillId, int $userId): Response
     {
         return $this->redirect(
-            '/main/badge/issued_all.php?'.http_build_query(['skill' => $skillId, 'user' => $userId])
+            '/main/skills/issued_all.php?'.http_build_query(['skill' => $skillId, 'user' => $userId])
         );
     }
 }

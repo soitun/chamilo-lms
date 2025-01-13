@@ -15,6 +15,8 @@ use OAuthSignatureMethod_HMAC_SHA1;
 use URLify;
 use UserManager;
 
+use const PHP_URL_QUERY;
+
 class Utils
 {
     private SettingsManager $settingsManager;
@@ -54,16 +56,16 @@ class Utils
      */
     public static function generateUserRoles(User $user)
     {
-        if ($user->hasRole('ROLE_RRHH')) {
+        if ($user->hasRole('ROLE_HR')) {
             return 'urn:lti:role:ims/lis/Mentor';
         }
 
-        //if ($user->hasRole('ROLE_INVITEE')) {
+        // if ($user->hasRole('ROLE_INVITEE')) {
         //    return 'Learner,urn:lti:role:ims/lis/Learner/GuestLearner';
-        //}
+        // }
 
-        if ($user->hasRole('ROLE_CURRENT_COURSE_STUDENT') ||
-            $user->hasRole('ROLE_CURRENT_COURSE_SESSION_STUDENT')
+        if ($user->hasRole('ROLE_CURRENT_COURSE_STUDENT')
+            || $user->hasRole('ROLE_CURRENT_COURSE_SESSION_STUDENT')
         ) {
             return 'Learner';
         }

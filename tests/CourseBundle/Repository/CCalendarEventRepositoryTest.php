@@ -109,7 +109,7 @@ class CCalendarEventRepositoryTest extends AbstractApiTest
                     'content' => '<p>test event</p>',
                     'startDate' => $start->format('Y-m-d H:i:s'),
                     'endDate' => $end->format('Y-m-d H:i:s'),
-                    'parentResourceNodeId' => $resourceNodeId,
+                    'parentResourceNode' => $resourceNodeId,
                 ],
             ]
         );
@@ -141,8 +141,8 @@ class CCalendarEventRepositoryTest extends AbstractApiTest
         // 3. Get events filter by date, search for a very old date. Result: no events.
         $response = $this->createClientWithCredentials($token)->request('GET', '/api/c_calendar_events', [
             'query' => [
-                'startDate' => '2009-02-14T18:00:00+02:00',
-                'endDate' => '2009-02-14T19:00:00+02:00',
+                'startDate[after]' => '2009-02-14T18:00:00+02:00',
+                'endDate[before]' => '2009-02-14T19:00:00+02:00',
             ],
         ]);
         $this->assertCount(0, $response->toArray()['hydra:member']);
@@ -150,8 +150,8 @@ class CCalendarEventRepositoryTest extends AbstractApiTest
         // 4. Get events for valid date.
         $response = $this->createClientWithCredentials($token)->request('GET', '/api/c_calendar_events', [
             'query' => [
-                'startDate' => '2040-06-01T09:00:00+02:00',
-                'endDate' => '2040-06-30T23:00:00+02:00',
+                'startDate[after]' => '2040-06-01T09:00:00+02:00',
+                'endDate[before]' => '2040-06-30T23:00:00+02:00',
             ],
         ]);
         $this->assertCount(1, $response->toArray()['hydra:member']);
@@ -191,7 +191,7 @@ class CCalendarEventRepositoryTest extends AbstractApiTest
                     'content' => '<p>test event</p>',
                     'startDate' => $start->format('Y-m-d H:i:s'),
                     'endDate' => $end->format('Y-m-d H:i:s'),
-                    'parentResourceNodeId' => $resourceNodeId,
+                    'parentResourceNode' => $resourceNodeId,
                 ],
             ]
         );
@@ -238,7 +238,7 @@ class CCalendarEventRepositoryTest extends AbstractApiTest
                     'content' => '<p>test event</p>',
                     'startDate' => $start->format('Y-m-d H:i:s'),
                     'endDate' => $end->format('Y-m-d H:i:s'),
-                    'parentResourceNodeId' => $resourceNodeId,
+                    'parentResourceNode' => $resourceNodeId,
                 ],
             ]
         );
@@ -273,6 +273,7 @@ class CCalendarEventRepositoryTest extends AbstractApiTest
 
         // Now change to collective.
         $calendarRepo = self::getContainer()->get(CCalendarEventRepository::class);
+
         /** @var CCalendarEvent $event */
         $event = $calendarRepo->find($eventId);
         $event->setCollective(true);
@@ -359,8 +360,8 @@ class CCalendarEventRepositoryTest extends AbstractApiTest
                     'content' => '<p>test event</p>',
                     'startDate' => $start->format('Y-m-d H:i:s'),
                     'endDate' => $end->format('Y-m-d H:i:s'),
-                    'parentResourceNodeId' => $resourceNodeId,
-                    'resourceLinkListFromEntity' => $resourceLinkList,
+                    'parentResourceNode' => $resourceNodeId,
+                    'resourceLinkList' => $resourceLinkList,
                 ],
             ]
         );
@@ -409,7 +410,7 @@ class CCalendarEventRepositoryTest extends AbstractApiTest
         $event = $calendarRepo->createFromAnnouncement(
             $announcement,
             new Datetime('now'),
-            new DateTime('now +30 days'),
+            new Datetime('now +30 days'),
             ['everyone'],
             $course,
         );
@@ -429,7 +430,7 @@ class CCalendarEventRepositoryTest extends AbstractApiTest
         $event = $calendarRepo->createFromAnnouncement(
             $announcement2,
             new Datetime('now'),
-            new DateTime('now +30 days'),
+            new Datetime('now +30 days'),
             ['USER:'.$student->getId(), 'GROUP:'.$group->getIid()],
             $course,
         );

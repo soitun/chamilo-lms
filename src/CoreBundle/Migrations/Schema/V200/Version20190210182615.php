@@ -18,8 +18,6 @@ class Version20190210182615 extends AbstractMigrationChamilo
 
     public function up(Schema $schema): void
     {
-        $connection = $this->getEntityManager()->getConnection();
-
         $table = $schema->getTable('session');
         if (false === $table->hasColumn('position')) {
             $this->addSql('ALTER TABLE session ADD COLUMN position INT DEFAULT 0 NOT NULL');
@@ -27,9 +25,9 @@ class Version20190210182615 extends AbstractMigrationChamilo
             $this->addSql('ALTER TABLE session CHANGE position position INT DEFAULT 0 NOT NULL');
         }
 
-        $this->addSql('UPDATE session SET promotion_id = NULL WHERE promotion_id = 0');
+        $this->addSql('UPDATE session SET promotion_id = NULL WHERE promotion_id = 0 OR promotion_id NOT IN (SELECT id FROM promotion)');
         if (!$table->hasForeignKey('FK_D044D5D4139DF194')) {
-            $this->addSql('ALTER TABLE session ADD CONSTRAINT FK_D044D5D4139DF194 FOREIGN KEY (promotion_id) REFERENCES promotion (id) ON DELETE CASCADE');
+            $this->addSql('ALTER TABLE session ADD CONSTRAINT FK_D044D5D4139DF194 FOREIGN KEY (promotion_id) REFERENCES promotion (id) ON DELETE SET NULL');
             $this->addSql('CREATE INDEX IDX_D044D5D4139DF194 ON session (promotion_id);');
         }
 
@@ -40,6 +38,7 @@ class Version20190210182615 extends AbstractMigrationChamilo
         }
 
         if (!$table->hasForeignKey('FK_D044D5D4EF87E278')) {
+            $this->addSql('UPDATE session SET session_admin_id = NULL WHERE session_admin_id NOT IN (SELECT id FROM user)');
             $this->addSql('ALTER TABLE session ADD CONSTRAINT FK_D044D5D4EF87E278 FOREIGN KEY(session_admin_id) REFERENCES user(id);');
         }
 
@@ -60,11 +59,11 @@ class Version20190210182615 extends AbstractMigrationChamilo
         }
 
         // Remove duplicates.
-        $sql = 'SELECT max(id) id, session_id, c_id, user_id, status, count(*) as count 
-                FROM session_rel_course_rel_user 
+        $sql = 'SELECT max(id) id, session_id, c_id, user_id, status, count(*) as count
+                FROM session_rel_course_rel_user
                 GROUP BY session_id, c_id, user_id, status
                 HAVING count > 1';
-        $result = $connection->executeQuery($sql);
+        $result = $this->connection->executeQuery($sql);
         $items = $result->fetchAllAssociative();
 
         foreach ($items as $item) {
@@ -73,10 +72,10 @@ class Version20190210182615 extends AbstractMigrationChamilo
             $courseId = $item['c_id'];
             $status = $item['status'];
 
-            $sql = "SELECT id 
+            $sql = "SELECT id
                     FROM session_rel_course_rel_user
                     WHERE user_id = $userId AND session_id = $sessionId AND c_id = $courseId AND status = $status";
-            $result = $connection->executeQuery($sql);
+            $result = $this->connection->executeQuery($sql);
             $subItems = $result->fetchAllAssociative();
             $counter = 0;
             foreach ($subItems as $subItem) {
@@ -87,7 +86,7 @@ class Version20190210182615 extends AbstractMigrationChamilo
                     continue;
                 }
                 $sql = "DELETE FROM session_rel_course_rel_user WHERE id = $id";
-                $connection->executeQuery($sql);
+                $this->connection->executeQuery($sql);
                 $counter++;
             }
         }
@@ -107,7 +106,7 @@ class Version20190210182615 extends AbstractMigrationChamilo
         }
 
         // Move id_coach to session_rel_user
-        $result = $connection->executeQuery('SELECT id, session_admin_id, id_coach FROM session');
+        $result = $this->connection->executeQuery('SELECT id, session_admin_id, id_coach FROM session');
         $items = $result->fetchAllAssociative();
 
         foreach ($items as $item) {
@@ -116,26 +115,38 @@ class Version20190210182615 extends AbstractMigrationChamilo
             $sessionId = (int) $item['id'];
 
             if (!empty($coachId)) {
-                $sql = "SELECT * FROM session_rel_user 
-                        WHERE user_id = $coachId AND session_id = $sessionId AND relation_type = 3 ";
-                $result = $connection->executeQuery($sql);
-                $exists = $result->fetchAllAssociative();
-                if (empty($exists)) {
-                    $sql = "INSERT INTO session_rel_user (relation_type, duration, registered_at, user_id, session_id) 
-                            VALUES (3, 0, NOW(), $coachId, $sessionId)";
-                    $connection->executeQuery($sql);
+                $sqlUser = "SELECT * FROM user
+                            WHERE id = $coachId";
+                $resultUser = $this->connection->executeQuery($sqlUser);
+                $existsUser = $resultUser->fetchAllAssociative();
+                if (!empty($existsUser)) {
+                    $sql = "SELECT * FROM session_rel_user
+                            WHERE user_id = $coachId AND session_id = $sessionId AND relation_type = 3 ";
+                    $result = $this->connection->executeQuery($sql);
+                    $exists = $result->fetchAllAssociative();
+                    if (empty($exists)) {
+                        $sql = "INSERT INTO session_rel_user (relation_type, duration, registered_at, user_id, session_id)
+                                VALUES (3, 0, NOW(), $coachId, $sessionId)";
+                        $this->connection->executeQuery($sql);
+                    }
                 }
             }
 
             if (!empty($adminId)) {
-                $sql = "SELECT * FROM session_rel_user 
-                        WHERE user_id = $adminId AND session_id = $sessionId AND relation_type = 4 ";
-                $result = $connection->executeQuery($sql);
-                $exists = $result->fetchAllAssociative();
-                if (empty($exists)) {
-                    $sql = "INSERT INTO session_rel_user (relation_type, duration, registered_at, user_id, session_id) 
-                            VALUES (4, 0, NOW(), $adminId, $sessionId)";
-                    $connection->executeQuery($sql);
+                $sqlUser = "SELECT * FROM user
+                            WHERE id = $adminId";
+                $resultUser = $this->connection->executeQuery($sqlUser);
+                $existsUser = $resultUser->fetchAllAssociative();
+                if (!empty($existsUser)) {
+                    $sql = "SELECT * FROM session_rel_user
+                            WHERE user_id = $adminId AND session_id = $sessionId AND relation_type = 4 ";
+                    $result = $this->connection->executeQuery($sql);
+                    $exists = $result->fetchAllAssociative();
+                    if (empty($exists)) {
+                        $sql = "INSERT INTO session_rel_user (relation_type, duration, registered_at, user_id, session_id)
+                                VALUES (4, 0, NOW(), $adminId, $sessionId)";
+                        $this->connection->executeQuery($sql);
+                    }
                 }
             }
         }
@@ -143,7 +154,7 @@ class Version20190210182615 extends AbstractMigrationChamilo
         $sql = 'SELECT user_id, session_id, status
                 FROM session_rel_course_rel_user scu
                 WHERE user_id NOT IN (SELECT user_id FROM session_rel_user WHERE session_id = scu.session_id)';
-        $result = $connection->executeQuery($sql);
+        $result = $this->connection->executeQuery($sql);
         $items = $result->fetchAllAssociative();
 
         foreach ($items as $item) {
@@ -151,14 +162,14 @@ class Version20190210182615 extends AbstractMigrationChamilo
             $sessionId = (int) $item['session_id'];
             $status = (int) $item['status'];
             if (!empty($userId)) {
-                $sql = "SELECT * FROM session_rel_user 
+                $sql = "SELECT * FROM session_rel_user
                         WHERE user_id = $userId AND session_id = $sessionId AND relation_type = $status";
-                $result = $connection->executeQuery($sql);
+                $result = $this->connection->executeQuery($sql);
                 $exists = $result->fetchAllAssociative();
                 if (empty($exists)) {
-                    $sql = "INSERT INTO session_rel_user (relation_type, duration, registered_at, user_id, session_id) 
+                    $sql = "INSERT INTO session_rel_user (relation_type, duration, registered_at, user_id, session_id)
                             VALUES ($status, 0, NOW(), $userId, $sessionId)";
-                    $connection->executeQuery($sql);
+                    $this->connection->executeQuery($sql);
                 }
             }
         }
@@ -168,7 +179,7 @@ class Version20190210182615 extends AbstractMigrationChamilo
             $this->addSql('ALTER TABLE session DROP FOREIGN KEY FK_D044D5D4D1DC2CFC');
         }
 
-        //$this->addSql('ALTER TABLE session DROP COLUMN id_coach');
+        // $this->addSql('ALTER TABLE session DROP COLUMN id_coach');
         if ($table->hasForeignKey('FK_D044D5D4EF87E278')) {
             $this->addSql('ALTER TABLE session DROP FOREIGN KEY FK_D044D5D4EF87E278');
         }
@@ -180,10 +191,8 @@ class Version20190210182615 extends AbstractMigrationChamilo
         if ($table->hasForeignKey('idx_id_session_admin_id')) {
             $this->addSql('DROP INDEX idx_id_session_admin_id ON session');
         }
-        //$this->addSql('ALTER TABLE session DROP COLUMN session_admin_id');
+        // $this->addSql('ALTER TABLE session DROP COLUMN session_admin_id');
     }
 
-    public function down(Schema $schema): void
-    {
-    }
+    public function down(Schema $schema): void {}
 }

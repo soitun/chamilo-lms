@@ -24,9 +24,8 @@ switch ($action) {
         $data = [];
         $onlyActiveExercises = !(api_is_platform_admin(true) || api_is_course_admin());
         $results = ExerciseLib::get_all_exercises_for_course_id(
-            null,
-            $session_id,
             $course_id,
+            $session_id,
             $onlyActiveExercises
         );
 
@@ -237,12 +236,13 @@ switch ($action) {
                     GROUP BY exe_user_id
                 ) as aa
                 ON aa.exe_user_id = u.id
+                WHERE u.active <> ".USER_SOFT_DELETED."
                 ORDER BY `$sidx` $sord
                 LIMIT $start, $limit";
 
         $result = Database::query($sql);
         $results = [];
-        while ($row = Database::fetch_array($result, 'ASSOC')) {
+        while ($row = Database::fetch_assoc($result)) {
             $results[] = $row;
         }
 
@@ -347,9 +347,8 @@ switch ($action) {
                     $TBL_QUESTIONS,
                     ['question_order' => $counter],
                     [
-                        'question_id = ? AND c_id = ? AND quiz_id = ? ' => [
+                        'question_id = ? AND quiz_id = ? ' => [
                             (int) $new_order_id,
-                            $course_id,
                             $exercise_id,
                         ],
                     ]
@@ -515,18 +514,6 @@ switch ($action) {
             exit;
         }
 
-        if (WhispeakAuthPlugin::questionRequireAuthentify($question_id)) {
-            if (ONE_PER_PAGE == $objExercise->type) {
-                echo json_encode(['type' => 'one_per_page']);
-                break;
-            }
-
-            echo json_encode(['ok' => true]);
-            break;
-        } else {
-            ChamiloSession::erase(WhispeakAuthPlugin::SESSION_QUIZ_QUESTION);
-        }
-
         // Getting information of the current exercise.
         $exercise_stat_info = $objExercise->get_stat_track_exercise_info_by_exe_id($exeId);
         $exercise_id = $exercise_stat_info['exe_exo_id'];
@@ -689,7 +676,7 @@ switch ($action) {
             }
 
             $questionDuration = 0;
-            if (api_get_configuration_value('allow_time_per_question')) {
+            if ('true' === api_get_setting('exercise.allow_time_per_question')) {
                 $extraFieldValue = new ExtraFieldValue('question');
                 $value = $extraFieldValue->get_values_by_handler_and_field_variable($objQuestionTmp->iid, 'time');
                 if (!empty($value) && isset($value['value']) && !empty($value['value'])) {
@@ -827,7 +814,7 @@ switch ($action) {
                 $remind_list
             );
 
-            if (api_get_configuration_value('allow_time_per_question')) {
+            if ('true' === api_get_setting('exercise.allow_time_per_question')) {
                 $questionStart = Session::read('question_start', []);
                 if (!empty($questionStart)) {
                     if (isset($questionStart[$my_question_id])) {
@@ -919,7 +906,7 @@ switch ($action) {
         $objExercise->read($exerciseId);
         $objQuestion = Question::read($questionId);
         $id = '';
-        if (api_get_configuration_value('show_question_id')) {
+        if ('true' === api_get_setting('exercise.show_question_id')) {
             $id = '<h4>#'.$objQuestion->course['code'].'-'.$objQuestion->iid.'</h4>';
         }
         echo $id;
@@ -952,9 +939,8 @@ switch ($action) {
         break;
     case 'get_quiz_embeddable':
         $exercises = ExerciseLib::get_all_exercises_for_course_id(
-            api_get_course_info(),
-            api_get_session_id(),
             api_get_course_int_id(),
+            api_get_session_id(),
             false
         );
 
@@ -982,7 +968,7 @@ switch ($action) {
         echo json_encode($result);
         break;
     case 'browser_test':
-        $quizCheckButtonEnabled = api_get_configuration_value('quiz_check_button_enable');
+        $quizCheckButtonEnabled = ('true' === api_get_setting('exercise.quiz_check_button_enable'));
 
         if ($quizCheckButtonEnabled) {
             if (isset($_POST['sleep'])) {
@@ -994,7 +980,7 @@ switch ($action) {
 
         break;
     case 'quiz_confirm_saved_answers':
-        if (false === api_get_configuration_value('quiz_confirm_saved_answers')) {
+        if ('true' !== api_get_setting('exercise.quiz_confirm_saved_answers')) {
             break;
         }
 
@@ -1064,6 +1050,17 @@ switch ($action) {
             }
         }
         echo 0;
+        break;
+    case 'audio-recording-help':
+        $content = get_lang('While recording, you can pause whenever you want. If you are not satisfied, register again. This will overwrite the previous version. Satisfied ? To send the recording to your teacher, click on “Stop recording” then select “End exercise”. The teacher will be able to listen to your recording and give you feedback! All your transmitted recordings can be viewed on the exercise home page.');
+
+        $html = '
+        <div class="audio-recorder-info">
+        <i class="mdi mdi-microphone" style="font-size: 24px;"></i>
+        <p>' . htmlspecialchars($content) . '</p>
+        </div>';
+
+        echo $html;
         break;
     default:
         echo '';

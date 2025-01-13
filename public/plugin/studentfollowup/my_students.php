@@ -165,7 +165,7 @@ $form->addText(
 );
 
 if (!empty($fullSessionList)) {
-    $options = array_column($fullSessionList, 'name', 'id');
+    $options = array_column($fullSessionList, 'title', 'id');
     $options[0] = get_lang('Please select an option');
     ksort($options);
     $form->addSelect('session_id', get_lang('Session'), $options);
@@ -195,7 +195,7 @@ $tpl->assign('users', $items);
 $tpl->assign('form', $form->returnForm());
 $url = api_get_path(WEB_PLUGIN_PATH).'studentfollowup/posts.php?';
 $tpl->assign('post_url', $url);
-$url = api_get_path(WEB_CODE_PATH).'mySpace/myStudents.php?';
+$url = api_get_path(WEB_CODE_PATH).'my_space/myStudents.php?';
 $tpl->assign('my_students_url', $url);
 $tpl->assign('pagination', $pagination);
 $tpl->assign('care_title', $plugin->get_lang('Student care detail view'));

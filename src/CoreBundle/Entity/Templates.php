@@ -6,57 +6,44 @@ declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\Entity;
 
+use Chamilo\CoreBundle\Repository\TemplatesRepository;
 use Chamilo\CoreBundle\Traits\UserTrait;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Templates.
- *
- * @ORM\Table(name="templates")
- * @ORM\Entity(repositoryClass="Chamilo\CoreBundle\Repository\TemplatesRepository")
  */
+#[ORM\Table(name: 'templates')]
+#[ORM\Entity(repositoryClass: TemplatesRepository::class)]
 class Templates
 {
     use UserTrait;
 
-    /**
-     * @ORM\Column(name="id", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue(strategy="IDENTITY")
-     */
-    protected int $id;
+    #[ORM\Column(name: 'id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue(strategy: 'IDENTITY')]
+    protected ?int $id = null;
 
-    /**
-     * @ORM\Column(name="title", type="string", length=100, nullable=false)
-     */
+    #[ORM\Column(name: 'title', type: 'string', length: 100, nullable: false)]
     protected string $title;
 
-    /**
-     * @ORM\Column(name="description", type="string", length=250, nullable=false)
-     */
+    #[ORM\Column(name: 'description', type: 'string', length: 250, nullable: false)]
     protected string $description;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\Course", inversedBy="templates", cascade={"persist"})
-     * @ORM\JoinColumn(name="c_id", referencedColumnName="id")
-     */
+    #[ORM\ManyToOne(targetEntity: Course::class, inversedBy: 'templates', cascade: ['persist'])]
+    #[ORM\JoinColumn(name: 'c_id', referencedColumnName: 'id')]
     protected Course $course;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\User", inversedBy="templates")
-     * @ORM\JoinColumn(name="user_id", referencedColumnName="id", onDelete="CASCADE")
-     */
+    #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'templates')]
+    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
     protected User $user;
 
-    /**
-     * @ORM\Column(name="ref_doc", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'ref_doc', type: 'integer', nullable: false)]
     protected int $refDoc;
 
-    /**
-     * @ORM\Column(name="image", type="string", length=250, nullable=false)
-     */
-    protected string $image;
+    #[ORM\ManyToOne(targetEntity: Asset::class, cascade: ['persist'])]
+    #[ORM\JoinColumn(name: 'image_id', referencedColumnName: 'id', onDelete: 'SET NULL')]
+    protected ?Asset $image = null;
 
     /**
      * Set title.
@@ -124,26 +111,21 @@ class Templates
         return $this->refDoc;
     }
 
-    /**
-     * Set image.
-     *
-     * @return Templates
-     */
-    public function setImage(string $image)
+    public function getImage(): ?Asset
+    {
+        return $this->image;
+    }
+
+    public function setImage(?Asset $image): self
     {
         $this->image = $image;
 
         return $this;
     }
 
-    /**
-     * Get image.
-     *
-     * @return string
-     */
-    public function getImage()
+    public function hasImage(): bool
     {
-        return $this->image;
+        return null !== $this->image;
     }
 
     /**

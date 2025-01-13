@@ -25,7 +25,11 @@ class Version20170625144000 extends AbstractMigrationChamilo
         $this->addSql('UPDATE c_student_publication SET user_id = NULL WHERE user_id = 0');
         $this->addSql('ALTER TABLE c_student_publication CHANGE user_id user_id INT DEFAULT NULL');
         $this->addSql('ALTER TABLE c_student_publication CHANGE parent_id parent_id INT DEFAULT NULL');
-        $this->addSql('UPDATE c_student_publication SET parent_id = NULL WHERE parent_id = 0 OR parent_id = "" ');
+        $this->addSql('UPDATE c_student_publication SET parent_id = NULL WHERE parent_id = 0');
+        $this->addSql('
+            ALTER TABLE c_student_publication
+            ADD IF NOT EXISTS group_category_work_id INT DEFAULT 0
+        ');
 
         if ($table->hasIndex('course')) {
             $this->addSql('DROP INDEX course ON c_student_publication');
@@ -70,7 +74,7 @@ class Version20170625144000 extends AbstractMigrationChamilo
         $this->addSql('ALTER TABLE c_student_publication CHANGE active active INT DEFAULT NULL');
 
         if (false === $table->hasColumn('resource_node_id')) {
-            $this->addSql('ALTER TABLE c_student_publication ADD resource_node_id BIGINT DEFAULT NULL');
+            $this->addSql('ALTER TABLE c_student_publication ADD resource_node_id INT DEFAULT NULL');
             $this->addSql(
                 'ALTER TABLE c_student_publication ADD CONSTRAINT FK_5246F7461BAD783F FOREIGN KEY (resource_node_id) REFERENCES resource_node (id) ON DELETE CASCADE'
             );
@@ -85,7 +89,7 @@ class Version20170625144000 extends AbstractMigrationChamilo
 
         /*
         if (false === $table->hasColumn('resource_node_id')) {
-            $this->addSql('ALTER TABLE c_student_publication_assignment ADD resource_node_id BIGINT DEFAULT NULL');
+            $this->addSql('ALTER TABLE c_student_publication_assignment ADD resource_node_id INT DEFAULT NULL');
             $this->addSql(
                 'ALTER TABLE c_student_publication_assignment ADD CONSTRAINT FK_25687EB81BAD783F FOREIGN KEY (resource_node_id) REFERENCES resource_node (id) ON DELETE CASCADE'
             );
@@ -95,10 +99,11 @@ class Version20170625144000 extends AbstractMigrationChamilo
         }
         */
 
-        $this->addSql('UPDATE c_student_publication_assignment SET publication_id = NULL WHERE publication_id = 0');
         $this->addSql(
             'ALTER TABLE c_student_publication_assignment CHANGE publication_id publication_id INT DEFAULT NULL'
         );
+        $this->addSql('UPDATE c_student_publication_assignment SET publication_id = NULL WHERE publication_id = 0');
+        $this->addSql('UPDATE c_student_publication_assignment SET publication_id = NULL WHERE publication_id NOT IN (SELECT iid FROM c_student_publication)');
 
         if (false === $table->hasForeignKey('FK_25687EB838B217A7')) {
             $this->addSql(
@@ -114,7 +119,7 @@ class Version20170625144000 extends AbstractMigrationChamilo
 
         if (false === $schema->hasTable('c_student_publication_correction')) {
             $this->addSql(
-                'CREATE TABLE c_student_publication_correction (id INT AUTO_INCREMENT NOT NULL, resource_node_id BIGINT DEFAULT NULL, title VARCHAR(255) NOT NULL, UNIQUE INDEX UNIQ_B7309BBA1BAD783F (resource_node_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB ROW_FORMAT = DYNAMIC'
+                'CREATE TABLE c_student_publication_correction (id INT AUTO_INCREMENT NOT NULL, resource_node_id INT DEFAULT NULL, title VARCHAR(255) NOT NULL, UNIQUE INDEX UNIQ_B7309BBA1BAD783F (resource_node_id), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB ROW_FORMAT = DYNAMIC'
             );
             $this->addSql(
                 'ALTER TABLE c_student_publication_correction ADD CONSTRAINT FK_B7309BBA1BAD783F FOREIGN KEY (resource_node_id) REFERENCES resource_node (id) ON DELETE CASCADE;'
@@ -123,7 +128,7 @@ class Version20170625144000 extends AbstractMigrationChamilo
 
         $table = $schema->getTable('c_student_publication_comment');
         if (false === $table->hasColumn('resource_node_id')) {
-            $this->addSql('ALTER TABLE c_student_publication_comment ADD resource_node_id BIGINT DEFAULT NULL');
+            $this->addSql('ALTER TABLE c_student_publication_comment ADD resource_node_id INT DEFAULT NULL');
             $this->addSql(
                 'ALTER TABLE c_student_publication_comment ADD CONSTRAINT FK_35C509F61BAD783F FOREIGN KEY (resource_node_id) REFERENCES resource_node (id) ON DELETE CASCADE'
             );
@@ -137,12 +142,12 @@ class Version20170625144000 extends AbstractMigrationChamilo
         }
 
         $this->addSql('UPDATE c_student_publication_comment SET work_id = NULL WHERE work_id = 0');
+        $this->addSql('UPDATE c_student_publication_comment SET work_id = NULL WHERE work_id NOT IN (SELECT iid FROM c_student_publication)');
         $this->addSql('UPDATE c_student_publication_comment SET user_id = NULL WHERE user_id = 0');
+        $this->addSql('UPDATE c_student_publication_comment SET user_id = NULL WHERE user_id NOT IN (SELECT id FROM user)');
 
         $this->addSql('ALTER TABLE c_student_publication_comment CHANGE work_id work_id INT DEFAULT NULL');
         $this->addSql('ALTER TABLE c_student_publication_comment CHANGE user_id user_id INT DEFAULT NULL');
-
-        $this->addSql('DELETE FROM c_student_publication_comment WHERE work_id NOT IN (SELECT iid FROM c_student_publication)');
 
         if ($table->hasIndex('work')) {
             $this->addSql('DROP INDEX work ON c_student_publication_comment');
@@ -184,6 +189,11 @@ class Version20170625144000 extends AbstractMigrationChamilo
             $this->addSql('DROP INDEX document ON c_student_publication_rel_document;');
         }
 
+        $this->addSql('UPDATE c_student_publication_rel_document SET work_id = NULL WHERE work_id = 0');
+        $this->addSql('UPDATE c_student_publication_rel_document SET work_id = NULL WHERE work_id NOT IN (SELECT iid FROM c_student_publication)');
+        $this->addSql('UPDATE c_student_publication_rel_document SET document_id = NULL WHERE document_id = 0');
+        $this->addSql('UPDATE c_student_publication_rel_document SET document_id = NULL WHERE document_id NOT IN (SELECT iid FROM c_document)');
+
         $this->addSql('ALTER TABLE c_student_publication_rel_document CHANGE work_id work_id INT DEFAULT NULL');
         $this->addSql('ALTER TABLE c_student_publication_rel_document CHANGE document_id document_id INT DEFAULT NULL');
 
@@ -218,6 +228,11 @@ class Version20170625144000 extends AbstractMigrationChamilo
             $this->addSql('DROP INDEX user ON c_student_publication_rel_user');
         }
 
+        $this->addSql('UPDATE c_student_publication_rel_user SET work_id = NULL WHERE work_id = 0');
+        $this->addSql('UPDATE c_student_publication_rel_user SET work_id = NULL WHERE work_id NOT IN (SELECT iid FROM c_student_publication)');
+        $this->addSql('UPDATE c_student_publication_rel_user SET user_id = NULL WHERE user_id = 0');
+        $this->addSql('UPDATE c_student_publication_rel_user SET user_id = NULL WHERE user_id NOT IN (SELECT id FROM user)');
+
         $this->addSql('ALTER TABLE c_student_publication_rel_user CHANGE work_id work_id INT DEFAULT NULL');
         $this->addSql('ALTER TABLE c_student_publication_rel_user CHANGE user_id user_id INT DEFAULT NULL');
 
@@ -239,7 +254,5 @@ class Version20170625144000 extends AbstractMigrationChamilo
         }
     }
 
-    public function down(Schema $schema): void
-    {
-    }
+    public function down(Schema $schema): void {}
 }

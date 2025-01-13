@@ -49,6 +49,8 @@ $nameTools = get_lang('Links');
 $course_id = api_get_course_int_id();
 $session_id = api_get_session_id();
 $courseInfo = api_get_course_info();
+$course = api_get_course_entity();
+$session = api_get_session_entity();
 
 if ('addlink' === $action) {
     $nameTools = '';
@@ -72,7 +74,7 @@ Event::event_access_tool(TOOL_LINK);
 /*	Action Handling */
 $id = isset($_REQUEST['id']) ? $_REQUEST['id'] : null;
 $scope = isset($_REQUEST['scope']) ? $_REQUEST['scope'] : null;
-$show = isset($_REQUEST['show']) && in_array(trim($_REQUEST['show']), ['all', 'none']) ? $_REQUEST['show'] : '';
+$show = isset($_REQUEST['show']) && in_array(trim($_REQUEST['show']), ['all', 'none']) ? $_REQUEST['show'] : 'all';
 $categoryId = isset($_REQUEST['category_id']) ? (int) $_REQUEST['category_id'] : '';
 $linkListUrl = api_get_self().'?'.api_get_cidreq().'&category_id='.$categoryId.'&show='.$show;
 $content = '';
@@ -168,14 +170,14 @@ switch ($action) {
         break;
     case 'visible':
         // Here we edit a category
-        Link::setVisible($id, $scope);
+        Link::setVisible($id, $scope, $course, $session);
         header('Location: '.$linkListUrl);
         exit;
 
         break;
     case 'invisible':
         // Here we edit a category
-        Link::setInvisible($id, $scope);
+        Link::setInvisible($id, $scope, $course, $session);
         header('Location: '.$linkListUrl);
         exit;
 

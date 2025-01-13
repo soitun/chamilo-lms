@@ -1,7 +1,12 @@
 <?php
 /* For licensing terms, see /license.txt */
 
+use Chamilo\CoreBundle\Entity\ResourceLink;
+use Chamilo\CoreBundle\Entity\Tool;
 use Chamilo\CourseBundle\Entity\CTool;
+use Doctrine\ORM\Exception\NotSupported;
+use Doctrine\ORM\Exception\ORMException;
+use Doctrine\ORM\OptimisticLockException;
 
 /**
  * Class Plugin
@@ -506,7 +511,7 @@ class Plugin
      *
      * @return bool|null False on error, null otherwise
      */
-    public function install_course_fields($courseId, $add_tool_link = true, $iconName = '')
+    public function install_course_fields($courseId, $add_tool_link = true)
     {
         $plugin_name = $this->get_name();
         $t_course = Database::get_course_table(TABLE_COURSE_SETTING);
@@ -583,7 +588,7 @@ class Plugin
         }
 
         // Add an icon in the table tool list
-        $this->createLinkToCourseTool($plugin_name, $courseId, $iconName);
+        $this->createLinkToCourseTool($plugin_name, $courseId);
     }
 
     /**
@@ -625,9 +630,9 @@ class Plugin
         $sql = "DELETE FROM $t_tool
                 WHERE c_id = $courseId AND
                 (
-                  name = '$pluginName' OR
-                  name = '$pluginName:student' OR
-                  name = '$pluginName:teacher'
+                  title = '$pluginName' OR
+                  title = '$pluginName:student' OR
+                  title = '$pluginName:teacher'
                 )";
         Database::query($sql);
     }
@@ -637,14 +642,14 @@ class Plugin
      *
      * @param bool $add_tool_link Whether we want to add a plugin link on the course homepage
      */
-    public function install_course_fields_in_all_courses($add_tool_link = true, $iconName = '')
+    public function install_course_fields_in_all_courses($add_tool_link = true)
     {
         // Update existing courses to add plugin settings
         $table = Database::get_main_table(TABLE_MAIN_COURSE);
         $sql = "SELECT id FROM $table ORDER BY id";
         $res = Database::query($sql);
         while ($row = Database::fetch_assoc($res)) {
-            $this->install_course_fields($row['id'], $add_tool_link, $iconName);
+            $this->install_course_fields($row['id'], $add_tool_link);
         }
     }
 
@@ -709,7 +714,9 @@ class Plugin
      */
     public function addTab($tabName, $url, $userFilter = null)
     {
-        $sql = "SELECT * FROM settings_current
+        $table = Database::get_main_table(TABLE_MAIN_SETTINGS);
+        $sql = "SELECT *
+                FROM $table
                 WHERE
                     variable = 'show_tabs' AND
                     subkey LIKE 'custom_tab_%'";
@@ -786,7 +793,7 @@ class Plugin
      */
     public function deleteTab($key)
     {
-        $table = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+        $table = Database::get_main_table(TABLE_MAIN_SETTINGS);
         $sql = "SELECT *
                 FROM $table
                 WHERE variable = 'show_tabs'
@@ -863,7 +870,7 @@ class Plugin
                 echo "<script>location.href = '".Security::remove_XSS($_SERVER['REQUEST_URI'])."';</script>";
             }
         } else {
-            $settingsCurrentTable = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+            $settingsCurrentTable = Database::get_main_table(TABLE_MAIN_SETTINGS);
             $conditions = [
                 'where' => [
                     "variable = 'show_tabs' AND title = ? AND comment = ? " => [
@@ -1040,21 +1047,17 @@ class Plugin
     }
 
     /**
-     * Add an link for a course tool.
+     * Add a link for a course tool.
      *
-     * @param string $name     The tool name
-     * @param int    $courseId The course ID
-     * @param string $iconName Optional. Icon file name
-     * @param string $link     Optional. Link URL
+     * @param string      $name     The tool name
+     * @param int         $courseId The course ID
      *
-     * @return CTool|null
+     * @throws NotSupported
+     * @throws ORMException
+     * @throws OptimisticLockException
      */
-    protected function createLinkToCourseTool(
-        $name,
-        $courseId,
-        $iconName = null,
-        $link = null
-    ) {
+    protected function createLinkToCourseTool(string $name, int $courseId): ?CTool
+    {
         if (!$this->addCourseTool) {
             return null;
         }
@@ -1062,39 +1065,52 @@ class Plugin
         $visibilityPerStatus = $this->getToolIconVisibilityPerUserStatus();
         $visibility = $this->isIconVisibleByDefault();
 
+        $course = api_get_course_entity($courseId);
+        $user = api_get_user_entity();
+
         $em = Database::getManager();
 
-        /** @var CTool $tool */
-        $tool = $em
-            ->getRepository(CTool::class)
-            ->findOneBy([
-                'name' => $name,
-                'course' => $courseId,
-                'category' => 'plugin',
-            ]);
+        $toolRepo = $em->getRepository(Tool::class);
+        $cToolRepo = $em->getRepository(CTool::class);
 
-        if (!$tool) {
-            $cToolId = AddCourse::generateToolId($courseId);
-            $pluginName = $this->get_name();
+        /** @var CTool $cTool */
+        $cTool = $cToolRepo->findOneBy([
+            'title' => $name.$visibilityPerStatus,
+            'course' => $course,
+        ]);
 
-            $tool = new CTool();
-            $tool
-                ->setCourse(api_get_course_entity($courseId))
-                ->setName($name.$visibilityPerStatus)
-                ->setLink($link ?: "$pluginName/start.php")
-                ->setImage($iconName ?: "$pluginName.png")
+        if (!$cTool) {
+            $tool = $toolRepo->findOneBy(['title' => $name]);
+
+            if (!$tool) {
+                $tool = new Tool();
+                $tool->setTitle($name);
+
+                $em->persist($tool);
+                $em->flush();
+            }
+
+            $cTool = new CTool();
+            $cTool
+                ->setTool($tool)
+                ->setTitle($name.$visibilityPerStatus)
                 ->setVisibility($visibility)
-                ->setAdmin(0)
-                ->setAddress('squaregrey.gif')
-                ->setAddedTool(false)
-                ->setTarget('_self')
-                ->setCategory('plugin')
-                ->setSessionId(0);
+                ->setParent($course)
+                ->setCreator($user)
+                ->addCourseLink(
+                    $course,
+                    null,
+                    null,
+                    $visibility ? ResourceLink::VISIBILITY_PUBLISHED : ResourceLink::VISIBILITY_DRAFT
+                )
+            ;
 
-            $em->persist($tool);
+            $course->addTool($cTool);
+
+            $em->persist($cTool);
             $em->flush();
         }
 
-        return $tool;
+        return $cTool;
     }
 }

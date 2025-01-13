@@ -158,8 +158,8 @@ class SortableTable extends HTML_Table
         $this->defaultItemsPerPage = $default_items_per_page;
         $this->hideItemSelector = false;
 
-        $defaultRow = api_get_configuration_value('table_default_row');
-        if (!empty($defaultRow)) {
+        $defaultRow = (int) api_get_setting('platform.table_default_row');
+        if ($defaultRow > 0) {
             $this->defaultItemsPerPage = $default_items_per_page = $defaultRow;
         }
 
@@ -380,7 +380,7 @@ class SortableTable extends HTML_Table
             if ($this->get_pager()->numPages() > 1) {
                 $form = $this->get_page_select_form();
                 $nav = $this->get_navigation_html();
-                $html = '<div class="q-card">';
+                $html = '<div class="q-card sortable-buttons-actions">';
                 $html .= '<div class="flex flex-row justify-between pager-bar">';
                 $html .= '<div class="col">';
                 $html .= '<div class="pb-2 pt-2 pager-select">'.$form.'</div>';
@@ -407,7 +407,7 @@ class SortableTable extends HTML_Table
         }
 
         //$html .= '<div class="table-responsive">'.$content.'</div>';
-        $html .= '<div class="">';
+        $html .= '<div class="sortable-container">';
         $html .= $content.'</div>';
 
         if (!empty($this->additional_parameters)) {
@@ -417,21 +417,28 @@ class SortableTable extends HTML_Table
             }
         }
         $html .= '<input type="hidden" name="action">';
-        $html .= '<div class="q-card p-2 mb-4">';
-        $html .= '<div class="flex flex-row justify-between">';
+        $html .= '<div class="flex q-card p-2 mb-4 sortable-buttons-actions">';
+        $html .= '<div class="flex w-full items-center justify-between">';
+
+        if (count($this->actionButtons) > 0) {
+            $html .= '<div class="btn-toolbar flex space-x-2">';
+            $html .= '<div class="btn-group">';
+
+            foreach ($this->actionButtons as $action => $data) {
+                $label = $data['label'];
+                $icon = $data['icon'];
+                $html .= '<a class="btn btn-default" href="?'.$params.'&action_table='.$action.'">'.$icon.'&nbsp;'.$label.'</a>';
+            }
+            $html .= '</div>';
+            $html .= '</div>';
+        }
 
         if (count($this->form_actions) > 0) {
-            $html .= '<div class="flex flex-row justify-between" role="group">';
-            $html .= '<a
-                class="btn btn-primary"
-                href="?'.$params.'&amp;'.$this->param_prefix.'selectall=1"
-                onclick="javascript: setCheckbox(true, \''.$table_id.'\'); return false;">'.
-                get_lang('Select all').'</a>';
-            $html .= '<a
-                class="btn btn-primary"
-                href="?'.$params.'"
-                onclick="javascript: setCheckbox(false, \''.$table_id.'\'); return false;">'.
-                get_lang('Deselect all').'</a> ';
+            $html .= '<div class="flex space-x-2">';
+            $html .= '<a class="btn btn--action mr-2" href="?'.$params.'&amp;'.$this->param_prefix.'selectall=1" onclick="javascript: setCheckbox(true, \''.$table_id.'\'); return false;">'
+                .get_lang('Select all').'</a>';
+            $html .= '<a class="btn btn--action mr-2" href="?'.$params.'" onclick="javascript: setCheckbox(false, \''.$table_id.'\'); return false;">'
+                .get_lang('Deselect all').'</a>';
 
             $items = [];
             foreach ($this->form_actions as $action => $label) {
@@ -440,9 +447,10 @@ class SortableTable extends HTML_Table
                     'onclick' => "javascript:action_click(this, '$table_id');",
                     'title' => $label,
                     'data-action' => $action,
+                    'data-confirm' => addslashes(api_htmlentities(get_lang("Please confirm your choice"))),
                 ];
             }
-            $html .= Display::groupButtonWithDropDown(get_lang('Detail'), $items);
+            $html .= Display::groupButtonWithDropDown(get_lang('Action'), $items);
         } else {
             $html .= $form;
         }
@@ -451,13 +459,13 @@ class SortableTable extends HTML_Table
 
         // Pagination
         if ($this->get_total_number_of_items() > $this->default_items_per_page) {
-            $html .= '<div class="col-12 col-md-6">';
+            $html .= '<div class="flex justify-end mt-4 w-full">';
             $html .= '<div class="page-nav pb-2 pt-2">'.$nav.'</div>';
             $html .= '</div>';
         }
 
-        $html .= '</div>'; //btn-group
-        $html .= '</div>';
+        $html .= '</div>'; // btn-group
+        $html .= '</div>'; // sortable-buttons-actions
         if (count($this->form_actions) > 0) {
             $html .= '</form>';
         }
@@ -778,8 +786,8 @@ class SortableTable extends HTML_Table
             .'per_page" onchange="javascript: this.form.submit();">';
         $list = [10, 20, 50, 100, 500, 1000];
 
-        $rowList = api_get_configuration_value('table_row_list');
-        if (!empty($rowList) && isset($rowList['options'])) {
+        $rowList = api_get_setting('platform.table_row_list', true);
+        if (is_array($rowList) && isset($rowList['options'])) {
             $list = $rowList['options'];
         }
 
@@ -797,7 +805,7 @@ class SortableTable extends HTML_Table
 
         $result[] = '</select>';
         $result[] = '<noscript>';
-        $result[] = '<button class="btn btn-success" type="submit">'.get_lang('Save').'</button>';
+        $result[] = '<button class="btn btn--success" type="submit">'.get_lang('Save').'</button>';
         $result[] = '</noscript>';
         $result[] = '</form>';
 
@@ -1011,7 +1019,7 @@ class SortableTable extends HTML_Table
      *
      * @param array $parameters
      */
-    public function set_additional_parameters($parameters)
+    public function set_additional_parameters(array $parameters)
     {
         $this->additional_parameters = $parameters;
     }

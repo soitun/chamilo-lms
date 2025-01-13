@@ -3,6 +3,7 @@
 /* For licensing terms, see /license.txt */
 
 use Chamilo\CourseBundle\Entity\CSurvey;
+use Chamilo\CourseBundle\Entity\CSurveyQuestion;
 use ChamiloSession as Session;
 
 /**
@@ -19,7 +20,7 @@ class survey_question
      */
     public function addParentMenu($formData, FormValidator $form, $surveyData)
     {
-        $surveyId = $surveyData['survey_id'];
+        $surveyId = $surveyData['iid'];
         $questionId = isset($formData['question_id']) ? $formData['question_id'] : 0;
         $parentId = isset($formData['parent_id']) ? $formData['parent_id'] : 0;
         $optionId = isset($formData['parent_option_id']) ? $formData['parent_option_id'] : 0;
@@ -199,14 +200,12 @@ class survey_question
                 break;
         }
 
-        if (false === api_get_configuration_value('survey_question_dependency')) {
-            $allowParent = false;
-        }
-
-        $icon = Display::return_icon(
+        $icon = Display::getMdiIcon(
                 SurveyManager::icon_question($type),
-                $toolName,
-                ['align' => 'middle', 'height' => '22px']
+                'ch-tool-icon',
+                null,
+                ICON_SIZE_SMALL,
+                $toolName
             ).' ';
 
         $toolName = $icon.$actionHeader.$toolName;
@@ -237,8 +236,7 @@ class survey_question
             $config
         );
 
-        if (api_get_configuration_value('allow_required_survey_questions') &&
-            in_array($_GET['type'], ['yesno', 'multiplechoice'])) {
+        if (in_array($_GET['type'], ['yesno', 'multiplechoice'])) {
             $form->addCheckBox('is_required', get_lang('Mandatory?'), get_lang('Yes'));
         }
 
@@ -248,7 +246,7 @@ class survey_question
         // When survey type = 1??
         if (1 == $surveyData['survey_type']) {
             $table_survey_question_group = Database::get_course_table(TABLE_SURVEY_QUESTION_GROUP);
-            $sql = 'SELECT id,name FROM '.$table_survey_question_group.'
+            $sql = 'SELECT id, title FROM '.$table_survey_question_group.'
                     WHERE survey_id = '.$surveyId.'
                     ORDER BY name';
             $rs = Database::query($sql);
@@ -314,7 +312,7 @@ class survey_question
              */
             $surveyId = isset($_GET['survey_id']) ? (int) $_GET['survey_id'] : 0;
             $answersChecker = SurveyUtil::checkIfSurveyHasAnswers($surveyId);
-            $allowQuestionEdit = true == api_get_configuration_value('survey_allow_answered_question_edit');
+            $allowQuestionEdit = ('true' === api_get_setting('survey.survey_allow_answered_question_edit'));
             if ($allowQuestionEdit || !$answersChecker) {
                 $this->buttonList[] = $this->getForm()->addButtonUpdate(get_lang('Edit question'), 'save', true);
             } else {
@@ -368,6 +366,7 @@ class survey_question
         }
 
         if (isset($_POST['answers'])) {
+            $formData['question'] = $_POST['question'];
             $formData['answers'] = $_POST['answers'];
         }
 
@@ -419,7 +418,7 @@ class survey_question
                 if ($key > $deleted) {
                     // swap with previous (deleted) option slot
                     $newAnswers[$key - 1] = $formData['answers'][$key];
-                    $newAnswersId[$key - 1] = $formData['answersid'][$key];
+                    $newAnswersId[$key - 1] = $formData['answersid'][$key] ?? 0;
                     unset($formData['answers'][$key]);
                     unset($formData['answersid'][$key]);
                 } elseif ($key === $deleted) {
@@ -429,7 +428,9 @@ class survey_question
                 } else {
                     // keep as is
                     $newAnswers[$key] = $value;
-                    $newAnswersId[$key] = $formData['answersid'][$key];
+                    if (isset($formData['answersid'])) {
+                        $newAnswersId[$key] = $formData['answersid'][$key];
+                    }
                 }
             }
             unset($formData['answers']);
@@ -440,7 +441,7 @@ class survey_question
 
         // Adding an answer
         if (isset($_POST['buttons']) && isset($_POST['buttons']['add_answer'])) {
-            if (isset($_REQUEST['type']) && 'multiplechoiceother' === $_REQUEST['type']) {
+            if (isset($_REQUEST['type']) && 'multiplechoiceother' === $_REQUEST['type'] && $counter > 2) {
                 $counter--;
             }
             $counter++;
@@ -482,7 +483,7 @@ class survey_question
         $formData['answers'] = isset($formData['answers']) ? $formData['answers'] : [];
         Session::write('answer_list', $formData['answers']);
 
-        if (!isset($formData['is_required']) && api_get_configuration_value('survey_mark_question_as_required')) {
+        if (!isset($formData['is_required']) && ('true' === api_get_setting('survey.survey_mark_question_as_required'))) {
             $formData['is_required'] = true;
         }
 
@@ -495,10 +496,9 @@ class survey_question
         if (isset($_POST['buttons']) && isset($_POST['buttons']['save'])) {
             Session::erase('answer_count');
             Session::erase('answer_list');
-            $message = SurveyManager::saveQuestion($survey, $formData, true, $dataFromDatabase);
-
-            if ('QuestionAdded' === $message || 'QuestionUpdated' === $message) {
-                Display::addFlash(Display::return_message($message));
+            $result = SurveyManager::saveQuestion($survey, $formData, true, $dataFromDatabase);
+            if (false === $result['error']) {
+                Display::addFlash(Display::return_message($result['message']));
                 $url = api_get_path(WEB_CODE_PATH).'survey/survey.php?survey_id='.$survey->getIid().'&'.api_get_cidreq();
                 header('Location: '.$url);
                 exit;
@@ -572,9 +572,6 @@ class survey_question
      */
     public static function getParents($questionId, $list = [])
     {
-        if (true !== api_get_configuration_value('survey_question_dependency')) {
-            return $list;
-        }
         $courseId = api_get_course_int_id();
         $questionId = (int) $questionId;
 
@@ -582,7 +579,7 @@ class survey_question
         $sql = "SELECT parent_id FROM $table
                 WHERE c_id = $courseId AND question_id = $questionId ";
         $result = Database::query($sql);
-        $row = Database::fetch_array($result, 'ASSOC');
+        $row = Database::fetch_assoc($result);
         if ($row && !empty($row['parent_id'])) {
             $list[] = $row['parent_id'];
             $list = self::getParents($row['parent_id'], $list);
@@ -685,22 +682,19 @@ class survey_question
      *
      * @return array The questions that have the given question as parent
      */
-    public static function getDependency($question)
+    public static function getDependency(array $question): ?array
     {
-        if (true !== api_get_configuration_value('survey_question_dependency')) {
-            return [];
-        }
-        $table = Database::get_course_table(TABLE_SURVEY_QUESTION);
         $questionId = $question['question_id'];
-        $courseId = api_get_course_int_id();
 
-        // Getting the information of the question
-        $sql = "SELECT * FROM $table
-		        WHERE c_id = $courseId AND parent_id = $questionId ";
-        $result = Database::query($sql);
-        $row = Database::store_result($result, 'ASSOC');
+        $em = Database::getManager();
 
-        return $row;
+        $queryBuilder = $em->createQueryBuilder();
+        $queryBuilder->select('q')
+            ->from(CSurveyQuestion::class, 'q')
+            ->where('q.parent = :parent')
+            ->setParameter('parent', $questionId);
+
+        return $queryBuilder->getQuery()->getArrayResult();
     }
 
     /**

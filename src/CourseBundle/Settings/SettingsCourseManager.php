@@ -32,7 +32,7 @@ class SettingsCourseManager extends SettingsManager
         $this->course = $course;
     }
 
-    public function load(string $schemaAlias, string $namespace = null, bool $ignoreUnknown = true): SettingsInterface
+    public function load(string $schemaAlias, ?string $namespace = null, bool $ignoreUnknown = true): SettingsInterface
     {
         $settings = new Settings();
         $schemaAliasNoPrefix = $schemaAlias;
@@ -94,6 +94,7 @@ class SettingsCourseManager extends SettingsManager
         }
 
         $repo = $this->manager->getRepository(SettingsCurrent::class);
+
         /** @var CCourseSetting[] $persistedParameters */
         $persistedParameters = $repo->findBy([
             'category' => $namespace,
@@ -149,5 +150,23 @@ class SettingsCourseManager extends SettingsManager
         }
 
         return $list;
+    }
+
+    /**
+     * Fetches the value of a specific setting for the given course and variable.
+     *
+     * @param string $variableName the name of the variable to fetch
+     *
+     * @return string|null the value of the setting if found, or null if not
+     */
+    public function getCourseSettingValue(string $variableName): ?string
+    {
+        $repo = $this->manager->getRepository(CCourseSetting::class);
+        $courseSetting = $repo->findOneBy([
+            'cId' => $this->course->getId(),
+            'variable' => $variableName,
+        ]);
+
+        return $courseSetting ? $courseSetting->getValue() : null;
     }
 }

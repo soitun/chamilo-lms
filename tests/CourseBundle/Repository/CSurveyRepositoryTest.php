@@ -28,6 +28,10 @@ class CSurveyRepositoryTest extends AbstractApiTest
     {
         $em = $this->getEntityManager();
         $surveyRepo = self::getContainer()->get(CSurveyRepository::class);
+        $request_stack = $this->getMockedRequestStack([
+            'session' => ['studentview' => 1],
+        ]);
+        $surveyRepo->setRequestStack($request_stack);
         $courseRepo = self::getContainer()->get(CourseRepository::class);
 
         $course = $this->createCourse('new');
@@ -76,7 +80,10 @@ class CSurveyRepositoryTest extends AbstractApiTest
         $this->assertCount(1, $qb->getQuery()->getResult());
 
         $courseRepo->delete($course);
-        $this->assertSame(0, $surveyRepo->count([]));
+
+        // A survey is a global resource that should not be cascade-deleted
+        // by the course
+        $this->assertSame(1, $surveyRepo->count([]));
         $this->assertSame(0, $courseRepo->count([]));
     }
 
@@ -166,6 +173,7 @@ class CSurveyRepositoryTest extends AbstractApiTest
 
         /** @var CSurvey $survey */
         $survey = $surveyRepo->find($survey->getIid());
+
         /** @var CSurveyQuestion $question */
         $question = $surveyQuestionRepo->find($question->getIid());
 
@@ -187,11 +195,12 @@ class CSurveyRepositoryTest extends AbstractApiTest
         $course = $this->getCourse($course->getId());
         $courseRepo->delete($course);
 
-        $this->assertSame(0, $courseRepo->count([]));
-        $this->assertSame(0, $surveyRepo->count([]));
-        $this->assertSame(0, $surveyQuestionRepo->count([]));
-        $this->assertSame(0, $surveyAnswerRepo->count([]));
+        // Surveys are global and should not be cascade-deleted by the course
         $this->assertSame(0, $surveyInvitationRepo->count([]));
-        $this->assertSame(0, $surveyOptionRepo->count([]));
+        $this->assertSame(1, $surveyQuestionRepo->count([]));
+        $this->assertSame(1, $surveyAnswerRepo->count([]));
+        $this->assertSame(1, $surveyOptionRepo->count([]));
+        $this->assertSame(1, $surveyRepo->count([]));
+        $this->assertSame(0, $courseRepo->count([]));
     }
 }

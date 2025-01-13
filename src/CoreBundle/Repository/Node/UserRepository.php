@@ -8,12 +8,18 @@ namespace Chamilo\CoreBundle\Repository\Node;
 
 use Chamilo\CoreBundle\Entity\AccessUrl;
 use Chamilo\CoreBundle\Entity\Course;
+use Chamilo\CoreBundle\Entity\ExtraField;
+use Chamilo\CoreBundle\Entity\ExtraFieldValues;
 use Chamilo\CoreBundle\Entity\Message;
 use Chamilo\CoreBundle\Entity\ResourceNode;
 use Chamilo\CoreBundle\Entity\Session;
+use Chamilo\CoreBundle\Entity\Tag;
 use Chamilo\CoreBundle\Entity\TrackELogin;
 use Chamilo\CoreBundle\Entity\TrackEOnline;
 use Chamilo\CoreBundle\Entity\User;
+use Chamilo\CoreBundle\Entity\Usergroup;
+use Chamilo\CoreBundle\Entity\UsergroupRelUser;
+use Chamilo\CoreBundle\Entity\UserRelTag;
 use Chamilo\CoreBundle\Entity\UserRelUser;
 use Chamilo\CoreBundle\Repository\ResourceRepository;
 use Datetime;
@@ -23,17 +29,29 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
+use Exception;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Security\Core\Exception\UserNotFoundException;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\PasswordUpgraderInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
+
+use const MB_CASE_LOWER;
 
 class UserRepository extends ResourceRepository implements PasswordUpgraderInterface
 {
     protected ?UserPasswordHasherInterface $hasher = null;
 
-    public function __construct(ManagerRegistry $registry)
-    {
+    public const USER_IMAGE_SIZE_SMALL = 1;
+    public const USER_IMAGE_SIZE_MEDIUM = 2;
+    public const USER_IMAGE_SIZE_BIG = 3;
+    public const USER_IMAGE_SIZE_ORIGINAL = 4;
+
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly IllustrationRepository $illustrationRepository,
+        private readonly TranslatorInterface $translator
+    ) {
         parent::__construct($registry, User::class);
     }
 
@@ -89,6 +107,11 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
         }
     }
 
+    public function isPasswordValid(User $user, string $plainPassword): bool
+    {
+        return $this->hasher->isPasswordValid($user, $plainPassword);
+    }
+
     public function upgradePassword(PasswordAuthenticatedUserInterface $user, string $newHashedPassword): void
     {
         /** @var User $user */
@@ -121,28 +144,250 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
         return $rootUser;
     }
 
-    public function deleteUser(User $user): void
+    public function deleteUser(User $user, bool $destroy = false): void
+    {
+        $connection = $this->getEntityManager()->getConnection();
+        $connection->beginTransaction();
+
+        try {
+            if ($destroy) {
+                // Call method to delete messages and attachments
+                $this->deleteUserMessagesAndAttachments($user);
+
+                $fallbackUser = $this->getFallbackUser();
+
+                if ($fallbackUser) {
+                    $this->reassignUserResourcesToFallbackSQL($user, $fallbackUser, $connection);
+                }
+
+                // Remove group relationships
+                $connection->executeStatement(
+                    'DELETE FROM usergroup_rel_user WHERE user_id = :userId',
+                    ['userId' => $user->getId()]
+                );
+
+                // Remove resource node if exists
+                $connection->executeStatement(
+                    'DELETE FROM resource_node WHERE id = :nodeId',
+                    ['nodeId' => $user->getResourceNode()->getId()]
+                );
+
+                // Remove the user itself
+                $connection->executeStatement(
+                    'DELETE FROM user WHERE id = :userId',
+                    ['userId' => $user->getId()]
+                );
+            } else {
+                // Soft delete the user
+                $connection->executeStatement(
+                    'UPDATE user SET active = :softDeleted WHERE id = :userId',
+                    ['softDeleted' => User::SOFT_DELETED, 'userId' => $user->getId()]
+                );
+            }
+
+            $connection->commit();
+        } catch (Exception $e) {
+            $connection->rollBack();
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Reassigns resources and related data from a deleted user to a fallback user in the database.
+     *
+     * @param mixed $connection
+     */
+    protected function reassignUserResourcesToFallbackSQL(User $userToDelete, User $fallbackUser, $connection): void
+    {
+        // Update resource nodes created by the user
+        $connection->executeStatement(
+            'UPDATE resource_node SET creator_id = :fallbackUserId WHERE creator_id = :userId',
+            ['fallbackUserId' => $fallbackUser->getId(), 'userId' => $userToDelete->getId()]
+        );
+
+        // Update child resource nodes
+        $connection->executeStatement(
+            'UPDATE resource_node SET parent_id = :fallbackParentId WHERE parent_id = :userParentId',
+            [
+                'fallbackParentId' => $fallbackUser->getResourceNode()?->getId(),
+                'userParentId' => $userToDelete->getResourceNode()->getId(),
+            ]
+        );
+
+        // Relations to update or delete
+        $relations = $this->getRelations();
+
+        foreach ($relations as $relation) {
+            $table = $relation['table'];
+            $field = $relation['field'];
+            $action = $relation['action'];
+
+            if ('delete' === $action) {
+                $connection->executeStatement(
+                    "DELETE FROM $table WHERE $field = :userId",
+                    ['userId' => $userToDelete->getId()]
+                );
+            } elseif ('update' === $action) {
+                $connection->executeStatement(
+                    "UPDATE $table SET $field = :fallbackUserId WHERE $field = :userId",
+                    [
+                        'fallbackUserId' => $fallbackUser->getId(),
+                        'userId' => $userToDelete->getId(),
+                    ]
+                );
+            }
+        }
+    }
+
+    /**
+     * Provides a list of database table relations and their respective actions
+     * (update or delete) for handling user resource reassignment or deletion.
+     *
+     * Any new database table that stores references to users and requires updates
+     * or deletions when a user is removed should be added to this list. This ensures
+     * proper handling of dependencies and avoids orphaned data.
+     */
+    protected function getRelations(): array
+    {
+        return [
+            ['table' => 'access_url_rel_user', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'admin', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'attempt_feedback', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'chat', 'field' => 'to_user', 'action' => 'update'],
+            ['table' => 'chat_video', 'field' => 'to_user', 'action' => 'update'],
+            ['table' => 'course_rel_user', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'course_rel_user_catalogue', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'course_request', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'c_attendance_result', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'c_attendance_result_comment', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'c_attendance_sheet', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'c_attendance_sheet_log', 'field' => 'lastedit_user_id', 'action' => 'delete'],
+            ['table' => 'c_chat_connected', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'c_dropbox_category', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'c_dropbox_feedback', 'field' => 'author_user_id', 'action' => 'update'],
+            ['table' => 'c_dropbox_person', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'c_dropbox_post', 'field' => 'dest_user_id', 'action' => 'update'],
+            ['table' => 'c_forum_mailcue', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'c_forum_notification', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'c_forum_post', 'field' => 'poster_id', 'action' => 'update'],
+            ['table' => 'c_forum_thread', 'field' => 'thread_poster_id', 'action' => 'update'],
+            ['table' => 'c_forum_thread_qualify', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'c_forum_thread_qualify_log', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'c_group_rel_tutor', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'c_group_rel_user', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'c_lp_category_rel_user', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'c_lp_rel_user', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'c_lp_view', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'c_student_publication_comment', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'c_student_publication_rel_user', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'c_survey_invitation', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'c_wiki', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'c_wiki_mailcue', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'extra_field_saved_search', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'gradebook_category', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'gradebook_certificate', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'gradebook_comment', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'gradebook_linkeval_log', 'field' => 'user_id_log', 'action' => 'delete'],
+            ['table' => 'gradebook_result', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'gradebook_result_log', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'gradebook_score_log', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'message', 'field' => 'user_sender_id', 'action' => 'update'],
+            ['table' => 'message_rel_user', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'message_tag', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'notification', 'field' => 'dest_user_id', 'action' => 'delete'],
+            ['table' => 'page_category', 'field' => 'creator_id', 'action' => 'update'],
+            ['table' => 'portfolio', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'portfolio_category', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'portfolio_comment', 'field' => 'author_id', 'action' => 'update'],
+            ['table' => 'resource_comment', 'field' => 'author_id', 'action' => 'update'],
+            ['table' => 'sequence_value', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'session_rel_course_rel_user', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'session_rel_user', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'skill_rel_item_rel_user', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'skill_rel_user', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'skill_rel_user_comment', 'field' => 'feedback_giver_id', 'action' => 'delete'],
+            ['table' => 'social_post', 'field' => 'sender_id', 'action' => 'update'],
+            ['table' => 'social_post', 'field' => 'user_receiver_id', 'action' => 'update'],
+            ['table' => 'social_post_attachments', 'field' => 'sys_insert_user_id', 'action' => 'update'],
+            ['table' => 'social_post_attachments', 'field' => 'sys_lastedit_user_id', 'action' => 'update'],
+            ['table' => 'social_post_feedback', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'templates', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'ticket_assigned_log', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'ticket_assigned_log', 'field' => 'sys_insert_user_id', 'action' => 'update'],
+            ['table' => 'ticket_category', 'field' => 'sys_insert_user_id', 'action' => 'update'],
+            ['table' => 'ticket_category', 'field' => 'sys_lastedit_user_id', 'action' => 'update'],
+            ['table' => 'ticket_category_rel_user', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'ticket_message', 'field' => 'sys_insert_user_id', 'action' => 'update'],
+            ['table' => 'ticket_message', 'field' => 'sys_lastedit_user_id', 'action' => 'update'],
+            ['table' => 'ticket_message_attachments', 'field' => 'sys_insert_user_id', 'action' => 'update'],
+            ['table' => 'ticket_message_attachments', 'field' => 'sys_lastedit_user_id', 'action' => 'update'],
+            ['table' => 'ticket_priority', 'field' => 'sys_insert_user_id', 'action' => 'update'],
+            ['table' => 'ticket_priority', 'field' => 'sys_lastedit_user_id', 'action' => 'update'],
+            ['table' => 'ticket_project', 'field' => 'sys_insert_user_id', 'action' => 'update'],
+            ['table' => 'ticket_project', 'field' => 'sys_lastedit_user_id', 'action' => 'update'],
+            ['table' => 'track_e_access', 'field' => 'access_user_id', 'action' => 'delete'],
+            ['table' => 'track_e_access_complete', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'track_e_attempt', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'track_e_course_access', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'track_e_default', 'field' => 'default_user_id', 'action' => 'update'],
+            ['table' => 'track_e_downloads', 'field' => 'down_user_id', 'action' => 'delete'],
+            ['table' => 'track_e_exercises', 'field' => 'exe_user_id', 'action' => 'delete'],
+            ['table' => 'track_e_exercise_confirmation', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'track_e_hotpotatoes', 'field' => 'exe_user_id', 'action' => 'delete'],
+            ['table' => 'track_e_hotspot', 'field' => 'hotspot_user_id', 'action' => 'delete'],
+            ['table' => 'track_e_lastaccess', 'field' => 'access_user_id', 'action' => 'delete'],
+            ['table' => 'track_e_links', 'field' => 'links_user_id', 'action' => 'delete'],
+            ['table' => 'track_e_login', 'field' => 'login_user_id', 'action' => 'delete'],
+            ['table' => 'track_e_online', 'field' => 'login_user_id', 'action' => 'delete'],
+            ['table' => 'track_e_uploads', 'field' => 'upload_user_id', 'action' => 'delete'],
+            ['table' => 'usergroup_rel_user', 'field' => 'user_id', 'action' => 'update'],
+            ['table' => 'user_rel_tag', 'field' => 'user_id', 'action' => 'delete'],
+            ['table' => 'user_rel_user', 'field' => 'user_id', 'action' => 'delete'],
+        ];
+    }
+
+    /**
+     * Deletes a user's messages and their attachments, updates the message content,
+     * and detaches the user as the sender.
+     */
+    public function deleteUserMessagesAndAttachments(User $user): void
     {
         $em = $this->getEntityManager();
-        $type = $user->getResourceNode()->getResourceType();
-        $rootUser = $this->getRootUser();
+        $connection = $em->getConnection();
 
-        // User children will be set to the root user.
-        $criteria = Criteria::create()->where(Criteria::expr()->eq('resourceType', $type));
-        $userNodeCreatedList = $user->getResourceNodes()->matching($criteria);
-        /** @var ResourceNode $userCreated */
-        foreach ($userNodeCreatedList as $userCreated) {
-            $userCreated->setCreator($rootUser);
-        }
+        $currentDate = (new Datetime())->format('Y-m-d H:i:s');
+        $updatedContent = \sprintf(
+            $this->translator->trans('This message was deleted when the user was removed from the platform on %s'),
+            $currentDate
+        );
 
-        $em->remove($user->getResourceNode());
+        $connection->executeStatement(
+            'UPDATE message m
+         SET m.content = :content, m.user_sender_id = NULL
+         WHERE m.user_sender_id = :userId',
+            [
+                'content' => $updatedContent,
+                'userId' => $user->getId(),
+            ]
+        );
 
-        foreach ($user->getGroups() as $group) {
-            $user->removeGroup($group);
-        }
+        $connection->executeStatement(
+            'DELETE ma
+         FROM message_attachment ma
+         INNER JOIN message m ON ma.message_id = m.id
+         WHERE m.user_sender_id IS NULL',
+            [
+                'userId' => $user->getId(),
+            ]
+        );
 
-        $em->remove($user);
-        $em->flush();
+        $em->clear();
+    }
+
+    public function getFallbackUser(): ?User
+    {
+        return $this->findOneBy(['status' => User::ROLE_FALLBACK], ['id' => 'ASC']);
     }
 
     public function addUserToResourceNode(int $userId, int $creatorId): ResourceNode
@@ -155,7 +400,7 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
             ->setTitle($user->getUsername())
             ->setCreator($creator)
             ->setResourceType($this->getResourceType())
-            //->setParent($resourceNode)
+            // ->setParent($resourceNode)
         ;
 
         $user->setResourceNode($resourceNode);
@@ -166,7 +411,7 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
         return $resourceNode;
     }
 
-    public function addRoleListQueryBuilder(array $roles, QueryBuilder $qb = null): QueryBuilder
+    public function addRoleListQueryBuilder(array $roles, ?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb, 'u');
         if (!empty($roles)) {
@@ -188,7 +433,7 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
         ]);
 
         if (null === $user) {
-            throw new UserNotFoundException(sprintf("User with id '%s' not found.", $username));
+            throw new UserNotFoundException(\sprintf("User with id '%s' not found.", $username));
         }
 
         return $user;
@@ -227,79 +472,6 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
     }
 
     /**
-     * Get course user relationship based in the course_rel_user table.
-     *
-     * @return Course[]
-     */
-    public function getCourses(User $user, AccessUrl $url, int $status, string $keyword = '')
-    {
-        $qb = $this->createQueryBuilder('u');
-
-        $qb
-            //->select('DISTINCT course')
-            ->innerJoin('u.courses', 'courseRelUser')
-            ->innerJoin('courseRelUser.course', 'course')
-            ->innerJoin('course.urls', 'accessUrlRelCourse')
-            ->innerJoin('accessUrlRelCourse.url', 'url')
-            ->where('url = :url')
-            ->andWhere('courseRelUser.user = :user')
-            ->andWhere('courseRelUser.status = :status')
-            ->setParameters(
-                [
-                    'user' => $user,
-                    'url' => $url,
-                    'status' => $status,
-                ]
-            )
-        //    ->addSelect('courseRelUser')
-        ;
-
-        if (!empty($keyword)) {
-            $qb
-                ->andWhere('course.title like = :keyword OR course.code like = :keyword')
-                ->setParameter('keyword', $keyword)
-            ;
-        }
-
-        $qb->orderBy('course.title', Criteria::DESC);
-
-        $query = $qb->getQuery();
-
-        return $query->getResult();
-    }
-
-    /*
-    public function getTeachers()
-    {
-        $queryBuilder = $this->repository->createQueryBuilder('u');
-
-        // Selecting course info.
-        $queryBuilder
-            ->select('u')
-            ->where('u.groups.id = :groupId')
-            ->setParameter('groupId', 1);
-
-        $query = $queryBuilder->getQuery();
-
-        return $query->execute();
-    }*/
-
-    /*public function getUsers($group)
-    {
-        $queryBuilder = $this->repository->createQueryBuilder('u');
-
-        // Selecting course info.
-        $queryBuilder
-            ->select('u')
-            ->where('u.groups = :groupId')
-            ->setParameter('groupId', $group);
-
-        $query = $queryBuilder->getQuery();
-
-        return $query->execute();
-    }*/
-
-    /**
      * Get the coaches for a course within a session.
      *
      * @return Collection|array
@@ -326,68 +498,6 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
 
         return $qb->getQuery()->getResult();
     }
-
-    /**
-     * Get course user relationship based in the course_rel_user table.
-     *
-     * @return array
-     */
-    /*public function getCourses(User $user)
-    {
-        $qb = $this->createQueryBuilder('user');
-
-        // Selecting course info.
-        $qb->select('c');
-
-        // Loading User.
-        //$qb->from('Chamilo\CoreBundle\Entity\User', 'u');
-
-        // Selecting course
-        $qb->innerJoin('Chamilo\CoreBundle\Entity\Course', 'c');
-
-        //@todo check app settings
-        //$qb->add('orderBy', 'u.lastname ASC');
-
-        $wherePart = $qb->expr()->andx();
-
-        // Get only users subscribed to this course
-        $wherePart->add($qb->expr()->eq('user.userId', $user->getUserId()));
-
-        $qb->where($wherePart);
-        $query = $qb->getQuery();
-
-        return $query->execute();
-    }
-
-    public function getTeachers()
-    {
-        $qb = $this->createQueryBuilder('u');
-
-        // Selecting course info.
-        $qb
-            ->select('u')
-            ->where('u.groups.id = :groupId')
-            ->setParameter('groupId', 1);
-
-        $query = $qb->getQuery();
-
-        return $query->execute();
-    }*/
-
-    /*public function getUsers($group)
-    {
-        $qb = $this->createQueryBuilder('u');
-
-        // Selecting course info.
-        $qb
-            ->select('u')
-            ->where('u.groups = :groupId')
-            ->setParameter('groupId', $group);
-
-        $query = $qb->getQuery();
-
-        return $query->execute();
-    }*/
 
     /**
      * Get the sessions admins for a user.
@@ -475,7 +585,7 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
      *
      * @return User[]
      */
-    public function findUsersToSendMessage(int $currentUserId, string $searchFilter = null, int $limit = 10)
+    public function findUsersToSendMessage(int $currentUserId, ?string $searchFilter = null, int $limit = 10)
     {
         $allowSendMessageToAllUsers = api_get_setting('allow_send_message_to_all_platform_users');
         $accessUrlId = api_get_multiple_access_url() ? api_get_current_access_url_id() : 1;
@@ -586,7 +696,7 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
         ;
     }
 
-    public function addAccessUrlQueryBuilder(int $accessUrlId, QueryBuilder $qb = null): QueryBuilder
+    public function addAccessUrlQueryBuilder(int $accessUrlId, ?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb, 'u');
         $qb
@@ -598,7 +708,7 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
         return $qb;
     }
 
-    public function addActiveAndNotAnonUserQueryBuilder(QueryBuilder $qb = null): QueryBuilder
+    public function addActiveAndNotAnonUserQueryBuilder(?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb, 'u');
         $qb
@@ -610,18 +720,18 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
         return $qb;
     }
 
-    public function addExpirationDateQueryBuilder(QueryBuilder $qb = null): QueryBuilder
+    public function addExpirationDateQueryBuilder(?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb, 'u');
         $qb
-            ->andWhere('u.registrationDate IS NULL OR u.registrationDate > :now')
+            ->andWhere('u.expirationDate IS NULL OR u.expirationDate > :now')
             ->setParameter('now', new Datetime(), Types::DATETIME_MUTABLE)
         ;
 
         return $qb;
     }
 
-    private function addRoleQueryBuilder(string $role, QueryBuilder $qb = null): QueryBuilder
+    private function addRoleQueryBuilder(string $role, ?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb, 'u');
         $qb
@@ -632,7 +742,7 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
         return $qb;
     }
 
-    private function addSearchByKeywordQueryBuilder(string $keyword, QueryBuilder $qb = null): QueryBuilder
+    private function addSearchByKeywordQueryBuilder(string $keyword, ?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb, 'u');
         $qb
@@ -649,7 +759,7 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
         return $qb;
     }
 
-    private function addUserRelUserQueryBuilder(int $userId, int $relationType, QueryBuilder $qb = null): QueryBuilder
+    private function addUserRelUserQueryBuilder(int $userId, int $relationType, ?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb, 'u');
         $qb->leftJoin('u.friends', 'relations');
@@ -663,7 +773,7 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
         return $qb;
     }
 
-    private function addOnlyMyFriendsQueryBuilder(int $userId, QueryBuilder $qb = null): QueryBuilder
+    private function addOnlyMyFriendsQueryBuilder(int $userId, ?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb, 'u');
         $qb
@@ -681,7 +791,7 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
         return $qb;
     }
 
-    private function addNotCurrentUserQueryBuilder(int $userId, QueryBuilder $qb = null): QueryBuilder
+    private function addNotCurrentUserQueryBuilder(int $userId, ?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb, 'u');
         $qb
@@ -690,5 +800,327 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
         ;
 
         return $qb;
+    }
+
+    public function getFriendsNotInGroup(int $userId, int $groupId)
+    {
+        $entityManager = $this->getEntityManager();
+
+        $subQueryBuilder = $entityManager->createQueryBuilder();
+        $subQuery = $subQueryBuilder
+            ->select('IDENTITY(ugr.user)')
+            ->from(UsergroupRelUser::class, 'ugr')
+            ->where('ugr.usergroup = :subGroupId')
+            ->andWhere('ugr.relationType IN (:subRelationTypes)')
+            ->getDQL()
+        ;
+
+        $queryBuilder = $entityManager->createQueryBuilder();
+        $query = $queryBuilder
+            ->select('u')
+            ->from(User::class, 'u')
+            ->leftJoin('u.friendsWithMe', 'uruf')
+            ->leftJoin('u.friends', 'urut')
+            ->where('uruf.friend = :userId OR urut.user = :userId')
+            ->andWhere($queryBuilder->expr()->notIn('u.id', $subQuery))
+            ->setParameter('userId', $userId)
+            ->setParameter('subGroupId', $groupId)
+            ->setParameter('subRelationTypes', [Usergroup::GROUP_USER_PERMISSION_PENDING_INVITATION])
+            ->getQuery()
+        ;
+
+        return $query->getResult();
+    }
+
+    public function getExtraUserData(int $userId, bool $prefix = false, bool $allVisibility = true, bool $splitMultiple = false, ?int $fieldFilter = null): array
+    {
+        $qb = $this->getEntityManager()->createQueryBuilder();
+
+        // Start building the query
+        $qb->select('ef.id', 'ef.variable as fvar', 'ef.valueType as type', 'efv.fieldValue as fval', 'ef.defaultValue as fval_df')
+            ->from(ExtraField::class, 'ef')
+            ->leftJoin(ExtraFieldValues::class, 'efv', Join::WITH, 'efv.field = ef.id AND efv.itemId = :userId')
+            ->where('ef.itemType = :itemType')
+            ->setParameter('userId', $userId)
+            ->setParameter('itemType', ExtraField::USER_FIELD_TYPE)
+        ;
+
+        // Apply visibility filters
+        if (!$allVisibility) {
+            $qb->andWhere('ef.visibleToSelf = true');
+        }
+
+        // Apply field filter if provided
+        if (null !== $fieldFilter) {
+            $qb->andWhere('ef.id = :fieldFilter')
+                ->setParameter('fieldFilter', $fieldFilter)
+            ;
+        }
+
+        // Order by field order
+        $qb->orderBy('ef.fieldOrder', 'ASC');
+
+        // Execute the query
+        $results = $qb->getQuery()->getResult();
+
+        // Process results
+        $extraData = [];
+        foreach ($results as $row) {
+            $value = $row['fval'] ?? $row['fval_df'];
+
+            // Handle multiple values if necessary
+            if ($splitMultiple && \in_array($row['type'], [ExtraField::USER_FIELD_TYPE_SELECT_MULTIPLE], true)) {
+                $value = explode(';', $value);
+            }
+
+            // Handle prefix if needed
+            $key = $prefix ? 'extra_'.$row['fvar'] : $row['fvar'];
+
+            // Special handling for certain field types
+            if (ExtraField::USER_FIELD_TYPE_TAG == $row['type']) {
+                // Implement your logic to handle tags
+            } elseif (ExtraField::USER_FIELD_TYPE_RADIO == $row['type'] && $prefix) {
+                $extraData[$key][$key] = $value;
+            } else {
+                $extraData[$key] = $value;
+            }
+        }
+
+        return $extraData;
+    }
+
+    public function getExtraUserDataByField(int $userId, string $fieldVariable, bool $allVisibility = true): array
+    {
+        $qb = $this->getEntityManager()->createQueryBuilder();
+
+        $qb->select('e.id, e.variable, e.valueType, v.fieldValue')
+            ->from(ExtraFieldValues::class, 'v')
+            ->innerJoin('v.field', 'e')
+            ->where('v.itemId = :userId')
+            ->andWhere('e.variable = :fieldVariable')
+            ->andWhere('e.itemType = :itemType')
+            ->setParameters([
+                'userId' => $userId,
+                'fieldVariable' => $fieldVariable,
+                'itemType' => ExtraField::USER_FIELD_TYPE,
+            ])
+        ;
+
+        if (!$allVisibility) {
+            $qb->andWhere('e.visibleToSelf = true');
+        }
+
+        $qb->orderBy('e.fieldOrder', 'ASC');
+
+        $result = $qb->getQuery()->getResult();
+
+        $extraData = [];
+        foreach ($result as $row) {
+            $value = $row['fieldValue'];
+            if (ExtraField::USER_FIELD_TYPE_SELECT_MULTIPLE == $row['valueType']) {
+                $value = explode(';', $row['fieldValue']);
+            }
+
+            $extraData[$row['variable']] = $value;
+        }
+
+        return $extraData;
+    }
+
+    public function searchUsersByTags(
+        string $tag,
+        ?int $excludeUserId = null,
+        int $fieldId = 0,
+        int $from = 0,
+        int $number_of_items = 10,
+        bool $getCount = false
+    ): array {
+        $qb = $this->createQueryBuilder('u');
+
+        if ($getCount) {
+            $qb->select('COUNT(DISTINCT u.id)');
+        } else {
+            $qb->select('DISTINCT u.id, u.username, u.firstname, u.lastname, u.email, u.pictureUri, u.status');
+        }
+
+        $qb->innerJoin('u.portals', 'urlRelUser')
+            ->leftJoin(UserRelTag::class, 'uv', 'WITH', 'u = uv.user')
+            ->leftJoin(Tag::class, 'ut', 'WITH', 'uv.tag = ut')
+        ;
+
+        if (0 !== $fieldId) {
+            $qb->andWhere('ut.field = :fieldId')
+                ->setParameter('fieldId', $fieldId)
+            ;
+        }
+
+        if (null !== $excludeUserId) {
+            $qb->andWhere('u.id != :excludeUserId')
+                ->setParameter('excludeUserId', $excludeUserId)
+            ;
+        }
+
+        $qb->andWhere(
+            $qb->expr()->orX(
+                $qb->expr()->like('ut.tag', ':tag'),
+                $qb->expr()->like('u.firstname', ':likeTag'),
+                $qb->expr()->like('u.lastname', ':likeTag'),
+                $qb->expr()->like('u.username', ':likeTag'),
+                $qb->expr()->like(
+                    $qb->expr()->concat('u.firstname', $qb->expr()->literal(' '), 'u.lastname'),
+                    ':likeTag'
+                ),
+                $qb->expr()->like(
+                    $qb->expr()->concat('u.lastname', $qb->expr()->literal(' '), 'u.firstname'),
+                    ':likeTag'
+                )
+            )
+        )
+            ->setParameter('tag', $tag.'%')
+            ->setParameter('likeTag', '%'.$tag.'%')
+        ;
+
+        // Only active users and not anonymous
+        $qb->andWhere('u.active = :active')
+            ->andWhere('u.status != :anonymous')
+            ->setParameter('active', true)
+            ->setParameter('anonymous', 6)
+        ;
+
+        if (!$getCount) {
+            $qb->orderBy('u.username')
+                ->setFirstResult($from)
+                ->setMaxResults($number_of_items)
+            ;
+        }
+
+        return $getCount ? $qb->getQuery()->getSingleScalarResult() : $qb->getQuery()->getResult();
+    }
+
+    public function getUserRelationWithType(int $userId, int $friendId): ?array
+    {
+        $qb = $this->createQueryBuilder('u');
+        $qb->select('u.id AS userId', 'u.username AS userName', 'ur.relationType', 'f.id AS friendId', 'f.username AS friendName')
+            ->innerJoin('u.friends', 'ur')
+            ->innerJoin('ur.friend', 'f')
+            ->where('u.id = :userId AND f.id = :friendId')
+            ->setParameter('userId', $userId)
+            ->setParameter('friendId', $friendId)
+            ->setMaxResults(1)
+        ;
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    public function relateUsers(User $user1, User $user2, int $relationType): void
+    {
+        $em = $this->getEntityManager();
+
+        $existingRelation = $em->getRepository(UserRelUser::class)->findOneBy([
+            'user' => $user1,
+            'friend' => $user2,
+        ]);
+
+        if (!$existingRelation) {
+            $newRelation = new UserRelUser();
+            $newRelation->setUser($user1);
+            $newRelation->setFriend($user2);
+            $newRelation->setRelationType($relationType);
+            $em->persist($newRelation);
+        } else {
+            $existingRelation->setRelationType($relationType);
+        }
+
+        $existingRelationInverse = $em->getRepository(UserRelUser::class)->findOneBy([
+            'user' => $user2,
+            'friend' => $user1,
+        ]);
+
+        if (!$existingRelationInverse) {
+            $newRelationInverse = new UserRelUser();
+            $newRelationInverse->setUser($user2);
+            $newRelationInverse->setFriend($user1);
+            $newRelationInverse->setRelationType($relationType);
+            $em->persist($newRelationInverse);
+        } else {
+            $existingRelationInverse->setRelationType($relationType);
+        }
+
+        $em->flush();
+    }
+
+    public function getUserPicture(
+        $userId,
+        int $size = self::USER_IMAGE_SIZE_MEDIUM,
+        $addRandomId = true,
+    ) {
+        $user = $this->find($userId);
+        if (!$user) {
+            return '/img/icons/64/unknown.png';
+        }
+
+        switch ($size) {
+            case self::USER_IMAGE_SIZE_SMALL:
+                $width = 32;
+
+                break;
+
+            case self::USER_IMAGE_SIZE_MEDIUM:
+                $width = 64;
+
+                break;
+
+            case self::USER_IMAGE_SIZE_BIG:
+                $width = 128;
+
+                break;
+
+            case self::USER_IMAGE_SIZE_ORIGINAL:
+            default:
+                $width = 0;
+
+                break;
+        }
+
+        $url = $this->illustrationRepository->getIllustrationUrl($user);
+        $params = [];
+        if (!empty($width)) {
+            $params['w'] = $width;
+        }
+
+        if ($addRandomId) {
+            $params['rand'] = uniqid('u_', true);
+        }
+
+        $paramsToString = '';
+        if (!empty($params)) {
+            $paramsToString = '?'.http_build_query($params);
+        }
+
+        return $url.$paramsToString;
+    }
+
+    /**
+     * Retrieves the list of DRH (HR) users related to a specific user and access URL.
+     */
+    public function getDrhListFromUser(int $userId, int $accessUrlId): array
+    {
+        $qb = $this->createQueryBuilder('u');
+
+        $this->addAccessUrlQueryBuilder($accessUrlId, $qb);
+
+        $qb->select('u.id, u.username, u.firstname, u.lastname')
+            ->innerJoin('u.friends', 'uru', Join::WITH, 'uru.friend = u.id')
+            ->where('uru.user = :userId')
+            ->andWhere('uru.relationType = :relationType')
+            ->setParameter('userId', $userId)
+            ->setParameter('relationType', UserRelUser::USER_RELATION_TYPE_RRHH)
+        ;
+
+        $qb->orderBy('u.lastname', 'ASC')
+            ->addOrderBy('u.firstname', 'ASC')
+        ;
+
+        return $qb->getQuery()->getResult();
     }
 }

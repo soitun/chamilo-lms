@@ -2,6 +2,10 @@
 
 /* For licensing terms, see /license.txt */
 
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
+use Chamilo\CoreBundle\Component\Utils\StateIcon;
+
 /**
  * Class Diagnoser
  * Class that is responsible for generating diagnostic information about the system.
@@ -112,12 +116,12 @@ class Diagnoser
             $table = new SortableTableFromArray($data, 1, 1000);
             $table->set_additional_parameters(['section' => 'courses_space']);
             $table->set_header(0, '', false);
-            $table->set_header(1, get_lang('CourseCode'), true);
+            $table->set_header(1, get_lang('Course code'), true);
             $table->set_header(2, 'Space used on disk (MB)', true);
             $table->set_header(3, 'Set max course space (MB)', false);
             $table->set_header(4, get_lang('Edit'), false);
-            $table->set_header(5, get_lang('LastVisit'), true);
-            $table->set_header(6, get_lang('CurrentDirectory'), false);
+            $table->set_header(5, get_lang('Latest visit'), true);
+            $table->set_header(6, get_lang('Current folder'), false);
 
             $table->display();
         } else {
@@ -209,24 +213,22 @@ class Diagnoser
 
         if (1 === $access_url_id) {
             $size = '-';
-            global $_configuration;
             $message2 = '';
-            if (1 === $access_url_id) {
-                if (api_is_windows_os()) {
-                    $message2 .= get_lang('The space used on disk cannot be measured properly on Windows-based systems.');
-                } else {
-                    $dir = api_get_path(SYS_PATH);
-                    $du = exec('du -sh '.$dir, $err);
-                    list($size, $none) = explode("\t", $du);
-                    unset($none);
+
+            if (api_is_windows_os()) {
+                $message2 .= get_lang('The space used on disk cannot be measured properly on Windows-based systems.');
+            } else {
+                $dir = api_get_path(SYS_PATH);
+                $du = exec('du -sh ' . $dir, $err);
+                list($size, $none) = explode("\t", $du);
+                unset($none);
+
+                $limit = get_hosting_limit($access_url_id, 'hosting_limit_disk_space');
+                if ($limit === null) {
                     $limit = 0;
-                    if (isset($_configuration[$access_url_id])) {
-                        if (isset($_configuration[$access_url_id]['hosting_limit_disk_space'])) {
-                            $limit = $_configuration[$access_url_id]['hosting_limit_disk_space'];
-                        }
-                    }
-                    $message2 .= sprintf(get_lang('Total space used by portal %s limit is %s MB'), $size, $limit);
                 }
+
+                $message2 .= sprintf(get_lang('Total space used by portal %s limit is %s MB'), $size, $limit);
             }
 
             $array[] = $this->build_setting(
@@ -843,8 +845,8 @@ class Diagnoser
         $res = $connection->query('SELECT id, code, directory, disk_quota, last_visit FROM course ORDER BY last_visit DESC, code LIMIT 500');
         $systemPath = api_get_path(SYS_COURSE_PATH);
         $webPath = api_get_path(WEB_COURSE_PATH);
-        $courseHomeIcon = Display::return_icon('home.png', get_lang('CourseHome'));
-        $courseEditIcon = Display::return_icon('edit.png', get_lang('Edit'));
+        $courseHomeIcon = Display::getMdiIcon(ObjectIcon::HOME, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('CourseHome'));
+        $courseEditIcon = Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Edit'));
         $windows = api_is_windows_os();
         $courseEditPath = api_get_path(WEB_CODE_PATH).'admin/course_edit.php?id=';
         while ($row = $res->fetch()) {
@@ -925,21 +927,21 @@ class Diagnoser
     ) {
         switch ($status) {
             case self::STATUS_OK:
-                $img = 'bullet_green.png';
+                $img = StateIcon::COMPLETE;
                 break;
             case self::STATUS_WARNING:
-                $img = 'bullet_orange.png';
+                $img = StateIcon::WARNING;
                 break;
             case self::STATUS_ERROR:
-                $img = 'bullet_red.png';
+                $img = StateIcon::ERROR;
                 break;
             case self::STATUS_INFORMATION:
             default:
-                $img = 'bullet_blue.png';
+                $img = ActionIcon::INFORMATION;
                 break;
         }
 
-        $image = Display::return_icon($img, $status);
+        $image = Display::getMdiIcon($img, 'ch-tool-icon', null, ICON_SIZE_SMALL, $title);
         $url = $this->get_link($title, $url);
 
         $formatted_current_value = $current_value;

@@ -6,10 +6,12 @@ class Justification extends Plugin
     protected function __construct()
     {
         parent::__construct(
-            '1.1',
-            'Julio Montoya',
+            '1.2',
+            'Julio Montoya, Nicolas Ducoulombier',
             [
                 'tool_enable' => 'boolean',
+                'notification_to_creator_only' => 'boolean',
+                'access_for_session_admin' => 'boolean',
                 'default_course_id' => 'text',
             ]
         );
@@ -32,7 +34,7 @@ class Justification extends Plugin
         $sql = 'SELECT * FROM justification_document WHERE id = '.$id;
         $query = Database::query($sql);
 
-        return Database::fetch_array($query, 'ASSOC');
+        return Database::fetch_assoc($query);
     }
 
     public function getUserJustificationList($userId)
@@ -52,7 +54,7 @@ class Justification extends Plugin
         $sql = "SELECT * FROM justification_document_rel_users WHERE id = $id ";
         $query = Database::query($sql);
 
-        return Database::fetch_array($query, 'ASSOC');
+        return Database::fetch_assoc($query);
     }
 
     public function getList()

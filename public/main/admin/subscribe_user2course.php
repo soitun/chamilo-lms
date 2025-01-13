@@ -10,6 +10,9 @@
  *
  * 	@todo use formvalidator for the form
  */
+
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
+
 $cidReset = true;
 require_once __DIR__.'/../inc/global.inc.php';
 $this_section = SECTION_PLATFORM_ADMIN;
@@ -40,7 +43,7 @@ function validate_filter() {
 Display :: display_header($tool_name);
 
 $link_add_group = '<a href="usergroups.php">'.
-    Display::return_icon('multiple.gif', get_lang('Enrolment by classes')).get_lang('Enrolment by classes').'</a>';
+    Display::getMdiIcon(ObjectIcon::MULTI_ELEMENT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Enrolment by classes')).get_lang('Enrolment by classes').'</a>';
 echo Display::toolbarAction('subscribe', [$link_add_group]);
 
 $form = new FormValidator('subscribe_user2course');
@@ -286,7 +289,7 @@ if (is_array($extra_field_list)) {
             echo $extraHidden;
             echo '&nbsp;&nbsp;';
         }
-        echo '<input class="btn btn-primary" type="button" value="'.get_lang('Filter').'" onclick="validate_filter()" ></input>';
+        echo '<input class="btn btn--primary" type="button" value="'.get_lang('Filter').'" onclick="validate_filter()" ></input>';
         echo '<br /><br />';
     }
 }
@@ -343,7 +346,7 @@ if (is_array($extra_field_list)) {
     </select>
    </td>
    <td width="20%" valign="middle" align="center">
-    <button type="submit" class="btn btn-primary" value="<?php echo get_lang('Add to the course(s)'); ?> &gt;&gt;">
+    <button type="submit" class="btn btn--primary" value="<?php echo get_lang('Add to the course(s)'); ?> &gt;&gt;">
         <em class="fa fa-plus"></em> <?php echo get_lang('Add to the course(s)'); ?>
     </button>
    </td>

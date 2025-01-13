@@ -1,0 +1,62 @@
+.p-radiobutton {
+  @apply relative inline-flex select-none align-bottom w-4 h-4;
+
+  &-input {
+    @apply cursor-pointer;
+  }
+
+  &-box {
+    @apply flex justify-center items-center;
+  }
+
+  &-icon {
+    @apply rounded-full invisible;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0) scale(0.1);
+  }
+
+  &:has(&-input--legacy:checked) &-icon,
+  &.p-highlight &-icon {
+    @apply visible;
+    transform: translateZ(0) scale(1, 1);
+  }
+
+  & &-input {
+    @apply appearance-none absolute top-0 left-0 w-full h-full p-0 m-0 opacity-0 z-[1] outline-none border-2 border-support-3;
+  }
+
+  & &-box {
+    @apply border-2 border-support-3 bg-white w-4 h-4 text-primary rounded-full transition-none outline-none;
+  }
+
+  & &-box &-icon {
+    @apply w-1.5 h-1.5 duration-200 bg-white;
+  }
+
+  &:has(&-input--legacy:checked) &-box,
+  &.p-highlight &-box {
+    @apply border-primary bg-primary;
+  }
+
+  &:not(.p-disabled):has(&-input:hover) {
+    .p-radiobutton-box {
+      @apply border-primary;
+    }
+
+    &:has(.p-radiobutton-input--legacy:checked) .p-radiobutton-box,
+    &.p-highlight .p-radiobutton-box {
+      @apply border-primary bg-primary text-white;
+    }
+  }
+
+  &:not(.p-disabled):has(&-input:focus-visible) {
+    .p-radiobutton-box {
+      @apply outline-none drop-shadow-lg bg-primary;
+    }
+  }
+
+  &.p-invalid > &-box {
+    @apply border-error;
+  }
+}

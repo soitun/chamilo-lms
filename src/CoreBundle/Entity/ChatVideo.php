@@ -11,46 +11,30 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Chat.
- *
- * @ORM\Table(
- *     name="chat_video",
- *     options={"row_format"="DYNAMIC"},
- *     indexes={
- *         @ORM\Index(name="idx_chat_video_to_user", columns={"to_user"}),
- *         @ORM\Index(name="idx_chat_video_from_user", columns={"from_user"}),
- *         @ORM\Index(name="idx_chat_video_users", columns={"from_user", "to_user"}),
- *         @ORM\Index(name="idx_chat_video_room_name", columns={"room_name"})
- *     }
- * )
- * @ORM\Entity
  */
+#[ORM\Table(name: 'chat_video', options: ['row_format' => 'DYNAMIC'])]
+#[ORM\Index(name: 'idx_chat_video_to_user', columns: ['to_user'])]
+#[ORM\Index(name: 'idx_chat_video_from_user', columns: ['from_user'])]
+#[ORM\Index(name: 'idx_chat_video_users', columns: ['from_user', 'to_user'])]
+#[ORM\Index(name: 'idx_chat_video_title', columns: ['title'])]
+#[ORM\Entity]
 class ChatVideo
 {
-    /**
-     * @ORM\Column(name="id", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue(strategy="IDENTITY")
-     */
-    protected int $id;
+    #[ORM\Column(name: 'id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue(strategy: 'IDENTITY')]
+    protected ?int $id = null;
 
-    /**
-     * @ORM\Column(name="from_user", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'from_user', type: 'integer', nullable: false)]
     protected int $fromUser;
 
-    /**
-     * @ORM\Column(name="to_user", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'to_user', type: 'integer', nullable: false)]
     protected int $toUser;
 
-    /**
-     * @ORM\Column(name="room_name", type="string", nullable=false)
-     */
-    protected string $roomName;
+    #[ORM\Column(name: 'title', type: 'string', nullable: false)]
+    protected string $title;
 
-    /**
-     * @ORM\Column(name="datetime", type="datetime", nullable=false)
-     */
+    #[ORM\Column(name: 'datetime', type: 'datetime', nullable: false)]
     protected DateTime $datetime;
 
     /**
@@ -98,25 +82,25 @@ class ChatVideo
     }
 
     /**
-     * Set room_name.
+     * Set title.
      *
      * @return ChatVideo
      */
-    public function setRoomName(string $roomName)
+    public function setTitle(string $title)
     {
-        $this->roomName = $roomName;
+        $this->title = $title;
 
         return $this;
     }
 
     /**
-     * Get room_name.
+     * Get title.
      *
      * @return string
      */
-    public function getRoomName()
+    public function getTitle()
     {
-        return $this->roomName;
+        return $this->title;
     }
 
     /**

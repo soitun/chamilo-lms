@@ -3,6 +3,8 @@
 /* For licensing terms, see /license.txt */
 
 use ChamiloSession as Session;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
  * Upload quiz: This script shows the upload quiz feature.
@@ -45,12 +47,7 @@ lp_upload_quiz_main();
 function lp_upload_quiz_actions()
 {
     return '<a href="exercise.php?'.api_get_cidreq().'">'.
-        Display::return_icon(
-            'back.png',
-            get_lang('BackToTestsList'),
-            '',
-            ICON_SIZE_MEDIUM
-        ).'</a>';
+        Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back to tests list')).'</a>';
 }
 
 function lp_upload_quiz_main()
@@ -67,7 +64,7 @@ function lp_upload_quiz_main()
     $form->addElement('header', get_lang('Import quiz from Excel'));
     $form->addElement('file', 'user_upload_quiz', get_lang('File upload'));
 
-    $label = Display::return_icon('export_excel.png', get_lang('Download the Excel Template')).
+    $label = Display::getMdiIcon(ActionIcon::EXPORT_SPREADSHEET, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Download the Excel Template')).
         get_lang('Download the Excel Template');
     $link = '<a href="../exercise/quiz_template.xls">'.$label.'</a>';
     $form->addElement('label', '', $link);
@@ -151,7 +148,15 @@ function lp_upload_quiz_action_handling()
     $answerList = [];
     $quizTitle = '';
 
-    $objPHPExcel = PHPExcel_IOFactory::load($_FILES['user_upload_quiz']['tmp_name']);
+    if (isset($_FILES['user_upload_quiz'])) {
+        try {
+            $objPHPExcel = IOFactory::load($_FILES['user_upload_quiz']['tmp_name']);
+        } catch (\Exception $e) {
+            return;
+        }
+    } else {
+        return;
+    }
 
     $objPHPExcel->setActiveSheetIndex(0);
     $worksheet = $objPHPExcel->getActiveSheet();
@@ -163,9 +168,9 @@ function lp_upload_quiz_action_handling()
     $useCustomScore = isset($_POST['user_custom_score']) ? true : false;
 
     for ($row = 1; $row <= $highestRow; $row++) {
-        $cellTitleInfo = $worksheet->getCellByColumnAndRow(0, $row);
-        $cellDataInfo = $worksheet->getCellByColumnAndRow(1, $row);
-        $cellScoreInfo = $worksheet->getCellByColumnAndRow(2, $row);
+        $cellTitleInfo = $worksheet->getCell("A$row");
+        $cellDataInfo = $worksheet->getCell("B$row");
+        $cellScoreInfo = $worksheet->getCell("C$row");
         $title = $cellTitleInfo->getValue();
 
         switch ($title) {
@@ -181,13 +186,13 @@ function lp_upload_quiz_action_handling()
                 $answerIndex = 0;
                 while ($continue) {
                     $answerRow++;
-                    $answerInfoTitle = $worksheet->getCellByColumnAndRow(0, $answerRow);
-                    $answerInfoData = $worksheet->getCellByColumnAndRow(1, $answerRow);
-                    $answerInfoExtra = $worksheet->getCellByColumnAndRow(2, $answerRow);
-                    $answerInfoTitle = $answerInfoTitle->getValue();
+                    $answerInfoTitle = $worksheet->getCell("A$answerRow")->getValue();
+                    $answerInfoData = $worksheet->getCell("B$answerRow")->getValue();
+                    $answerInfoExtra = $worksheet->getCell("C$answerRow")->getValue();
+
                     if (false !== strpos($answerInfoTitle, 'Answer')) {
-                        $answerList[$numberQuestions][$answerIndex]['data'] = $answerInfoData->getValue();
-                        $answerList[$numberQuestions][$answerIndex]['extra'] = $answerInfoExtra->getValue();
+                        $answerList[$numberQuestions][$answerIndex]['data'] = $answerInfoData;
+                        $answerList[$numberQuestions][$answerIndex]['extra'] = $answerInfoExtra;
                     } else {
                         $continue = false;
                     }
@@ -205,14 +210,14 @@ function lp_upload_quiz_action_handling()
                 $questionTypeIndex = 0;
                 while ($continue) {
                     $answerRow++;
-                    $questionTypeTitle = $worksheet->getCellByColumnAndRow(0, $answerRow);
-                    $questionTypeExtra = $worksheet->getCellByColumnAndRow(2, $answerRow);
-                    $title = $questionTypeTitle->getValue();
-                    if ('QuestionType' == $title) {
-                        $questionTypeList[$numberQuestions] = $questionTypeExtra->getValue();
+                    $questionTypeTitle = $worksheet->getCell("A$answerRow")->getValue();
+                    $questionTypeExtra = $worksheet->getCell("C$answerRow")->getValue();
+
+                    if ('QuestionType' == $questionTypeTitle) {
+                        $questionTypeList[$numberQuestions] = $questionTypeExtra;
                         $continue = false;
                     }
-                    if ('Question' == $title) {
+                    if ('Question' == $questionTypeTitle) {
                         $continue = false;
                     }
                     // To avoid loops

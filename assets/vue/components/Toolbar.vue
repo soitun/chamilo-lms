@@ -1,157 +1,96 @@
 <template>
-   <v-card
-       elevation="2"
-   >
-<!--    <div class="p-4 flex flex-row gap-1 mb-2">-->
-      <slot name="left" />
-      <q-btn
-        v-if="handleList"
-        :loading="isLoading"
-        color="primary"
-        @click="listItem"
-        unelevated
-      >
-        {{ $t('List') }}
-      </q-btn>
+  <PrimeToolbar>
+    <template #start>
+      <BaseButton
+        v-if="handleBack"
+        :label="$t('Back')"
+        icon="back"
+        type="primary"
+        @click="backAction"
+      />
 
-      <v-btn
+      <PrimeButton
+        v-if="handleList"
+        :label="$t('List')"
+        :loading="isLoading"
+        class="p-button-outlined"
+        @click="listItem"
+      />
+
+      <PrimeButton
         v-if="handleEdit"
         :loading="isLoading"
-        @click="editItem"
-        tile
-        icon
         :title="$t('Edit')"
-      >
-        <v-icon icon="mdi-pencil"/>
-      </v-btn>
-
-<!--      <q-btn-->
-<!--        v-if="handleSubmit"-->
-<!--        no-caps-->
-<!--        class="btn btn-primary"-->
-<!--        :loading="isLoading"-->
-<!--        @click="submitItem"-->
-<!--        unelevated-->
-<!--      >-->
-<!--        <v-icon icon="mdi-content-save"/>-->
-<!--        {{ $t('Submit') }}-->
-<!--      </q-btn>-->
-
-      <v-btn
-          v-if="handleSubmit"
-          :loading="isLoading"
-          tile
-          icon
-          @click="submitItem"
-          :title="$t('Submit')"
-      >
-        <v-icon icon="mdi-content-save" />
-      </v-btn>
-
-      <v-btn
-          v-if="handleSend"
-          :loading="isLoading"
-          tile
-          icon
-          @click="sendItem"
-          :title="$t('Send')"
-      >
-        <v-icon icon="mdi-send" />
-      </v-btn>
-
-      <!--      <v-btn-->
-      <!--        v-if="handleReset"-->
-      <!--        color="primary"-->
-      <!--        class="ml-sm-2"-->
-      <!--        @click="resetItem"-->
-      <!--      >-->
-      <!--        {{ $t('Reset') }}-->
-      <!--      </v-btn>-->
-      <v-btn
-          v-if="handleDelete"
-          :loading="isLoading"
-          tile
-          icon
-          @click="confirmDeleteClick = true"
-          :title="$t('Delete')"
-      >
-        <v-icon icon="mdi-delete" />
-      </v-btn>
-<!--      color="primary"-->
-      <q-btn
-        v-if="handleAdd"
-        no-caps
-        class="btn btn-primary"
-        @click="addItem"
-      >
-        <v-icon icon="mdi-folder-plus"/>
-        New folder
-      </q-btn>
-
-      <q-btn
-        no-caps
-        class="btn btn-primary"
-        v-if="handleAddDocument"
-        @click="addDocument"
-      >
-        <v-icon icon="mdi-file-plus"/>
-        New document
-      </q-btn>
-
-      <q-btn
-        no-caps
-        class="btn btn-primary"
-        v-if="handleUploadDocument"
-        @click="uploadDocument"
-      >
-        <v-icon icon="mdi-cloud-upload"/>
-        File upload
-      </q-btn>
-
-<!--      <v-btn-->
-<!--          v-if="handleUploadDocument"-->
-<!--          :loading="isLoading"-->
-<!--          tile-->
-<!--          icon-->
-<!--          @click="uploadDocument"-->
-<!--      >-->
-<!--        <v-icon icon="mdi-cloud-upload"/>-->
-<!--      </v-btn>-->
-
-
-
-  <!--    <DataFilter-->
-  <!--      v-if="filters"-->
-  <!--      :handle-filter="onSendFilter"-->
-  <!--      :handle-reset="resetFilter"-->
-  <!--    >-->
-  <!--      <DocumentsFilterForm-->
-  <!--        ref="filterForm"-->
-  <!--        slot="filter"-->
-  <!--        :values="filters"-->
-  <!--      />-->
-  <!--    </DataFilter>-->
-     <slot name="right" />
-      <ConfirmDelete
-        v-if="handleDelete"
-        :show="confirmDeleteClick"
-        :handle-delete="handleDelete"
-        :handle-cancel="() => confirmDeleteClick = false"
+        class="p-button-outlined"
+        icon="mdi mdi-pencil"
+        @click="editItem"
       />
-  </v-card>
+
+      <BaseButton
+        v-if="handleSubmit"
+        :is-loading="isLoading"
+        :label="$t('Submit')"
+        icon="save"
+        type="success"
+        @click="submitItem"
+      />
+
+      <PrimeButton
+        v-if="handleSend"
+        :loading="isLoading"
+        :title="$t('Send')"
+        class="p-button-outlined"
+        icon="mdi mdi-send"
+        @click="sendItem"
+      />
+
+      <PrimeButton
+        v-if="handleDelete"
+        :loading="isLoading"
+        :title="$t('Delete')"
+        class="p-button-outlined"
+        icon="mdi mdi-delete"
+        @click="onHandleDelete"
+      />
+
+      <PrimeButton
+        v-if="handleAdd"
+        :label="$t('New folder')"
+        class="p-button-outlined"
+        icon="mdi mdi-folder-plus"
+        @click="addItem"
+      />
+
+      <PrimeButton
+        v-if="handleAddDocument"
+        :label="$t('New document')"
+        class="p-button-outlined"
+        icon="mdi mdi-file-plus"
+        @click="addDocument"
+      />
+
+      <PrimeButton
+        v-if="handleUploadDocument"
+        :label="$t('File upload')"
+        class="p-button-outlined"
+        icon="mdi mdi-cloud-upload"
+        @click="uploadDocument"
+      />
+    </template>
+  </PrimeToolbar>
 </template>
 
 <script>
-import ConfirmDelete from './ConfirmDelete.vue';
-import DocumentsFilterForm from './documents/Filter.vue';
-import DataFilter from './DataFilter.vue';
+import PrimeToolbar from "primevue/toolbar"
+import PrimeButton from "primevue/button"
+import BaseButton from "./basecomponents/BaseButton.vue"
 
 export default {
-  name: 'Toolbar',
+  name: "Toolbar",
   components: {
-    ConfirmDelete,
-    DocumentsFilterForm,
-    DataFilter
+    BaseButton,
+    PrimeToolbar,
+    PrimeButton,
   },
   props: {
     filters: {
@@ -159,108 +98,121 @@ export default {
     },
     handleFilter: {
       type: Function,
-      required: false
+      required: false,
     },
     handleList: {
       type: Function,
-      required: false
+      required: false,
     },
     handleEdit: {
       type: Function,
-      required: false
+      required: false,
+    },
+    handleBack: {
+      type: Function,
+      required: false,
     },
     handleSubmit: {
       type: Function,
-      required: false
+      required: false,
     },
     handleReset: {
       type: Function,
-      required: false
+      required: false,
     },
     handleDelete: {
       type: Function,
-      required: false
+      required: false,
     },
     handleAdd: {
       type: Function,
-      required: false
+      required: false,
     },
     handleSend: {
       type: Function,
-      required: false
+      required: false,
     },
     handleAddDocument: {
       type: Function,
-      required: false
+      required: false,
     },
     onSendFilter: {
       type: Function,
-      required: false
+      required: false,
     },
     resetFilter: {
       type: Function,
-      required: false
+      required: false,
     },
     handleUploadDocument: {
       type: Function,
-      required: false
+      required: false,
     },
     title: {
       type: String,
-      required: false
+      required: false,
     },
     isLoading: {
       type: Boolean,
       required: false,
-      default: () => false
-    }
-  },
-  data() {
-    return {
-      confirmDeleteClick: false
-    };
+      default: () => false,
+    },
   },
   methods: {
+    backAction() {
+      if (this.handleBack) {
+        this.handleBack()
+      }
+    },
     listItem() {
       if (this.handleList) {
-        this.handleList();
+        this.handleList()
       }
     },
     addItem() {
       if (this.handleAdd) {
-        this.handleAdd();
+        this.handleAdd()
       }
     },
     addDocument() {
       if (this.addDocument) {
-        this.handleAddDocument();
+        this.handleAddDocument()
       }
     },
     uploadDocument() {
       if (this.uploadDocument) {
-        this.handleUploadDocument();
+        this.handleUploadDocument()
       }
     },
     editItem() {
       if (this.handleEdit) {
-        this.handleEdit();
+        this.handleEdit()
       }
     },
     sendItem() {
       if (this.handleSend) {
-        this.handleSend();
+        this.handleSend()
       }
     },
     submitItem() {
       if (this.handleSubmit) {
-        this.handleSubmit();
+        this.handleSubmit()
       }
+    },
+    onHandleDelete() {
+      this.$confirm.require({
+        header: "Confirmation",
+        message: "Are you sure you want to delete this item?",
+        accept: () => {
+          this.handleDelete()
+        },
+      })
     },
     resetItem() {
       if (this.handleReset) {
-        this.handleReset();
+        this.handleReset()
       }
-    }
-  }
-};
+    },
+  },
+}
 </script>

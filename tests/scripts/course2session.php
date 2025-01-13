@@ -7,9 +7,8 @@
 /**
  * Init
  */
-// comment exit statement before executing
-exit;
-require __DIR__ . '/../../main/inc/global.inc.php';
+die('Remove the "die()" statement on line '.__LINE__.' to execute this script'.PHP_EOL);
+require_once __DIR__.'/../../public/main/inc/global.inc.php';
 
 $debug = 1;
 // Who will be the general coach assigned to all sessions created?
@@ -54,16 +53,16 @@ $tables = array(
     //'session_rel_course_rel_user',
     //'session_rel_user',
     'track_course_ranking' => array('c' => 'c_id', 's' => 'session_id'),
-    'track_e_access' => array('access_cours_code' => 'c_id', 's' => 'access_session_id'),
+    'track_e_access' => array('access_cours_code' => 'c_id', 's' => 'session_id'),
     'track_e_attempt' => array('c' => 'course_code', 's' => 'session_id'),
     'track_e_course_access' => array('c' => 'course_code', 's' => 'session_id'),
-    'track_e_downloads' => array('c' => 'down_cours_id', 's' => 'down_session_id'),
+    'track_e_downloads' => array('c' => 'down_cours_id', 's' => 'session_id'),
     'track_e_exercices' => array('c' => 'exe_cours_id', 's' => 'session_id'),
     'track_e_item_property' => array('c' => 'course_id', 's' => 'session_id'),
-    'track_e_lastaccess' => array('c' => 'access_cours_code', 's' => 'access_session_id'),
-    'track_e_links' => array('c' => 'links_cours_id', 's' => 'links_session_id'),
+    'track_e_lastaccess' => array('c' => 'access_cours_code', 's' => 'session_id'),
+    'track_e_links' => array('c' => 'links_cours_id', 's' => 'session_id'),
     'track_e_online' => array('c' => 'course', 's' => 'session_id'),
-    'track_e_uploads' => array('c' => 'c_id', 's' => 'upload_session_id'),
+    'track_e_uploads' => array('c' => 'c_id', 's' => 'session_id'),
     'user_rel_course_vote' => array('c' => 'c_id', 's' => 'session_id'),
 );
 // Users related tables. From those tables above, only a few have data related
@@ -91,16 +90,16 @@ $userTables = array(
     //'session_rel_course_rel_user',
     //'session_rel_user',
     'track_course_ranking' => array('c' => 'c_id', 's' => 'session_id'),
-    'track_e_access' => array('c' => 'c_id', 's' => 'access_session_id'),
+    'track_e_access' => array('c' => 'c_id', 's' => 'session_id'),
     'track_e_attempt' => array('c' => 'c_id', 's' => 'session_id'),
     'track_e_course_access' => array('c' => 'c_id', 's' => 'session_id'),
-    'track_e_downloads' => array('c' => 'c_id', 's' => 'down_session_id'),
+    'track_e_downloads' => array('c' => 'c_id', 's' => 'session_id'),
     'track_e_exercices' => array('c' => 'c_id', 's' => 'session_id'),
     'track_e_item_property' => array('c' => 'course_id', 's' => 'session_id'),
-    'track_e_lastaccess' => array('c' => 'c_id', 's' => 'access_session_id'),
-    'track_e_links' => array('c' => 'c_id', 's' => 'links_session_id'),
+    'track_e_lastaccess' => array('c' => 'c_id', 's' => 'session_id'),
+    'track_e_links' => array('c' => 'c_id', 's' => 'session_id'),
     'track_e_online' => array('c' => 'c_id', 's' => 'session_id'),
-    'track_e_uploads' => array('c' => 'upload_cours_id', 's' => 'upload_session_id'),
+    'track_e_uploads' => array('c' => 'upload_cours_id', 's' => 'session_id'),
     'user_rel_course_vote' => array('c' => 'c_id', 's' => 'session_id'),
 );
 

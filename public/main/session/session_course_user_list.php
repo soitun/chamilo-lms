@@ -2,6 +2,8 @@
 
 /* For licensing terms, see /license.txt */
 
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+
 $cidReset = true;
 
 require_once __DIR__.'/../inc/global.inc.php';
@@ -48,7 +50,7 @@ if (is_array($idChecked)) {
     $idChecked = $my_temp;
 }
 
-$sql = "SELECT s.name, c.title
+$sql = "SELECT s.title, c.title
         FROM $tbl_session_rel_course src
 		INNER JOIN $tbl_session s ON s.id = src.session_id
 		INNER JOIN $tbl_course c ON c.id = src.c_id
@@ -209,14 +211,14 @@ echo Display::page_header($tool_name);
                     ?>
                             <a href="<?php echo api_get_self(); ?>?id_session=<?php echo $id_session; ?>&course_code=<?php echo urlencode($course_code); ?>&sort=<?php echo $sort; ?>&action=delete&idChecked[]=<?php echo $enreg['user_id']; ?>"
                                onclick="javascript:if(!confirm('<?php echo get_lang('Please confirm your choice'); ?>')) return false;">
-                                <?php echo Display::return_icon('delete.png', get_lang('Delete')); ?>
+                                <?php echo Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Delete')); ?>
                             </a>
                         <?php
                 } else {
                     ?>
                             <a href="<?php echo api_get_self(); ?>?id_session=<?php echo $id_session; ?>&course_code=<?php echo urlencode($course_code); ?>&sort=<?php echo $sort; ?>&action=add&idChecked[]=<?php echo $enreg['user_id']; ?>"
                                onclick="javascript:if(!confirm('<?php echo get_lang('Please confirm your choice'); ?>')) return false;">
-                                <?php echo Display::return_icon('add.png', get_lang('Add'), [], ICON_SIZE_SMALL); ?>
+                                <?php echo Display::getMdiIcon(ActionIcon::ADD, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Add')); ?>
                             </a>
                         <?php
                 } ?>

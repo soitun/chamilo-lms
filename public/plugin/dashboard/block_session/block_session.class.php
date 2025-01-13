@@ -89,7 +89,7 @@ class BlockSession extends Block
             $i = 1;
             foreach ($sessions as $session) {
                 $session_id = (int) ($session['id']);
-                $title = $session['name'];
+                $title = $session['title'];
 
                 if (!empty($session['access_start_date'])) {
                     $dateFrom = api_convert_and_format_date(
@@ -130,7 +130,7 @@ class BlockSession extends Block
         }
 
         if (count($sessions) > 0) {
-            $content .= '<div style="text-align:right;margin-top:10px;"><a href="'.api_get_path(WEB_CODE_PATH).'mySpace/session.php">'.get_lang('See more').'</a></div>';
+            $content .= '<div style="text-align:right;margin-top:10px;"><a href="'.api_get_path(WEB_CODE_PATH).'my_space/session.php">'.get_lang('See more').'</a></div>';
         }
 
         return $content;

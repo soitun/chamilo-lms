@@ -1,73 +1,23 @@
 <template>
-  <q-page class="q-layout-padding">
-    <div
-        v-if="announcements.length"
-    >
-      <SystemAnnouncementCardList
-          :announcements="announcements"
-      />
-    </div>
+  <!-- Homepage for logged-in users -->
+  <div class="flex flex-col gap-4 items-center">
+    <SystemAnnouncementCardList />
 
-    <div
-        v-if="pages.length"
-        class="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 mt-2">
-      <PageCardList
-          :pages="pages"
-      />
-    </div>
-  </q-page>
+    <PageCardList class="grid gap-4 grid-cols-1" />
+  </div>
 </template>
 
-<script>
+<script setup>
+import { useRouter } from "vue-router"
+import PageCardList from "../components/page/PageCardList"
+import SystemAnnouncementCardList from "../components/systemannouncement/SystemAnnouncementCardList"
+import { usePlatformConfig } from "../store/platformConfig"
 
-import axios from "axios";
-import {reactive, toRefs} from 'vue'
-import {mapGetters, useStore} from "vuex";
-import {useRouter} from "vue-router";
-import {useI18n} from "vue-i18n";
-import PageCardList from "../components/page/PageCardList";
-import SystemAnnouncementCardList from "../components/systemannouncement/SystemAnnouncementCardList";
+const router = useRouter()
+const platformConfigStore = usePlatformConfig()
 
-export default {
-  name: 'Home',
-  components: {
-    SystemAnnouncementCardList,
-    PageCardList
-  },
-  setup() {
-    const store = useStore();
-    const state = reactive({
-      announcements: [],
-      pages: [],
-    });
-
-    axios.get('/news/list').then(response => {
-      if (Array.isArray(response.data)) {
-        state.announcements = response.data;
-      }
-    }).catch(function (error) {
-      console.log(error);
-    });
-
-    const { locale } = useI18n();
-
-    let params = {
-      'category.title' : 'home',
-      'enabled' : '1',
-      'locale':  locale.value
-    }
-
-    const pages = store.dispatch('page/findAll', params);
-    pages.then((response) => {
-      state.pages = response;
-    });
-
-    return toRefs(state);
-  },
-  computed: {
-    ...mapGetters({
-      'isAdmin': 'security/isAdmin',
-    }),
-  }
+const redirectValue = platformConfigStore.getSetting("platform.redirect_index_to_url_for_logged_users")
+if (typeof redirectValue === "string" && redirectValue.trim() !== "") {
+  router.replace(`/${redirectValue}`)
 }
 </script>

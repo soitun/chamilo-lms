@@ -20,6 +20,37 @@ $order = isset($_REQUEST['sord']) && in_array($_REQUEST['sord'], ['asc', 'desc']
 $table = '';
 
 switch ($action) {
+    case 'get_user_registration_by_month':
+        $dateStart = Security::remove_XSS($_POST['date_start']);
+        $dateEnd = Security::remove_XSS($_POST['date_end']);
+
+        $registrations = Statistics::getNewUserRegistrations($dateStart, $dateEnd);
+        $all = Statistics::groupByMonth($registrations);
+        $labels = [];
+        $data = [];
+        foreach ($all as $month => $count) {
+            $labels[] = $month;
+            $data[] = $count;
+        }
+
+        echo json_encode(['labels' => $labels, 'data' => $data]);
+        exit;
+    case 'get_user_registration_by_day':
+        $year = intval($_POST['year']);
+        $month = intval($_POST['month']);
+
+        $startDate = "$year-$month-01";
+        $endDate = date("Y-m-t", strtotime($startDate));
+        $dailyData = Statistics::getNewUserRegistrations($startDate, $endDate);
+        $labels = [];
+        $data = [];
+        foreach ($dailyData as $registration) {
+            $labels[] = $registration['date'];
+            $data[] = $registration['count'];
+        }
+
+        echo json_encode(['labels' => $labels, 'data' => $data]);
+        exit;
     case 'add_student_to_boss':
         $studentId = isset($_GET['student_id']) ? (int) $_GET['student_id'] : 0;
         $bossId = isset($_GET['boss_id']) ? (int) $_GET['boss_id'] : 0;
@@ -178,7 +209,8 @@ switch ($action) {
             // total amount of courses
             $all = [];
             foreach ($categories as $category) {
-                $all[$category->getName()] = $category->getCourses()->count();
+                /* @var Chamilo\CoreBundle\Entity\CourseCategory $category */
+                $all[$category->getTitle()] = $category->getCourses()->count();
             }
         } elseif ('courses_by_language' == $action) {
             $statsName = 'CountCourseByLanguage';
@@ -202,8 +234,9 @@ switch ($action) {
             $countInvisible = isset($_GET['count_invisible']) ? (int) $_GET['count_invisible'] : null;
             $all = [];
             foreach ($categories as $category) {
+                /* @var Chamilo\CoreBundle\Entity\CourseCategory $category */
                 $code = $category->getCode();
-                $name = $category->getName();
+                $name = $category->getTitle();
                 $name = str_replace(get_lang('Department'), '', $name);
                 $all[$name] = Statistics::countUsers(COURSEMANAGER, $code, $countInvisible);
             }
@@ -219,8 +252,9 @@ switch ($action) {
             $countInvisible = isset($_GET['count_invisible']) ? (int) $_GET['count_invisible'] : null;
             $all = [];
             foreach ($categories as $category) {
+                /* @var Chamilo\CoreBundle\Entity\CourseCategory $category */
                 $code = $category->getCode();
-                $name = $category->getName();
+                $name = $category->getTitle();
                 $name = str_replace(get_lang('Department'), '', $name);
                 $all[$name] = Statistics::countUsers(STUDENT, $code, $countInvisible);
             }
@@ -328,7 +362,7 @@ switch ($action) {
                     $count = $result['count'];
                     $usersFound += $count;
 
-                    $option = $extraFieldOption->get($item['id'], true);
+                    $option = $extraFieldOption->get($item['id']);
                     $item['display_text'] = $option['display_text'];
                     $all[$item['display_text']] = $count;
                 }
@@ -621,11 +655,6 @@ switch ($action) {
                 $table = $table['table'];
                 break;
             case 'status':
-                $sessionStatusAllowed = api_get_configuration_value('allow_session_status');
-                if (!$sessionStatusAllowed) {
-                    exit;
-                }
-
                 $sql = "SELECT count(id) count, status FROM $table
                         WHERE
                             (

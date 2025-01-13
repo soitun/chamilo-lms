@@ -3,6 +3,7 @@
 
 use Chamilo\CoreBundle\Component\Utils\ChamiloApi;
 use ChamiloSession as Session;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
 
 /**
  * Code.
@@ -18,9 +19,9 @@ use ChamiloSession as Session;
 function getCustomTabs()
 {
     $urlId = api_get_current_access_url_id();
-    $tableSettingsCurrent = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+    $tableSettingsCurrent = Database::get_main_table(TABLE_MAIN_SETTINGS);
     $sql = "SELECT * FROM $tableSettingsCurrent
-            WHERE 
+            WHERE
                 variable = 'show_tabs' AND
                 subkey LIKE 'custom_tab_%' AND access_url = $urlId ";
     $result = Database::query($sql);
@@ -44,7 +45,7 @@ function getCustomTabs()
 /**
  * Return the active logo of the portal, based on a series of settings.
  *
- * @param string $theme      The name of the theme folder from web/css/themes/
+ * @param string $theme      The name of the theme folder from var/themes/
  * @param bool   $responsive add class img-responsive
  *
  * @return string HTML string with logo as an HTML element
@@ -85,7 +86,7 @@ function accessToWhoIsOnline()
     }
 
     if (true === $access) {
-        $profileList = api_get_configuration_value('allow_online_users_by_status');
+        $profileList = api_get_setting('security.allow_online_users_by_status', true);
         if (!empty($profileList) && isset($profileList['status'])) {
             $userInfo = api_get_user_info();
             if ($userInfo['is_admin']) {
@@ -125,7 +126,7 @@ function returnNotificationMenu()
         ) {
             $html .= '<li class="user-online"><a href="'.api_get_path(WEB_PATH).'whoisonline.php" target="_self" title="'
                 .get_lang('Users online').'" >'
-                .Display::return_icon('user.png', get_lang('Users online'), [], ICON_SIZE_TINY)
+                .Display::getMdiIcon(ObjectIcon::USER, 'ch-tool-icon', null, ICON_SIZE_TINY, get_lang('Users online'))
                 .' '.$number.'</a></li>';
         }
 
@@ -138,7 +139,7 @@ function returnNotificationMenu()
         ) {
             $html .= '<li class="user-online-course"><a href="'.api_get_path(WEB_PATH).'whoisonline.php?cidReq='.$courseInfo['sysCode']
                 .'" target="_self">'
-                .Display::return_icon('course.png', get_lang('Users online').' '.get_lang('in this course'), [], ICON_SIZE_TINY)
+                .Display::getMdiIcon(ObjectIcon::COURSE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Users online').' '.get_lang('in this course'), [], ICON_SIZE_TINY)
                 .' '.$number_online_in_course.' </a></li>';
         }
 
@@ -150,7 +151,7 @@ function returnNotificationMenu()
                 $numberOnlineInSession = getOnlineUsersInSessionCount($sessionId);
                 $html .= '<li class="user-online-session">
                             <a href="'.api_get_path(WEB_PATH).'whoisonlinesession.php" target="_self">'
-                            .Display::return_icon('session.png', get_lang('Online in my sessions'), [], ICON_SIZE_TINY)
+                            .Display::getMdiIcon(ObjectIcon::SESSION, 'ch-tool-icon', null, ICON_SIZE_TINY, get_lang('Online in my sessions'))
                             .' '.$numberOnlineInSession.'</a></li>';
             }
         }
@@ -349,7 +350,7 @@ function return_breadcrumb($interbreadcrumb, $language_file, $nameTools)
         $sessionName = '';
         if (!empty($sessionId)) {
             $session = api_get_session_entity($sessionId);
-            $sessionName = $session ? ' ('.cut($session->getName(), MAX_LENGTH_BREADCRUMB).')' : '';
+            $sessionName = $session ? ' ('.cut($session->getTitle(), MAX_LENGTH_BREADCRUMB).')' : '';
         }
 
         $courseInfo['name'] = api_htmlentities($courseInfo['name']);
@@ -357,29 +358,26 @@ function return_breadcrumb($interbreadcrumb, $language_file, $nameTools)
 
         switch (api_get_setting('breadcrumbs_course_homepage')) {
             case 'get_lang':
-                $itemTitle = Display::return_icon(
-                    'home.png',
-                    get_lang('Course home'),
-                    [],
-                    ICON_SIZE_TINY
-                );
+                $itemTitle = Display::getMdiIcon(ObjectIcon::HOME, 'ch-tool-icon', null, ICON_SIZE_TINY, get_lang('Course home'));
                 break;
             case 'course_code':
-                $itemTitle = Display::return_icon(
-                    'home.png',
-                    $courseInfo['official_code'],
-                    [],
-                    ICON_SIZE_TINY
+                $itemTitle = Display::getMdiIcon(
+                    ObjectIcon::HOME,
+                    'ch-tool-icon',
+                    null,
+                    ICON_SIZE_TINY,
+                    $courseInfo['official_code']
                 )
                 .' '.$courseInfo['official_code'];
                 break;
             case 'session_name_and_course_title':
             default:
-                $itemTitle = Display::return_icon(
-                    'home.png',
-                    $courseInfo['name'].$sessionName,
-                    [],
-                    ICON_SIZE_TINY
+                $itemTitle = Display::getMdiIcon(
+                    ObjectIcon::HOME,
+                    'ch-tool-icon',
+                    null,
+                    ICON_SIZE_TINY,
+                    $courseInfo['title'].$sessionName
                 )
                 .' '.$course_title.$sessionName;
 

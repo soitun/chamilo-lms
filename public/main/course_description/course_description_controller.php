@@ -44,22 +44,12 @@ class CourseDescriptionController
             foreach ($categories as $id => $title) {
                 if (ADD_BLOCK == $i) {
                     $actionLeft .= '<a href="index.php?'.api_get_cidreq().'&action=add">'.
-                        Display::return_icon(
-                            $iconList[$id],
-                            $title,
-                            '',
-                            ICON_SIZE_MEDIUM
-                        ).
+                        Display::getMdiIcon($iconList[$id], 'ch-tool-icon', null, 32, $title).
                         '</a>';
                     break;
                 } else {
                     $actionLeft .= '<a href="index.php?action=edit&'.api_get_cidreq().'&description_type='.$id.'">'.
-                        Display::return_icon(
-                            $iconList[$id],
-                            $title,
-                            '',
-                            ICON_SIZE_MEDIUM
-                        ).
+                        Display::getMdiIcon($iconList[$id], 'ch-tool-icon', null, 32, $title).
                         '</a>';
                     $i++;
                 }
@@ -84,7 +74,21 @@ class CourseDescriptionController
         $session_id = api_get_session_id();
         $data = [];
         $course_description->set_session_id($session_id);
-        $data['descriptions'] = $course_description->get_description_data();
+        $descriptions = $course_description->get_description_data();
+
+        foreach ($descriptions as $description) {
+            $description_data = [
+                'iid' => $description->getIid(),
+                'title' => $description->getTitle(),
+                'content' => $description->getContent(),
+                'descriptionType' => $description->getDescriptionType(),
+                'resourceNode' => $description->getResourceNode(),
+                'sessionId' => $description->getFirstResourceLink()->getSession() ? $description->getFirstResourceLink()->getSession()->getId() : null,
+            ];
+            $description_data['icon_session'] = api_get_session_image($description->getFirstResourceLink()->getSession()?->getId(), api_get_user_entity());
+            $data['descriptions'][] = $description_data;
+        }
+
         $data['default_description_titles'] = $course_description->get_default_description_title();
         $data['default_description_title_editable'] = $course_description->get_default_description_title_editable();
         $data['default_description_icon'] = $course_description->get_default_description_icon();
@@ -95,27 +99,18 @@ class CourseDescriptionController
         // Prepare confirmation code for item deletion
         global $htmlHeadXtra;
         $htmlHeadXtra[] = "<script>
-        function confirmation(name) {
-            if (confirm(\" ".trim(get_lang('Are you sure to delete'))." \"+name+\"?\")) {
-                return true;
-            } else {
-                return false;
-            }
+    function confirmation(name) {
+        if (confirm(\" ".trim(get_lang('Are you sure to delete'))." \"+name+\"?\")) {
+            return true;
+        } else {
+            return false;
         }
-        </script>";
+    }
+    </script>";
 
-        /*foreach ($data['descriptions'] as $id => $description) {
-            if (!empty($description['content'])
-                && false !== strpos($description['content'], '<iframe')
-            ) {
-                header("X-XSS-Protection: 0");
-            }
-            // Add an escape version for the JS code of delete confirmation
-            if ($description) {
-                $data['descriptions'][$id]['title_js'] = addslashes(strip_tags($description['title']));
-            }
-        }*/
         $actions = self::getToolbar();
+
+
 
         $tpl = new Template(get_lang('Description'));
         $tpl->assign('listing', $data);
@@ -261,7 +256,7 @@ class CourseDescriptionController
             $form->addElement('hidden', 'description_type', $description_type);
             //$form->addElement('hidden', 'sec_token', $token);
 
-            if (api_get_configuration_value('save_titles_as_html')) {
+            if ('true' === api_get_setting('editor.save_titles_as_html')) {
                 $form->addHtmlEditor(
                     'title',
                     get_lang('Title'),
@@ -351,7 +346,7 @@ class CourseDescriptionController
                 'index.php?action=add&'.api_get_cidreq()
             );
             $form->addElement('hidden', 'description_type', ADD_BLOCK);
-            if (api_get_configuration_value('save_titles_as_html')) {
+            if ('true' === api_get_setting('editor.save_titles_as_html')) {
                 $form->addHtmlEditor(
                     'title',
                     get_lang('Title'),

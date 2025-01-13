@@ -8,7 +8,6 @@ namespace Chamilo\CoreBundle\Repository;
 
 use Chamilo\CoreBundle\Entity\Course;
 use Chamilo\CoreBundle\Entity\ResourceFile;
-use Chamilo\CoreBundle\Entity\ResourceLink;
 use Chamilo\CoreBundle\Entity\ResourceNode;
 use Chamilo\CoreBundle\Entity\ResourceType;
 use Chamilo\CoreBundle\Entity\Session;
@@ -21,6 +20,9 @@ use Symfony\Component\Routing\RouterInterface;
 use Throwable;
 use Vich\UploaderBundle\Storage\FlysystemStorage;
 
+/**
+ * @template-extends MaterializedPathRepository<ResourceNode>
+ */
 class ResourceNodeRepository extends MaterializedPathRepository
 {
     protected FlysystemStorage $storage;
@@ -42,20 +44,18 @@ class ResourceNodeRepository extends MaterializedPathRepository
     }
 
     /*public function create(ResourceNode $node): void
-    {
-        $this->getEntityManager()->persist($node);
-        $this->getEntityManager()->flush();
-    }
-
-    public function update(ResourceNode $node, bool $andFlush = true): void
-    {
-        //$node->setUpdatedAt(new \DateTime());
-        $this->getEntityManager()->persist($node);
-        if ($andFlush) {
-            $this->getEntityManager()->flush();
-        }
-    }*/
-
+     * {
+     * $this->getEntityManager()->persist($node);
+     * $this->getEntityManager()->flush();
+     * }
+     * public function update(ResourceNode $node, bool $andFlush = true): void
+     * {
+     * //$node->setUpdatedAt(new \DateTime());
+     * $this->getEntityManager()->persist($node);
+     * if ($andFlush) {
+     * $this->getEntityManager()->flush();
+     * }
+     * }*/
     public function getFileSystem(): FilesystemOperator
     {
         return $this->filesystem;
@@ -64,8 +64,9 @@ class ResourceNodeRepository extends MaterializedPathRepository
     public function getResourceNodeFileContent(ResourceNode $resourceNode): string
     {
         try {
-            if ($resourceNode->hasResourceFile()) {
-                $resourceFile = $resourceNode->getResourceFile();
+            $resourceFile = $resourceNode->getResourceFiles()->first();
+
+            if ($resourceFile) {
                 $fileName = $this->getFilename($resourceFile);
 
                 return $this->getFileSystem()->read($fileName);
@@ -83,8 +84,9 @@ class ResourceNodeRepository extends MaterializedPathRepository
     public function getResourceNodeFileStream(ResourceNode $resourceNode)
     {
         try {
-            if ($resourceNode->hasResourceFile()) {
-                $resourceFile = $resourceNode->getResourceFile();
+            $resourceFile = $resourceNode->getResourceFiles()->first();
+
+            if ($resourceFile) {
                 $fileName = $this->getFilename($resourceFile);
 
                 return $this->getFileSystem()->readStream($fileName);
@@ -119,6 +121,7 @@ class ResourceNodeRepository extends MaterializedPathRepository
                 switch ($mode) {
                     case 'download':
                         return $this->router->generate('chamilo_core_resource_download', $params, $referenceType);
+
                     case 'view':
                         return $this->router->generate('chamilo_core_resource_view', $params, $referenceType);
                 }
@@ -133,15 +136,14 @@ class ResourceNodeRepository extends MaterializedPathRepository
     /**
      * @todo filter files, check status
      */
-    public function getSize(ResourceNode $resourceNode, ResourceType $type, Course $course = null, Session $session = null): int
+    public function getSize(ResourceNode $resourceNode, ResourceType $type, ?Course $course = null, ?Session $session = null): int
     {
         $qb = $this->createQueryBuilder('node')
             ->select('SUM(file.size) as total')
-            ->innerJoin('node.resourceFile', 'file')
+            ->innerJoin('node.resourceFiles', 'file')
             ->innerJoin('node.resourceLinks', 'l')
             ->where('node.resourceType = :type')
             ->andWhere('node.parent = :parentNode')
-            ->andWhere('l.visibility <> :visibility')
             ->andWhere('file IS NOT NULL')
         ;
 
@@ -150,7 +152,6 @@ class ResourceNodeRepository extends MaterializedPathRepository
             $qb->andWhere('l.course = :course');
             $params['course'] = $course;
         }
-        $params['visibility'] = ResourceLink::VISIBILITY_DELETED;
         $params['parentNode'] = $resourceNode;
         $params['type'] = $type;
 

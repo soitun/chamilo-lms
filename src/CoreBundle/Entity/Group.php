@@ -9,57 +9,45 @@ namespace Chamilo\CoreBundle\Entity;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Stringable;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * User platform roles.
- *
- * @ORM\Entity()
- * @ORM\Table(name="fos_group")
  */
-class Group
+#[ORM\Table(name: 'fos_group')]
+#[ORM\Entity]
+class Group implements Stringable
 {
-    /**
-     * @ORM\Column(name="id", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue(strategy="AUTO")
-     */
-    protected int $id;
+    #[ORM\Column(name: 'id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue(strategy: 'AUTO')]
+    protected ?int $id = null;
 
-    /**
-     * @ORM\Column(name="name", type="string", length=255, nullable=false, unique=true)
-     */
     #[Assert\NotBlank]
-    protected string $name;
-
-    /**
-     * @ORM\Column(name="code", type="string", length=40, nullable=false, unique=true)
-     */
-    #[Assert\NotBlank]
+    #[ORM\Column(name: 'code', type: 'string', length: 40, nullable: false, unique: true)]
     protected string $code;
 
     /**
-     * @ORM\Column(name="roles", type="array")
-     */
-    protected array $roles;
-
-    /**
-     * @ORM\ManyToMany(targetEntity="Chamilo\CoreBundle\Entity\User", mappedBy="groups")
-     *
      * @var User[]|Collection
      */
+    #[ORM\ManyToMany(targetEntity: User::class, mappedBy: 'groups')]
     protected Collection $users;
 
-    public function __construct(string $name, array $roles = [])
-    {
-        $this->name = $name;
-        $this->roles = $roles;
+    public function __construct(
+        #[Assert\NotBlank]
+        #[ORM\Column(name: 'title', type: 'string', length: 255, unique: true, nullable: false)]
+        protected string $title,
+        #[ORM\Column(name: 'roles', type: 'array')]
+        protected array $roles = [
+        ]
+    ) {
         $this->users = new ArrayCollection();
     }
 
     public function __toString(): string
     {
-        return $this->getName() ?: '';
+        return $this->getTitle() ?: '';
     }
 
     public function addRole(string $role): self
@@ -91,14 +79,14 @@ class Group
         return $this;
     }
 
-    public function getName(): string
+    public function getTitle(): string
     {
-        return $this->name;
+        return $this->title;
     }
 
-    public function setName(string $name): self
+    public function setTitle(string $title): self
     {
-        $this->name = $name;
+        $this->title = $title;
 
         return $this;
     }
@@ -123,7 +111,7 @@ class Group
     /**
      * @return User[]|Collection
      */
-    public function getUsers()
+    public function getUsers(): array|Collection
     {
         return $this->users;
     }

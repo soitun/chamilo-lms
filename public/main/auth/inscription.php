@@ -2,7 +2,12 @@
 /* For licensing terms, see /license.txt */
 
 use Chamilo\CoreBundle\Entity\User;
+use Chamilo\CoreBundle\Framework\Container;
+use Chamilo\CoreBundle\ServiceHelper\ContainerHelper;
 use ChamiloSession as Session;
+use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+
+$kernel = null;
 
 require_once __DIR__.'/../inc/global.inc.php';
 
@@ -26,16 +31,22 @@ $allowedFields = [
     'address',
 ];
 
-$allowedFieldsConfiguration = api_get_configuration_value('allow_fields_inscription');
-if (false !== $allowedFieldsConfiguration) {
-    $allowedFields = isset($allowedFieldsConfiguration['fields']) ? $allowedFieldsConfiguration['fields'] : [];
-    $allowedFields['extra_fields'] = isset($allowedFieldsConfiguration['extra_fields']) ? $allowedFieldsConfiguration['extra_fields'] : [];
+$allowedFieldsConfiguration = api_get_setting('registration.allow_fields_inscription', true);
+if ('false' !== $allowedFieldsConfiguration) {
+    $allowedFields = $allowedFieldsConfiguration['fields'] ?? [];
+    $allowedFields['extra_fields'] = $allowedFieldsConfiguration['extra_fields'] ?? [];
 }
 
-$webserviceUrl = api_get_plugin_setting('logintcc', 'webservice_url');
-$hash = api_get_plugin_setting('logintcc', 'hash');
+$pluginTccDirectoryPath = api_get_path(SYS_PLUGIN_PATH) . 'logintcc';
+$isTccEnabled = (is_dir($pluginTccDirectoryPath) && 'true' === api_get_plugin_setting('logintcc', 'tool_enable'));
+$webserviceUrl = '';
+$hash = '';
 
-if (!empty($webserviceUrl)) {
+if ($isTccEnabled) {
+    // Configure TCC plugin settings and JavaScript for the form
+    // (This section includes the JavaScript code for the TCC plugin integration)
+    $webserviceUrl = api_get_plugin_setting('logintcc', 'webservice_url');
+    $hash = api_get_plugin_setting('logintcc', 'hash');
     $htmlHeadXtra[] = '<script>
     $(document).ready(function() {
         $("#search_user").click(function() {
@@ -86,7 +97,7 @@ if (!empty($webserviceUrl)) {
                         $("input[name=\'extra_terms_codepostal\']").val(monU.CP);
                         $("input[name=\'extra_terms_ville\']").val(monU.Ville);
                     } else {
-                        alert("'.get_lang("UnknownUser").'");
+                        alert("'.get_lang("Unknown user").'");
                     }
 
                 },
@@ -105,14 +116,13 @@ $extraFieldsLoaded = false;
 $htmlHeadXtra[] = api_get_password_checker_js('#username', '#pass1');
 // User is not allowed if Terms and Conditions are disabled and
 // registration is disabled too.
-$isNotAllowedHere = 'false' === api_get_setting('allow_terms_conditions') &&
-    'false' === api_get_setting('allow_registration');
-
+$isNotAllowedHere = ('false' === api_get_setting('allow_terms_conditions') && 'false' === api_get_setting('allow_registration'));
 if ($isNotAllowedHere) {
     api_not_allowed(true, get_lang('Sorry, you are trying to access the registration page for this portal, but registration is currently disabled. Please contact the administrator (see contact information in the footer). If you already have an account on this site.'));
 }
 
-$extraConditions = api_get_configuration_value('show_conditions_to_user');
+$settingConditions = api_get_setting('profile.show_conditions_to_user', true);
+$extraConditions = 'false' !== $settingConditions ? $settingConditions : [];
 if ($extraConditions && isset($extraConditions['conditions'])) {
     // Create user extra fields for the conditions
     $userExtraField = new ExtraField('user');
@@ -121,7 +131,7 @@ if ($extraConditions && isset($extraConditions['conditions'])) {
         $exists = $userExtraField->get_handler_field_info_by_field_variable($condition['variable']);
         if (false == $exists) {
             $params = [
-                'field_type' => ExtraField::FIELD_TYPE_CHECKBOX,
+                'value_type' => ExtraField::FIELD_TYPE_CHECKBOX,
                 'variable' => $condition['variable'],
                 'display_text' => $condition['display_text'],
                 'default_value' => '',
@@ -141,7 +151,7 @@ $termRegistered = Session::read('term_and_condition');
 if ('true' === api_get_setting('allow_terms_conditions')) {
     $userAlreadyRegisteredShowTerms = isset($termRegistered['user_id']);
     // Ofaj change
-    if (true === api_is_anonymous()) {
+    if (true === api_is_anonymous() &&  'course' === api_get_setting('load_term_conditions_section')) {
         $userAlreadyRegisteredShowTerms = false;
     }
 }
@@ -153,7 +163,7 @@ $sessionId = Session::read('sessionId');
 $sessionRedirect = isset($_REQUEST['s']) && !empty($_REQUEST['s']) ? $_REQUEST['s'] : null;
 $onlyOneCourseSessionRedirect = isset($_REQUEST['cr']) && !empty($_REQUEST['cr']) ? $_REQUEST['cr'] : null;
 
-if (api_get_configuration_value('allow_redirect_to_session_after_inscription_about')) {
+if ('true' === api_get_setting('session.allow_redirect_to_session_after_inscription_about')) {
     if (!empty($sessionRedirect)) {
         Session::write('session_redirect', $sessionRedirect);
         Session::write('only_one_course_session_redirect', $onlyOneCourseSessionRedirect);
@@ -165,12 +175,22 @@ $course_code_redirect = isset($_REQUEST['c']) && !empty($_REQUEST['c']) ? $_REQU
 $exercise_redirect = isset($_REQUEST['e']) && !empty($_REQUEST['e']) ? $_REQUEST['e'] : null;
 
 if (!empty($course_code_redirect)) {
+    if (!api_is_anonymous()) {
+        $course_info = api_get_course_info($course_code_redirect);
+        $subscribed = CourseManager::autoSubscribeToCourse($course_code_redirect);
+        if ($subscribed) {
+            header('Location: ' . api_get_path(WEB_PATH) . 'course/'.$course_info['real_id'].'/home?sid=0');
+        } else {
+            header('Location: ' . api_get_path(WEB_PATH) . 'course/'.$course_info['real_id'].'/about');
+        }
+        exit;
+    }
     Session::write('course_redirect', $course_code_redirect);
     Session::write('exercise_redirect', $exercise_redirect);
 }
 
 if (false === $userAlreadyRegisteredShowTerms &&
-    'false' !== api_get_setting('allow_registration')
+    'true' === api_get_setting('allow_registration')
 ) {
     // EMAIL
     $form->addElement('text', 'email', get_lang('e-mail'), ['size' => 40]);
@@ -178,7 +198,7 @@ if (false === $userAlreadyRegisteredShowTerms &&
         $form->addRule('email', get_lang('Required field'), 'required');
     }
 
-    if (!empty($webserviceUrl)) {
+    if ($isTccEnabled) {
         $form->addButtonSearch(get_lang('SearchTCC'), 'search', ['id' => 'search_user']);
     }
 
@@ -199,7 +219,7 @@ if (false === $userAlreadyRegisteredShowTerms &&
     }
 
     $LastnameLabel = get_lang('LastName');
-    if (true == api_get_configuration_value('registration_add_helptext_for_2_names')) {
+    if ('true' === api_get_setting('profile.registration_add_helptext_for_2_names')) {
         $LastnameLabel = [$LastnameLabel, get_lang('InsertTwoNames')];
     }
     if (api_is_western_name_order()) {
@@ -273,7 +293,7 @@ if (false === $userAlreadyRegisteredShowTerms &&
         'password',
         'pass1',
         [get_lang('Pass'), $passDiv],
-        ['id' => 'pass1', 'size' => 20, 'autocomplete' => 'off']
+        ['id' => 'pass1', 'size' => 20, 'autocomplete' => 'off', 'show_hide' => true]
     );
 
     $checkPass = api_get_setting('allow_strength_pass_checker');
@@ -292,7 +312,7 @@ if (false === $userAlreadyRegisteredShowTerms &&
     if ($checkPass) {
         $form->addRule(
             'pass1',
-            get_lang('PassTooEasy').': '.api_generate_password(),
+            get_lang('Password too easy to guess').': '.api_generate_password(),
             'callback',
             'api_check_password'
         );
@@ -306,41 +326,41 @@ if (false === $userAlreadyRegisteredShowTerms &&
             get_lang('Phone'),
             ['size' => 20]
         );
-        if ('true' === api_get_setting('registration', 'phone')) {
+        //if ('true' === api_get_setting('registration', 'phone')) {
             $form->addRule(
                 'phone',
                 get_lang('Required field'),
                 'required'
             );
-        }
+        //}
     }
 
     // Language
     if (in_array('language', $allowedFields)) {
-        if ('true' === api_get_setting('registration', 'language')) {
+        //if ('true' === api_get_setting('registration', 'language')) {
             $form->addSelectLanguage(
                 'language',
                 get_lang('Language'),
                 [],
                 ['id' => 'language']
             );
-        }
+        //}
     }
 
     if (in_array('official_code', $allowedFields)) {
         $form->addElement(
             'text',
             'official_code',
-            get_lang('Code'),
+            get_lang('Official code'),
             ['size' => 40]
         );
-        if ('true' === api_get_setting('registration', 'officialcode')) {
+        //if ('true' === api_get_setting('registration', 'officialcode')) {
             $form->addRule(
                 'official_code',
                 get_lang('Required field'),
                 'required'
             );
-        }
+        //}
     }
 
     // STUDENT/TEACHER
@@ -348,14 +368,14 @@ if (false === $userAlreadyRegisteredShowTerms &&
         if (in_array('status', $allowedFields)) {
             $form->addRadio(
                 'status',
-                get_lang('RegistrationRoleWhatDoYouWantToDo'),
+                get_lang('What do you want to do?'),
                 [
-                    STUDENT => '<p class="caption">'.get_lang('RegistrationRoleFollowCourses').'</p>',
-                    COURSEMANAGER => '<p class="caption">'.get_lang('RegistrationRoleTeachCourses').'</p>',
+                    STUDENT => '<p class="caption">'.get_lang('Follow courses').'</p>',
+                    COURSEMANAGER => '<p class="caption">'.get_lang('Teach courses').'</p>',
                 ],
                 ['class' => 'register-profile']
             );
-            $form->addRule('status', get_lang('ThisFieldIsRequired'), 'required');
+            $form->addRule('status', get_lang('Required field'), 'required');
         }
     }
 
@@ -453,7 +473,9 @@ if (false === $userAlreadyRegisteredShowTerms &&
         if (isset($allowedFields['extra_fields']) && is_array($allowedFields['extra_fields'])) {
             $extraFieldList = $allowedFields['extra_fields'];
         }
-        $requiredFields = api_get_configuration_value('required_extra_fields_in_inscription');
+        $settingRequiredFields = api_get_setting('registration.required_extra_fields_in_inscription', true);
+        $requiredFields = 'false' !== $settingRequiredFields ? $settingRequiredFields : [];
+
         if (!empty($requiredFields) && $requiredFields['options']) {
             $requiredFields = $requiredFields['options'];
         }
@@ -466,10 +488,9 @@ if (false === $userAlreadyRegisteredShowTerms &&
             false,
             $extraFieldList,
             [],
-            false,
-            false,
-            false,
             [],
+            false,
+            false,
             [],
             [],
             false,
@@ -534,6 +555,9 @@ if (isset($_SESSION['user_language_choice']) && '' != $_SESSION['user_language_c
 } else {
     $defaults['language'] = api_get_setting('platformLanguage');
 }
+if (!empty($_POST['language'])) {
+    $defaults['language'] = Security::remove_XSS($_POST['language']);
+}
 if (!empty($_GET['username'])) {
     $defaults['username'] = Security::remove_XSS($_GET['username']);
 }
@@ -562,7 +586,7 @@ $user['language'] = 'french';
 $userInfo = api_get_user_info();
 if (!empty($userInfo)) {
     $langInfo = api_get_language_from_iso($userInfo['language']);
-    $user['language'] = $langInfo->getEnglishName();
+//    $user['language'] = $langInfo->getEnglishName();
 }
 
 $toolName = get_lang('Registration');
@@ -576,7 +600,7 @@ if ('true' === api_get_setting('allow_terms_conditions')) {
             $termPreview = LegalManager::get_last_condition($language);
             if (!$termPreview) {
                 //look for the default language
-                $language = api_get_setting('platformLanguage');
+                $language = api_get_setting('language.platform_language');
                 $language = api_get_language_id($language);
                 $termPreview = LegalManager::get_last_condition($language);
             }
@@ -588,12 +612,14 @@ if ('true' === api_get_setting('allow_terms_conditions')) {
                 $termExtraFields = new ExtraFieldValue('terms_and_condition');
                 $values = $termExtraFields->getAllValuesByItem($termPreview['id']);
                 foreach ($values as $value) {
-                    echo '<h3>'.$value['display_text'].'</h3><br />'.$value['value'].'<br />';
+                    if (!empty($value['field_value'])) {
+                        echo '<h3>' . $value['display_text'] . '</h3><br />' . $value['field_value'] . '<br />';
+                    }
                 }
             } else {
                 echo get_lang('Coming soon...');
             }
-            Display::display_footer();
+            //Display::display_footer();
             exit;
         }
     }
@@ -619,21 +645,26 @@ if ('approval' === api_get_setting('allow_registration')) {
 
 //if openid was not found
 if (!empty($_GET['openid_msg']) && 'idnotfound' == $_GET['openid_msg']) {
-    $content .= Display::return_message(get_lang('OpenIDCouldNotBeFoundPleaseRegister'));
+    $content .= Display::return_message(get_lang('This OpenID could not be found in our database. Please register for a new account. If you have already an account with us, please edit your profile inside your account to add this OpenID'));
 }
 
 $blockButton = false;
 $termActivated = false;
 $showTerms = false;
 // Terms and conditions
+$infoMessage = '';
 if ('true' === api_get_setting('allow_terms_conditions')) {
     if (!api_is_platform_admin()) {
         if ('true' === api_get_setting('ticket.show_terms_if_profile_completed')) {
-            $userInfo = api_get_user_info(api_get_user_id());
+            $userId = api_get_user_id();
+            if (empty($userId) && isset($termRegistered['user_id'])) {
+                $userId = (int) $termRegistered['user_id'];
+            }
+            $userInfo = api_get_user_info($userId);
             if ($userInfo && ANONYMOUS != $userInfo['status']) {
                 $extraFieldValue = new ExtraFieldValue('user');
                 $value = $extraFieldValue->get_values_by_handler_and_field_variable(
-                    api_get_user_id(),
+                    $userId,
                     'termactivated'
                 );
                 if (isset($value['value'])) {
@@ -642,25 +673,21 @@ if ('true' === api_get_setting('allow_terms_conditions')) {
 
                 if (false === $termActivated) {
                     $blockButton = true;
-                    Display::addFlash(
-                        Display::return_message(
-                            get_lang('Term activated is needed description'),
+                    $infoMessage = Display::return_message(
+                            get_lang('The terms and conditions have not yet been validated by your tutor'),
                             'warning',
                             false
-                        )
-                    );
+                        );
                 }
 
                 if (false === $blockButton) {
                     if (1 !== (int) $userInfo['profile_completed']) {
                         $blockButton = true;
-                        Display::addFlash(
-                            Display::return_message(
-                                get_lang('Term your profile is not completed'),
+                        $infoMessage .= Display::return_message(
+                                get_lang('You must first fill your profile to enable the terms and conditions validation.'),
                                 'warning',
-                                false
-                            )
-                        );
+                                true
+                            );
                     }
                 }
             }
@@ -668,47 +695,51 @@ if ('true' === api_get_setting('allow_terms_conditions')) {
     }
 
     // Ofaj
-    if (!api_is_anonymous()) {
+    if (!api_is_anonymous() || 'course' !== api_get_setting('platform.load_term_conditions_section')) {
         $language = api_get_language_isocode();
+        if (isset($termRegistered['user_id'])) {
+            $userInfo = api_get_user_info($termRegistered['user_id']);
+            $language = $userInfo['locale'];
+        }
         $language = api_get_language_id($language);
         $termPreview = LegalManager::get_last_condition($language);
         if (!$termPreview) {
             //we load from the platform
-            $language = api_get_setting('platformLanguage');
+            $language = api_get_setting('language.platform_language');
             $language = api_get_language_id($language);
-            $termPreview = LegalManager::get_last_condition($language);
-
+            if (!empty($language)) {
+                $termPreview = LegalManager::get_last_condition($language);
+            }
             //if is false we load from english
             if (!$termPreview) {
-                $language = api_get_language_id('english'); //this must work
+                $language = api_get_language_id('en_US'); //this must work
                 $termPreview = LegalManager::get_last_condition($language);
             }
         }
 
-        // ofaj
-        if (false !== $termActivated) {
+        if (!empty($termPreview)) {
             // Version and language
             $form->addElement(
                 'hidden',
                 'legal_accept_type',
-                $termPreview['version'].':'.$termPreview['language_id']
+                $termPreview['version'] . ':' . $termPreview['language_id']
             );
             $form->addElement(
                 'hidden',
                 'legal_info',
-                $termPreview['id'].':'.$termPreview['language_id']
+                $termPreview['id'] . ':' . $termPreview['language_id']
             );
             if (1 == $termPreview['type']) {
                 $form->addElement(
                     'checkbox',
                     'legal_accept',
                     null,
-                    get_lang('IHaveReadAndAgree').'&nbsp;<a href="inscription.php?legal" target="_blank">'.
-                    get_lang('TermsAndConditions').'</a>'
+                    get_lang('I have read and agree to the') . '&nbsp;<a href="inscription.php?legal" target="_blank">' .
+                    get_lang('Terms and Conditions') . '</a>'
                 );
                 $form->addRule(
                     'legal_accept',
-                    get_lang('ThisFieldIsRequired'),
+                    get_lang('Required field'),
                     'required'
                 );
             } else {
@@ -718,10 +749,21 @@ if ('true' === api_get_setting('allow_terms_conditions')) {
                 $termExtraFields = new ExtraFieldValue('terms_and_condition');
                 $values = $termExtraFields->getAllValuesByItem($termPreview['id']);
                 foreach ($values as $value) {
-                    //if ($value['variable'] === 'category') {
-                    $form->addLabel($value['display_text'], $value['value']);
-                    //}
+                    if (!empty($value['field_value'])) {
+                        $form->addLabel($value['display_text'], $value['field_value']);
+                    }
                 }
+                $form->addElement(
+                    'checkbox',
+                    'legal_accept',
+                    null,
+                    get_lang('I have read and agree to the') . ' ' . get_lang('Terms and Conditions')
+                );
+                $form->addRule(
+                    'legal_accept',
+                    get_lang('This field is required'),
+                    'required'
+                );
             }
         }
     }
@@ -731,32 +773,34 @@ if (false === $userAlreadyRegisteredShowTerms) {
     $form->addCheckBox(
         'extra_platformuseconditions',
         null,
-        get_lang('PlatformUseConditions')
+        get_lang('Platform use conditions')
     );
     $form->addRule(
         'extra_platformuseconditions',
-        get_lang('ThisFieldIsRequired'),
+        get_lang('Required field'),
         'required'
     );
 }
 
-if ($blockButton) {
-    if (false !== $termActivated) {
-        $form->addButton(
-            'submit',
-            get_lang('RegisterUserOk'),
-            'check',
-            'primary',
-            null,
-            null,
-            ['disabled' => 'disabled'],
-            false
-        );
-    }
-} else {
-    $allow = api_get_configuration_value('allow_double_validation_in_registration');
 
-    if (false === $allow && $termActivated) {
+if ($blockButton) {
+    if (!empty($infoMessage)) {
+        $form->addHtml($infoMessage);
+    }
+    $form->addButton(
+        'submit',
+        get_lang('Register'),
+        'check',
+        'primary',
+        null,
+        null,
+        ['disabled' => 'disabled'],
+        false
+    );
+} else {
+    $allow = ('true' === api_get_setting('platform.allow_double_validation_in_registration'));
+
+    if ($allow && !$termActivated) {
         $htmlHeadXtra[] = '<script>
             $(document).ready(function() {
                 $("#pre_validation").click(function() {
@@ -771,7 +815,7 @@ if ($blockButton) {
             Display::url(
                 get_lang('Validate'),
                 'javascript:void',
-                ['class' => 'btn btn-default', 'id' => 'pre_validation']
+                ['class' => 'btn btn--plain', 'id' => 'pre_validation']
             )
         );
         $form->addHtml('<div id="final_button" style="display: none">');
@@ -782,7 +826,7 @@ if ($blockButton) {
         $form->addButton('submit', get_lang('Register'), '', 'primary');
         $form->addHtml('</div>');
     } else {
-        $form->addButtonNext(get_lang('Register User'));
+        $form->addButtonNext(get_lang('Register'));
     }
     $showTerms = true;
 }
@@ -816,6 +860,7 @@ if ($extraConditions && $extraFieldsLoaded) {
     }
 }
 
+$tpl = new Template($toolName);
 $textAfterRegistration = '';
 if ($form->validate()) {
     $values = $form->getSubmitValues(1);
@@ -846,10 +891,12 @@ if ($form->validate()) {
         // Moved here to include extra fields when creating a user. Formerly placed after user creation
         // Register extra fields
         $extras = [];
+        $extraParams = [];
         foreach ($values as $key => $value) {
-            if ('extra_' == substr($key, 0, 6)) {
+            if ('extra_' === substr($key, 0, 6)) {
                 //an extra field
                 $extras[substr($key, 6)] = $value;
+                $extraParams[$key] = $value;
             }
         }
 
@@ -885,7 +932,7 @@ if ($form->validate()) {
             null,
             1,
             0,
-            $extras,
+            $extraParams,
             null,
             true,
             false,
@@ -1022,7 +1069,7 @@ if ($form->validate()) {
 
                 Display::addFlash(
                     Display::return_message(
-                        get_lang('You need confirm your accountViae - mail to access the platform'),
+                        get_lang('You need confirm your account via e-mail to access the platform'),
                         'warning'
                     )
                 );
@@ -1067,7 +1114,7 @@ if ($form->validate()) {
                             $currentUserInfo['complete_name']
                         );
                         $contentEmail = sprintf(
-                            get_lang('User %s signed the agreement.TheY'),
+                            get_lang('User %s signed the agreement the %s.'),
                             $currentUserInfo['complete_name'],
                             api_get_local_time($time)
                         );
@@ -1099,8 +1146,41 @@ if ($form->validate()) {
 
     Session::write('is_allowedCreateCourse', $is_allowedCreateCourse);
 
+    if ('AppCache' == get_class($kernel)) {
+        $kernel = $kernel->getKernel();
+    }
+    /** @var \Symfony\Component\DependencyInjection\ContainerInterface $container */
+    $container = $kernel->getContainer();
+    $entityManager = $container->get('doctrine.orm.default_entity_manager');
+    $userRepository = $entityManager->getRepository(User::class);
+    $userEntity = $userRepository->find($userId);
+
+    $providerKey = 'main';
+    $roles = $userEntity->getRoles();
+    $token = new UsernamePasswordToken($userEntity, $providerKey, $roles);
+
+    $container->get(ContainerHelper::class)->getTokenStorage()->setToken($token);
+    $request = $container->get('request_stack')->getMainRequest();
+    $sessionHandler = $container->get('request_stack')->getSession();
+    $sessionHandler->set('_security_' . $providerKey, serialize($token));
+    $userData = [
+        'firstName' => stripslashes($values['firstname']),
+        'lastName' => stripslashes($values['lastname']),
+        'mail' => $values['email'],
+        'language' => $values['language'],
+        'user_id' => $userId
+    ];
+
+    $sessionHandler->set('_user', $userData);
+    $sessionHandler->set('_locale_user', $userEntity->getLocale());
+    $is_allowedCreateCourse = isset($values['status']) && 1 == $values['status'];
+    $sessionHandler->set('is_allowedCreateCourse', $is_allowedCreateCourse);
+
     // Stats
-    //Event::eventLogin($user_id);
+    Container::getTrackELoginRepository()
+        ->createLoginRecord($userEntity, new DateTime(), $request->getClientIp())
+    ;
+    // @todo implement Auto-subscribe according to STATUS_autosubscribe setting
 
     // last user login date is now
     $user_last_login_datetime = 0; // used as a unix timestamp it will correspond to : 1 1 1970
@@ -1108,15 +1188,15 @@ if ($form->validate()) {
     $recipient_name = api_get_person_name($values['firstname'], $values['lastname']);
     $textAfterRegistration =
         '<p>'.
-        get_lang('Dear').' '.
+        get_lang('Dear', $userEntity->getLocale()).' '.
         stripslashes(Security::remove_XSS($recipient_name)).',<br /><br />'.
-        get_lang('Your personal settings have been registered').".</p>";
+        get_lang('Your personal settings have been registered', $userEntity->getLocale())."</p>";
 
     $formData = [
         'button' => Display::button(
             'next',
             get_lang('Next'),
-            ['class' => 'btn btn-primary btn-large']
+            ['class' => 'btn btn--primary btn-large']
         ),
         'message' => '',
         'action' => api_get_path(WEB_PATH).'user_portal.php',
@@ -1125,7 +1205,9 @@ if ($form->validate()) {
 
     if ('true' === api_get_setting('allow_terms_conditions') && $userAlreadyRegisteredShowTerms) {
         if ('login' === api_get_setting('load_term_conditions_section')) {
-            $formData['action'] = api_get_path(WEB_PATH).'user_portal.php';
+            header('Location: /home');
+            exit;
+            //$formData['action'] = api_get_path(WEB_PATH).'user_portal.php';
         } else {
             $courseInfo = api_get_course_info();
             if (!empty($courseInfo)) {
@@ -1139,7 +1221,15 @@ if ($form->validate()) {
         }
     } else {
         if (!empty($values['email'])) {
-            $textAfterRegistration .= '<p>'.get_lang('An e-mail has been sent to remind you of your login and password').'.</p>';
+            $linkDiagnostic = api_get_path(WEB_PATH).'main/search/search.php';
+            $textAfterRegistration .= '<p>'.get_lang('An e-mail has been sent to remind you of your login and password', $userEntity->getLocale()).'</p>';
+            $diagnosticPath = '<a href="'.$linkDiagnostic.'" class="custom-link">'.$linkDiagnostic.'</a>';
+            $textAfterRegistration .= '<p>';
+            $textAfterRegistration .= sprintf(
+                            get_lang('Welcome, please go to diagnostic at %s.', $userEntity->getLocale()),
+                            $diagnosticPath
+            );
+            $textAfterRegistration .= '</p>';
         }
 
         if ($is_allowedCreateCourse) {
@@ -1152,18 +1242,18 @@ if ($form->validate()) {
                 $formData['button'] = Display::button(
                     'next',
                     get_lang('Create a course request'),
-                    ['class' => 'btn btn-primary btn-large']
+                    ['class' => 'btn btn--primary btn-large']
                 );
             } else {
                 $formData['button'] = Display::button(
                     'next',
                     get_lang('Create a course'),
-                    ['class' => 'btn btn-primary btn-large']
+                    ['class' => 'btn btn--primary btn-large']
                 );
                 $formData['go_button'] = '&nbsp;&nbsp;<a href="'.api_get_path(WEB_PATH).'index.php'.'">'.
                     Display::span(
                         get_lang('Next'),
-                        ['class' => 'btn btn-primary btn-large']
+                        ['class' => 'btn btn--primary btn-large']
                     ).'</a>';
             }
         } else {
@@ -1176,7 +1266,7 @@ if ($form->validate()) {
             $formData['button'] = Display::button(
                 'next',
                 get_lang('Next'),
-                ['class' => 'btn btn-primary btn-large']
+                ['class' => 'btn btn--primary btn-large']
             );
         }
     }
@@ -1219,49 +1309,57 @@ if ($form->validate()) {
     Session::erase('exercise_redirect');
     Session::erase('session_redirect');
     Session::erase('only_one_course_session_redirect');
+    Session::write('textAfterRegistration', $textAfterRegistration);
 
-    $tpl = new Template($toolName);
-    $tpl->assign('inscription_header', Display::page_header($toolName));
-    $tpl->assign('inscription_content', $content);
-    $tpl->assign('form', '');
-    $tpl->assign('text_after_registration', $textAfterRegistration);
-    $tpl->assign('hide_header', $hideHeaders);
-    $inscription = $tpl->get_template('auth/inscription.tpl');
-    $tpl->display($inscription);
+    header('location: '.api_get_self());
+    exit;
+
 } else {
-    if (!api_is_anonymous()) {
-        // Saving user to course if it was set.
-        if (!empty($course_code_redirect)) {
-            $course_info = api_get_course_info($course_code_redirect);
-            if (!empty($course_info)) {
-                if (in_array(
-                    $course_info['visibility'],
-                    [
-                        COURSE_VISIBILITY_OPEN_PLATFORM,
-                        COURSE_VISIBILITY_OPEN_WORLD,
-                    ]
-                )
-                ) {
-                    CourseManager::subscribeUser(
-                        api_get_user_id(),
-                        $course_info['real_id']
-                    );
+    $textAfterRegistration = Session::read('textAfterRegistration');
+    if (isset($textAfterRegistration)) {
+        $tpl->assign('inscription_header', Display::page_header($toolName));
+        $tpl->assign('inscription_content', $content);
+        $tpl->assign('form', '');
+        $tpl->assign('text_after_registration', $textAfterRegistration);
+        $tpl->assign('hide_header', $hideHeaders);
+        $inscription = $tpl->get_template('auth/inscription.tpl');
+        $tpl->display($inscription);
+
+        Session::erase('textAfterRegistration');
+    } else {
+        if (!api_is_anonymous()) {
+            // Saving user to course if it was set.
+            if (!empty($course_code_redirect)) {
+                $course_info = api_get_course_info($course_code_redirect);
+                if (!empty($course_info)) {
+                    if (in_array(
+                        $course_info['visibility'],
+                        [
+                            COURSE_VISIBILITY_OPEN_PLATFORM,
+                            COURSE_VISIBILITY_OPEN_WORLD,
+                        ]
+                    )
+                    ) {
+                        CourseManager::subscribeUser(
+                            api_get_user_id(),
+                            $course_info['real_id']
+                        );
+                    }
                 }
             }
+            CourseManager::redirectToCourse([]);
         }
-        CourseManager::redirectToCourse([]);
-    }
 
-    $tpl = new Template($toolName);
-    $inscriptionHeader = '';
-    if (false !== $termActivated) {
-        $inscriptionHeader = Display::page_header($toolName);
+        $inscriptionHeader = '';
+        if (false !== $termActivated) {
+            $inscriptionHeader = Display::page_header($toolName);
+        }
+        $tpl->assign('inscription_header', $inscriptionHeader);
+        $tpl->assign('inscription_content', $content);
+        $tpl->assign('form', $form->returnForm());
+        $tpl->assign('hide_header', $hideHeaders);
+        $tpl->assign('text_after_registration', $textAfterRegistration);
+        $inscription = $tpl->get_template('auth/inscription.tpl');
+        $tpl->display($inscription);
     }
-    $tpl->assign('inscription_header', $inscriptionHeader);
-    $tpl->assign('inscription_content', $content);
-    $tpl->assign('form', $form->returnForm());
-    $tpl->assign('hide_header', $hideHeaders);
-    $tpl->assign('text_after_registration', $textAfterRegistration);
-    $inscription = $tpl->get_template('auth/inscription.tpl');
-    $tpl->display($inscription);
 }

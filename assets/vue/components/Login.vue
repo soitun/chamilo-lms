@@ -1,146 +1,105 @@
 <template>
-  <form class="mt-8 space-y-4" @submit.prevent="onSubmit">
-    <input type="hidden" name="remember" value="true" />
-    <div class="rounded-md shadow-sm -space-y-px">
-      <div>
-        <label for="login" class="sr-only">{{ $t('Username') }}</label>
-        <input id="login" v-model="login" name="login" type="text" autocomplete="login" required=""
-               class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-               :placeholder="$t('Username')"
-               tabindex="1"
+  <div class="login-section">
+    <h2
+      v-t="'Sign in'"
+      class="login-section__title"
+    />
+
+    <form
+      class="login-section__form p-input-filled"
+      @submit.prevent="onSubmitLoginForm"
+    >
+      <div class="field">
+        <InputText
+          id="login"
+          v-model="login"
+          :placeholder="t('Username')"
+          type="text"
         />
       </div>
-      <div>
-        <label for="password" class="sr-only">{{ $t('Password') }}</label>
-        <input id="password" v-model="password" name="password" type="password" autocomplete="current-password"
-               required=""
-               class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-               :placeholder="$t('Password')"
-               tabindex="2"
+
+      <div class="field">
+        <Password
+          v-model="password"
+          :feedback="false"
+          :placeholder="t('Password')"
+          input-id="password"
+          toggle-mask
         />
       </div>
-    </div>
 
-    <div class="flex items-center gap-4 justify-between">
-      <div class="flex items-center">
-        <input id="remember_me" name="remember_me" type="checkbox"
-               class="h-4 w-4 text-ch-primary focus:ch-primary-dark border-gray-900 rounded"
-               tabindex="4"
+      <div class="field login-section__remember-me">
+        <InputSwitch
+          v-model="remember"
+          input-id="binary"
+          name="remember_me"
+          tabindex="4"
         />
-        <label for="remember_me" class="ml-2 block text-sm text-gray-900">
-          {{ $t('Remember me') }}
-        </label>
+        <label
+          v-t="'Remember me'"
+          for="binary"
+        />
       </div>
 
-      <div class="text-sm">
-        <a href="/main/auth/lostPassword.php" id="forgot"
-           class="font-medium text-ch-primary hover:text-ch-primary-dark"
-           tabindex="5"
-        >
-          {{ $t('Forgot your password ?') }}
-        </a>
-      </div>
-    </div>
-
-    <div>
-      <!--          class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"-->
-      <button
+      <div class="field login-section__buttons">
+        <Button
+          :label="t('Sign in')"
+          :loading="isLoading"
           type="submit"
-          class="btn btn-primary group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium text-white"
-          tabindex="3"
-      >
-        <span class="absolute left-0 inset-y-0 flex items-center pl-3">
-            <svg v-if="isLoading"
-                 class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </span>
-          {{ $t('Sign in') }}
-      </button>
-      <a
+        />
+
+        <a
+          v-if="allowRegistration"
+          v-t="'Register oneself'"
+          class="btn btn--primary-outline"
           href="/main/auth/inscription.php"
-          class="btn btn-default group mt-4 relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium text-gray-600"
           tabindex="3"
-      >
-        <span class="absolute left-0 inset-y-0 flex items-center pl-3">
-            <svg v-if="isLoading"
-                 class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </span>
-        {{ $t('Register oneself') }}
-      </a>
-    </div>
-  </form>
+        />
+      </div>
+
+      <div class="field text-center">
+        <a
+          id="forgot"
+          v-t="'Forgot your password?'"
+          class="field"
+          href="/main/auth/lostPassword.php"
+          tabindex="5"
+        />
+      </div>
+    </form>
+
+    <ExternalLoginButtons />
+  </div>
 </template>
 
-<script>
-import {mapGetters, useStore} from 'vuex';
-import useState from "../hooks/useState";
-import {ref} from "vue";
-import {useRoute, useRouter} from "vue-router";
+<script setup>
+import { computed, ref } from "vue"
+import Button from "primevue/button"
+import InputText from "primevue/inputtext"
+import Password from "primevue/password"
+import InputSwitch from "primevue/inputswitch"
+import { useI18n } from "vue-i18n"
+import { useLogin } from "../composables/auth/login"
+import ExternalLoginButtons from "./login/LoginExternalButtons.vue"
+import { usePlatformConfig } from "../store/platformConfig"
 
-export default {
-  name: "Login",
-  components: {
-    //ErrorMessage,
-    //LockClosedIcon
-  },
-  setup() {
-    const { isSidebarOpen } = useState();
-    const route = useRoute();
-    const router = useRouter();
-    const store = useStore();
+const { t } = useI18n()
+const platformConfigStore = usePlatformConfig()
+const allowRegistration = computed(() => "false" !== platformConfigStore.getSetting("registration.allow_registration"))
 
-    const login = ref('');
-    const password = ref('');
+const { redirectNotAuthenticated, performLogin, isLoading } = useLogin()
 
-    let redirect = route.query.redirect;
-    if (store.getters["security/isAuthenticated"]) {
-      if (typeof redirect !== "undefined") {
-        router.push({path: redirect});
-      } else {
-        router.push({path: "/home"});
-      }
-    }
+const login = ref("")
+const password = ref("")
+const remember = ref(false)
 
-    isSidebarOpen.value = false;
+redirectNotAuthenticated()
 
-    function onSubmit(evt) {
-      evt.preventDefault()
-      performLogin();
-    }
-
-    async function performLogin() {
-      let payload = {login: login.value, password: password.value};
-      let redirect = route.query.redirect;
-      await store.dispatch("security/login", payload);
-      if (!store.getters["security/hasError"]) {
-        //isSidebarOpen.value = true;
-        if (typeof redirect !== "undefined") {
-          router.push({path: redirect});
-        } else {
-          // router.replace({path: "/home"});
-          window.location.href = '/home';
-        }
-      }
-    }
-
-    return {
-      onSubmit,
-      login,
-      password
-    }
-  },
-
-  computed: {
-    ...mapGetters({
-      'isLoading': 'security/isLoading',
-      'hasError': 'security/hasError',
-      'error': 'security/error',
-    }),
-  }
+function onSubmitLoginForm() {
+  performLogin({
+    login: login.value,
+    password: password.value,
+    _remember_me: remember.value,
+  })
 }
 </script>

@@ -15,27 +15,26 @@ use CpChart\Image as pImage;
 class MySpace
 {
     /**
-     * Get admin actions.
-     *
-     * @return string
+     * Generate the list of admin actions to be shown
+     * @return array
      */
-    public static function getAdminActions()
+    public static function generateAdminActionLinks(): array
     {
         $actions = [
             [
-                'url' => api_get_path(WEB_CODE_PATH).'mySpace/admin_view.php?display=coaches',
+                'url' => api_get_path(WEB_CODE_PATH).'my_space/admin_view.php?display=coaches',
                 'content' => get_lang('Trainers Overview'),
             ],
             [
-                'url' => api_get_path(WEB_CODE_PATH).'mySpace/admin_view.php?display=user',
+                'url' => api_get_path(WEB_CODE_PATH).'my_space/admin_view.php?display=user',
                 'content' => get_lang('User overview'),
             ],
             [
-                'url' => api_get_path(WEB_CODE_PATH).'mySpace/admin_view.php?display=session',
+                'url' => api_get_path(WEB_CODE_PATH).'my_space/admin_view.php?display=session',
                 'content' => get_lang('Course sessions overview'),
             ],
             [
-                'url' => api_get_path(WEB_CODE_PATH).'mySpace/admin_view.php?display=course',
+                'url' => api_get_path(WEB_CODE_PATH).'my_space/admin_view.php?display=course',
                 'content' => get_lang('Courses overview'),
             ],
             [
@@ -47,31 +46,31 @@ class MySpace
                 'content' => get_lang('Results of learning paths exercises by session'),
             ],
             [
-                'url' => api_get_path(WEB_CODE_PATH).'mySpace/admin_view.php?display=accessoverview',
+                'url' => api_get_path(WEB_CODE_PATH).'my_space/admin_view.php?display=accessoverview',
                 'content' => get_lang('Accesses by user overview').' ('.get_lang('Beta').')',
             ],
             [
-                'url' => api_get_path(WEB_CODE_PATH).'mySpace/exercise_category_report.php',
+                'url' => api_get_path(WEB_CODE_PATH).'my_space/exercise_category_report.php',
                 'content' => get_lang('Exercise report by category for all sessions'),
             ],
             [
-                'url' => api_get_path(WEB_CODE_PATH).'mySpace/survey_report.php',
+                'url' => api_get_path(WEB_CODE_PATH).'my_space/survey_report.php',
                 'content' => get_lang('Surveys report'),
             ],
             [
-                'url' => api_get_path(WEB_CODE_PATH).'mySpace/tc_report.php',
+                'url' => api_get_path(WEB_CODE_PATH).'my_space/tc_report.php',
                 'content' => get_lang("Student's superior follow up"),
             ],
             [
-                'url' => api_get_path(WEB_CODE_PATH).'mySpace/ti_report.php',
+                'url' => api_get_path(WEB_CODE_PATH).'my_space/ti_report.php',
                 'content' => get_lang('General Coaches planning'),
             ],
             [
-                'url' => api_get_path(WEB_CODE_PATH).'mySpace/question_stats_global.php',
+                'url' => api_get_path(WEB_CODE_PATH).'my_space/question_stats_global.php',
                 'content' => get_lang('Question stats'),
             ],
             [
-                'url' => api_get_path(WEB_CODE_PATH).'mySpace/question_stats_global_detail.php',
+                'url' => api_get_path(WEB_CODE_PATH).'my_space/question_stats_global_detail.php',
                 'content' => get_lang('Detailed questions stats'),
             ],
         ];
@@ -81,7 +80,7 @@ class MySpace
         if (!empty($companyField)) {
             $actions[] =
                 [
-                    'url' => api_get_path(WEB_CODE_PATH).'mySpace/admin_view.php?display=company',
+                    'url' => api_get_path(WEB_CODE_PATH).'my_space/admin_view.php?display=company',
                     'content' => get_lang('User by organization'),
                 ];
         }
@@ -90,7 +89,7 @@ class MySpace
         if (!empty($authorsField)) {
             $actions[] =
                 [
-                    'url' => api_get_path(WEB_CODE_PATH).'mySpace/admin_view.php?display=learningPath',
+                    'url' => api_get_path(WEB_CODE_PATH).'my_space/admin_view.php?display=learningPath',
                     'content' => get_lang('Learning path by author'),
                 ];
         }
@@ -99,11 +98,20 @@ class MySpace
         if (!empty($authorsItemField)) {
             $actions[] =
                 [
-                    'url' => api_get_path(WEB_CODE_PATH).'mySpace/admin_view.php?display=learningPathByItem',
+                    'url' => api_get_path(WEB_CODE_PATH).'my_space/admin_view.php?display=learningPathByItem',
                     'content' => get_lang('LP item by author'),
                 ];
         }
-
+        return $actions;
+    }
+    /**
+     * Get admin actions.
+     *
+     * @return string
+     */
+    public static function getAdminActions(bool $display = false)
+    {
+        $actions = self::generateAdminActionLinks();
         return Display::actions($actions);
     }
 
@@ -114,40 +122,23 @@ class MySpace
     {
         $menuItems = [];
         $menuItems[] = Display::url(
-            Display::return_icon(
-                'statistics.png',
-                get_lang('View my progress'),
-                '',
-                ICON_SIZE_MEDIUM
-            ),
+            Display::getMdiIcon('chart-box', 'ch-tool-icon', null, 32, get_lang('View my progress')),
             api_get_path(WEB_CODE_PATH).'auth/my_progress.php'
         );
         $menuItems[] = Display::url(
-            Display::return_icon(
-                'teacher.png',
-                get_lang('Trainer View'),
-                [],
-                32
-            ),
-            api_get_path(WEB_CODE_PATH).'mySpace/index.php?view=teacher'
+            Display::getMdiIcon('human-male-board', 'ch-tool-icon', null, 32, get_lang('Trainer View')),
+            api_get_path(WEB_CODE_PATH).'my_space/index.php?view=teacher'
         );
         $menuItems[] = Display::url(
-            Display::return_icon(
-                'star_na.png',
-                get_lang('Admin view'),
-                [],
-                32
-            ),
+            Display::getMdiIcon('star', 'ch-tool-icon', null, 32, get_lang('Admin view')),
             '#'
         );
         $menuItems[] = Display::url(
-            Display::return_icon('quiz.png', get_lang('Exam tracking'), [], 32),
+            Display::getMdiIcon('order-bool-ascending-variant', 'ch-tool-icon', null, 32, get_lang('Exam tracking')),
             api_get_path(WEB_CODE_PATH).'tracking/exams.php'
         );
 
-        $menu = Display::toolbarAction('myspace', $menuItems);
-
-        return $menu;
+        return Display::toolbarAction('myspace', $menuItems);
     }
 
     /**
@@ -527,7 +518,7 @@ class MySpace
                         MAX(login_date) as login_date
                         FROM $tbl_user u, $tbl_session_course_user scu, $tbl_track_login
                         WHERE
-                            scu.user_id = u.id AND scu.status=".SessionEntity::COURSE_COACH." AND login_user_id=u.id
+                            u.active <> ".USER_SOFT_DELETED." AND scu.user_id = u.id AND scu.status=".SessionEntity::COURSE_COACH." AND login_user_id=u.id
                         GROUP BY user_id ";
 
         if (api_is_multiple_url_enabled()) {
@@ -565,9 +556,9 @@ class MySpace
 
         $sql_session_coach = "SELECT u.id AS user_id, u.lastname, u.firstname, MAX(tel.login_date) AS login_date
                                 FROM $tbl_user u
-                                INNER JOIN $tbl_track_login tel 
+                                INNER JOIN $tbl_track_login tel
                                 ON tel.login_user_id = u.id
-                                INNER JOIN $tblSessionRelUser sru 
+                                INNER JOIN $tblSessionRelUser sru
                                 ON (u.id = sru.user_id AND sru.relation_type = ".SessionEntity::GENERAL_COACH.")
                                 GROUP BY u.id
                                 ORDER BY login_date $tracking_direction";
@@ -578,11 +569,11 @@ class MySpace
             if (-1 != $access_url_id) {
                 $sql_session_coach = "SELECT u.id AS user_id, u.lastname, u.firstname, MAX(tel.login_date) AS login_date
                     FROM $tbl_user u
-                    INNER JOIN $tbl_track_login  tel 
+                    INNER JOIN $tbl_track_login  tel
                     ON tel.login_user_id = u.id
-                    INNER JOIN $tblSessionRelUser sru 
+                    INNER JOIN $tblSessionRelUser sru
                     ON (u.id = sru.user_id AND sru.relation_type = ".SessionEntity::GENERAL_COACH.")
-                    INNER JOIN $tbl_session_rel_access_url aurs 
+                    INNER JOIN $tbl_session_rel_access_url aurs
                     ON sru.session_id = aurs.session_id
                     WHERE aurs.access_url_id = $access_url_id
                     GROUP BY u.id
@@ -628,7 +619,7 @@ class MySpace
             $table_row[] = $nb_courses;
             $table_row[] = $nb_sessions;
             $table_row[] = '<a href="session.php?id_coach='.$coaches['user_id'].'">
-                '.Display::return_icon('2rightarrow.png', get_lang('Details')).'
+                '.Display::getMdiIcon('arrow-left-bold-box', 'ch-tool-icon', null, 22, get_lang('Details')).'
             </a>';
             $all_datas[] = $table_row;
 
@@ -959,12 +950,12 @@ class MySpace
                 WHERE
                     variable = 'authors'
             )
-        AND sf.extra_field_type = ".ExtraField::FIELD_TYPE_DATE."
+        AND sf.item_type = ".ExtraField::FIELD_TYPE_DATE."
         AND (s.value != '' OR s.value IS NOT NULL)
 ";
         $queryResult = Database::query($query);
         $data = [];
-        while ($row = Database::fetch_array($queryResult, 'ASSOC')) {
+        while ($row = Database::fetch_assoc($queryResult)) {
             $lp_id = (int) $row['lp_id'];
             $registeredUsers = self::getCompanyLearnpathSubscription($startDate, $endDate, $lp_id);
             if (!empty($registeredUsers)) {
@@ -1017,8 +1008,8 @@ class MySpace
                 "<tbody>";
             $index = 0;
             //icons for show and hode
-            $iconAdd = Display::return_icon('add.png', get_lang('ShowOrHide'), '', ICON_SIZE_SMALL);
-            $iconRemove = Display::return_icon('error.png', get_lang('ShowOrHide'), '', ICON_SIZE_SMALL);
+            $iconAdd = Display::getMdiIcon('plus', 'ch-tool-icon', null, 22, get_lang('ShowOrHide'));
+            $iconRemove = Display::getMdiIcon('delete', 'ch-tool-icon', null, 22, get_lang('ShowOrHide'));
             $teacherNameTemp = '';
             foreach ($data as $teacherName => $reportData) {
                 $lpCount = 0;
@@ -1042,8 +1033,8 @@ class MySpace
                         "<div id='$hiddenField' class='hidden'>";
                     foreach ($row['studentList'] as $student) {
                         $reportLink = Display::url(
-                            Display::return_icon('statistics.png', get_lang('Stats')),
-                            api_get_path(WEB_CODE_PATH).'mySpace/myStudents.php?details=true&student='.
+                            Display::getMdiIcon('chart-box', 'ch-tool-icon', null, 22, get_lang('Stats')),
+                            api_get_path(WEB_CODE_PATH).'my_space/myStudents.php?details=true&student='.
                             $student['id']
                             .'&id_session='.$lpInfo['session_id']
                             .'&course='.$lpInfo['courseCode']
@@ -1173,7 +1164,7 @@ class MySpace
             " group by lp_item_id";
         $queryResult = Database::query($cLpItemsQuery);
         $cLpItems = [];
-        while ($row = Database::fetch_array($queryResult, 'ASSOC')) {
+        while ($row = Database::fetch_assoc($queryResult)) {
             $cLpItems[] = (int) $row['lp_item_id'];
         }
         if (0 == count($cLpItems)) {
@@ -1197,7 +1188,7 @@ class MySpace
                 " where field_id IN ( $queryExtraFieldPrice ) and item_id in ($cLpItems)";
             $queryResult = Database::query($cLpItemsPriceQuery);
             $lpItemPrice = [];
-            while ($row = Database::fetch_array($queryResult, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($queryResult)) {
                 $lpItemPrice[$row['lp_item_id']] = $row['price'];
             }
             // search authors of lp
@@ -1207,7 +1198,7 @@ class MySpace
                 " where field_id IN ( $queryExtraFieldValue ) ".
                 " group by users_id ";
             $queryResult = Database::query($autorsQuery);
-            while ($row = Database::fetch_array($queryResult, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($queryResult)) {
                 $autorsStr .= " ".str_replace(';', ' ', $row['users_id']);
                 $autorsStr = trim($autorsStr);
             }
@@ -1230,7 +1221,7 @@ class MySpace
                     " from c_lp_item ".
                     " where iid in ($cLpItems)";
                 $queryResult = Database::query($query);
-                while ($row = Database::fetch_array($queryResult, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($queryResult)) {
                     $row['price'] = isset($lpItemPrice[$row['iid']]) ? $lpItemPrice[$row['iid']] : 0;
                     $cLpItemsData[$row['iid']] = $row;
                 }
@@ -1241,7 +1232,7 @@ class MySpace
                 " where field_id IN ( $queryExtraFieldValue )";
             $queryResult = Database::query($query);
             $printData = [];
-            while ($row = Database::fetch_array($queryResult, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($queryResult)) {
                 $cLpItem = (int) $row['lp_item_id'];
                 // get full lp data
                 $cLpItemData = isset($cLpItemsData[$cLpItem]) ? $cLpItemsData[$cLpItem] : [];
@@ -1274,8 +1265,8 @@ class MySpace
                     "</thead>".
                     "<tbody>";
                 //Icon Constant
-                $iconAdd = Display::return_icon('add.png', get_lang('ShowOrHide'), '', ICON_SIZE_SMALL);
-                $iconRemove = Display::return_icon('error.png', get_lang('ShowOrHide'), '', ICON_SIZE_SMALL);
+                $iconAdd = Display::getMdiIcon('plus', 'ch-tool-icon', null, 22, get_lang('ShowOrHide'));
+                $iconRemove = Display::getMdiIcon('delete', 'ch-tool-icon', null, 22, get_lang('ShowOrHide'));
 
                 $lastAuthor = '';
                 $total = 0;
@@ -1967,7 +1958,7 @@ class MySpace
                     FROM $tbl_user AS u
                     INNER JOIN $tbl_session_rel_course_rel_user AS scu
                     ON u.id = scu.user_id
-                    WHERE scu.session_id = '".$session_id."' AND scu.c_id = '".$courseId."'";
+                    WHERE u.active <> ".USER_SOFT_DELETED." AND scu.session_id = '".$session_id."' AND scu.c_id = '".$courseId."'";
             $result_users = Database::query($sql);
             $time_spent = 0;
             $progress = 0;
@@ -2147,7 +2138,7 @@ class MySpace
                         FROM $tbl_user AS u
                         INNER JOIN $tbl_session_rel_course_rel_user AS scu
                         ON u.id = scu.user_id
-                        WHERE scu.session_id = '".$session_id."' AND scu.c_id = '".$courseId."'";
+                        WHERE u.active <> ".USER_SOFT_DELETED." AND scu.session_id = '".$session_id."' AND scu.c_id = '".$courseId."'";
                 $result_users = Database::query($sql);
                 $time_spent = 0;
                 $progress = 0;
@@ -2568,7 +2559,7 @@ class MySpace
 
             //set the "from" value to know if I access the Reporting by the chamilo tab or the course link
             $table_row[] = '<center><a href="../../tracking/courseLog.php?cidReq='.$course_code.'&from=myspace&id_session='.$session_id.'">
-                             '.Display::return_icon('2rightarrow.png', get_lang('Details')).'
+                             '.Display::getMdiIcon('fast-forward-outline', 'ch-tool-icon', null, 22, get_lang('Details')).'
                              </a>
                             </center>';
 
@@ -3114,7 +3105,7 @@ class MySpace
         if (!empty($sessionId)) {
             $session = api_get_session_entity($sessionId);
             if ($session) {
-                $sessionList[$session->getId()] = $session->getName();
+                $sessionList[$session->getId()] = $session->getTitle();
             }
         }
 
@@ -3821,7 +3812,7 @@ class MySpace
                 $query .= $whereCondition;
             }
             $queryResult = Database::query($query);
-            while ($row = Database::fetch_array($queryResult, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($queryResult)) {
                 // $courseId = (int)$row['c_id'];
                 $studentId = (int) $row['to_user_id'];
                 $company = isset($row['company']) ? $row['company'] : '';

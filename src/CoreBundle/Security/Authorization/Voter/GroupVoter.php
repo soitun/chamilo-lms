@@ -13,12 +13,15 @@ use Chamilo\CourseBundle\Entity\CGroup;
 use Chamilo\CourseBundle\Repository\CGroupRepository;
 use Doctrine\ORM\EntityManager;
 use GroupManager;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
-use Symfony\Component\Security\Core\Security;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+/**
+ * @extends Voter<'VIEW'|'EDIT'|'DELETE', CGroup>
+ */
 class GroupVoter extends Voter
 {
     public const VIEW = 'VIEW';
@@ -29,15 +32,15 @@ class GroupVoter extends Voter
     private RequestStack $requestStack;
 
     public function __construct(
-        //EntityManager $entityManager,
-        //CourseRepository $courseManager,
-        //CGroupRepository $groupManager,
+        // EntityManager $entityManager,
+        // CourseRepository $courseManager,
+        // CGroupRepository $groupManager,
         RequestStack $requestStack,
         Security $security
     ) {
-        //$this->entityManager = $entityManager;
-        //$this->courseManager = $courseManager;
-        //$this->groupManager = $groupManager;
+        // $this->entityManager = $entityManager;
+        // $this->courseManager = $courseManager;
+        // $this->groupManager = $groupManager;
         $this->security = $security;
         $this->requestStack = $requestStack;
     }
@@ -84,19 +87,19 @@ class GroupVoter extends Voter
         }
 
         if (Course::REGISTERED === $course->getVisibility()) {
-            if (!$course->hasUser($user)) {
+            if (!$course->hasSubscriptionByUser($user)) {
                 return false;
             }
         }
 
-        if ($course->hasTeacher($user)) {
+        if ($course->hasUserAsTeacher($user)) {
             $user->addRole(ResourceNodeVoter::ROLE_CURRENT_COURSE_GROUP_TEACHER);
 
             return true;
         }
 
         // Legacy
-        //\GroupManager::userHasAccessToBrowse($user->getId(), $group);
+        // \GroupManager::userHasAccessToBrowse($user->getId(), $group);
         $isTutor = $group->hasTutor($user);
 
         switch ($attribute) {
@@ -134,7 +137,7 @@ class GroupVoter extends Voter
                     /*'/main/group/group_space' => GroupManager::TOOL_PUBLIC,
                     '/main/inc/ajax/model.ajax.php' => GroupManager::TOOL_PUBLIC,
                     '/main/inc/ajax/announcement.ajax.php' => GroupManager::TOOL_PUBLIC,*/
-                    //'/main/chat/' => $group->getAnnouncementsState(),  ??
+                    // '/main/chat/' => $group->getAnnouncementsState(),  ??
                 ];
 
                 $toolStatus = GroupManager::TOOL_PUBLIC;
@@ -149,14 +152,17 @@ class GroupVoter extends Voter
                 switch ($toolStatus) {
                     case GroupManager::TOOL_NOT_AVAILABLE:
                         return false;
+
                     case GroupManager::TOOL_PUBLIC:
                         return true;
+
                     case GroupManager::TOOL_PRIVATE:
                         if ($userIsInGroup) {
                             return true;
                         }
 
                         break;
+
                     case GroupManager::TOOL_PRIVATE_BETWEEN_USERS:
                         // Only works for announcements for now
                         if ($userIsInGroup && '/main/announcements/' === $path) {
@@ -167,6 +173,7 @@ class GroupVoter extends Voter
                 }
 
                 break;
+
             case self::EDIT:
             case self::DELETE:
                 if ($isTutor) {
@@ -177,7 +184,7 @@ class GroupVoter extends Voter
 
                 break;
         }
-        //dump("You don't have access to this group!!");
+        // dump("You don't have access to this group!!");
 
         return false;
     }

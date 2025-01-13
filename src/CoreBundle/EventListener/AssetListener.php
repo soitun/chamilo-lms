@@ -19,7 +19,7 @@ class AssetListener
         $this->assetRepository = $assetRepository;
     }
 
-    public function onVichUploaderPostRemove(Event $event): void
+    public function __invoke(Event $event): void
     {
         /** @var Asset $asset */
         $asset = $event->getObject();

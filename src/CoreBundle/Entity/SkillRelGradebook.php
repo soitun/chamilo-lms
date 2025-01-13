@@ -1,41 +1,31 @@
 <?php
 
-declare(strict_types=1);
-
 /* For licensing terms, see /license.txt */
+
+declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 
-/**
- * @ORM\Table(name="skill_rel_gradebook")
- * @ORM\Entity
- */
+#[ORM\Table(name: 'skill_rel_gradebook')]
+#[ORM\Entity]
 class SkillRelGradebook
 {
-    /**
-     * @ORM\Column(name="id", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     */
-    protected int $id;
+    #[ORM\Column(name: 'id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    protected ?int $id = null;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\Skill", inversedBy="gradeBookCategories")
-     * @ORM\JoinColumn(name="skill_id", referencedColumnName="id", onDelete="CASCADE")
-     */
+    #[ORM\ManyToOne(targetEntity: Skill::class, inversedBy: 'gradeBookCategories')]
+    #[ORM\JoinColumn(name: 'skill_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
     protected Skill $skill;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\GradebookCategory", inversedBy="skills")
-     * @ORM\JoinColumn(name="gradebook_id", referencedColumnName="id", onDelete="CASCADE")
-     */
+    #[ORM\ManyToOne(targetEntity: GradebookCategory::class, inversedBy: 'skills')]
+    #[ORM\JoinColumn(name: 'gradebook_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
     protected GradebookCategory $gradeBookCategory;
 
-    /**
-     * @ORM\Column(name="type", type="string", length=10, nullable=false)
-     */
+    #[ORM\Column(name: 'type', type: 'string', length: 10, nullable: false)]
     protected string $type;
 
     public function __construct()
@@ -50,22 +40,12 @@ class SkillRelGradebook
         return $this;
     }
 
-    /**
-     * Get type.
-     *
-     * @return string
-     */
-    public function getType()
+    public function getType(): string
     {
         return $this->type;
     }
 
-    /**
-     * Get id.
-     *
-     * @return int
-     */
-    public function getId()
+    public function getId(): ?int
     {
         return $this->id;
     }

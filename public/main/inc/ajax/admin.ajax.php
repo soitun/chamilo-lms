@@ -67,12 +67,18 @@ switch ($action) {
 
         break;
     case 'get_latest_news':
-        if (true === api_get_configuration_value('admin_chamilo_announcements_disable')) {
-            break;
-        }
-
         try {
             $latestNews = getLatestNews();
+            $latestNews = json_decode($latestNews, true);
+
+            echo Security::remove_XSS($latestNews['text'], COURSEMANAGER);
+            break;
+        } catch (Exception $e) {
+            break;
+        }
+    case 'get_support':
+        try {
+            $latestNews = getProSupport();
             $latestNews = json_decode($latestNews, true);
 
             echo Security::remove_XSS($latestNews['text'], COURSEMANAGER);
@@ -95,29 +101,14 @@ switch ($action) {
  */
 function version_check()
 {
-    $tbl_settings = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+    $tbl_settings = Database::get_main_table(TABLE_MAIN_SETTINGS);
     $sql = 'SELECT selected_value FROM '.$tbl_settings.' WHERE variable = "registered" ';
     $result = Database::query($sql);
-    $row = Database::fetch_array($result, 'ASSOC');
+    $row = Database::fetch_assoc($result);
 
     // The site has not been registered yet.
     $return = '';
     if ('false' == $row['selected_value']) {
-        $return .= get_lang('In order to enable the automatic version checking you have to register your portal on chamilo.org. The information obtained by clicking this button is only for internal use and only aggregated data will be publicly available (total number of portals, total number of chamilo course, total number of chamilo users, ...) (see <a href="http://www.chamilo.org/stats/">http://www.chamilo.org/stats/</a>. When registering you will also appear on the worldwide list (<a href="http://www.chamilo.org/community.php">http://www.chamilo.org/community.php</a>. If you do not want to appear in this list you have to check the checkbox below. The registration is as easy as it can be: you only have to click this button: <br />');
-        $return .= '<form
-            class="version-checking"
-            action="'.api_get_path(WEB_CODE_PATH).'admin/index.php"
-            id="VersionCheck" name="VersionCheck" method="post">';
-        $return .= '<label class="checkbox">
-                <input type="checkbox" name="donotlistcampus" value="1" id="checkbox" />'.
-                get_lang('Hide campus from public platforms list');
-        $return .= '</label>
-            <button type="submit"
-                class="btn btn-primary btn-block"
-                name="Register"
-                value="'.get_lang('Enable version check').'"
-                id="register" >'.get_lang('Enable version check').'</button>';
-        $return .= '</form>';
         check_system_version();
     } else {
         // site not registered. Call anyway
@@ -161,7 +152,16 @@ function check_system_version()
     }
 
     // the chamilo version of your installation
-    $system_version = trim(api_get_configuration_value('system_version'));
+    $system_version = '';
+    $versionStatus = '';
+    $versionFile =__DIR__.'/../../install/version.php';
+    if (is_file($versionFile)) {
+        $versionDetails = include($versionFile);
+        $system_version = trim($versionDetails['new_version']);
+        if (!empty($versionDetails['new_version_status']) &&  $versionDetails['new_version_status'] != 'stable') {
+            $versionStatus = ' ('.$versionDetails['new_version_status'].')';
+        }
+    }
 
     if ($urlValidated) {
         // The number of courses
@@ -172,20 +172,17 @@ function check_system_version()
         $number_of_active_users = Statistics::countUsers(
             null,
             null,
-            null,
+            true,
             true
         );
 
         // The number of sessions
         $number_of_sessions = SessionManager::count_sessions(api_get_current_access_url_id());
-        $packager = api_get_configuration_value('packager');
-        if (empty($packager)) {
-            $packager = 'chamilo';
-        }
+        $packager = api_get_env_variable('PACKAGER', 'chamilo');
 
         $uniqueId = '';
         $entityManager = Database::getManager();
-        /** @var BranchSyncRepository $branch */
+        /** @var BranchSyncRepository $repository */
         $repository = $entityManager->getRepository(BranchSync::class);
         /** @var BranchSync $branch */
         $branch = $repository->getTopBranch();
@@ -235,16 +232,19 @@ function check_system_version()
             $output = '<span style="color:red">'.
                 get_lang('Your version is not up-to-date').'<br />'.
                 get_lang('The latest version is').' <b>Chamilo '.$version.'</b>.  <br />'.
-                get_lang('Your version is').' <b>Chamilo '.$system_version.'</b>.  <br />'.
+                get_lang('Your version is').' <b>Chamilo '.$system_version.$versionStatus.'</b>.  <br />'.
                 str_replace(
-                    'http://www.chamilo.org',
-                    '<a href="http://www.chamilo.org">http://www.chamilo.org</a>',
-                    get_lang('Please visit our website: http://www.chamilo.org')
+                    'https://chamilo.org/download',
+                    '<a href="https://chamilo.org/download">https://chamilo.org/download</a>',
+                    get_lang('Please visit our website: https://chamilo.org/download')
                 ).
                 '</span>';
         } else {
             $output = '<span style="color:green">'.
-                get_lang('Your version is up-to-date').': Chamilo '.$version.'</span>';
+                get_lang('Your version is up-to-date').'<br />'.
+                get_lang('The latest version is').' <b>Chamilo '.$version.'</b>.  <br />'.
+                get_lang('Your version is').' <b>Chamilo '.$system_version.$versionStatus.'</b>.  <br />'.
+                '</span>';
         }
 
         return $output;
@@ -264,7 +264,37 @@ function check_system_version()
  */
 function getLatestNews()
 {
-    $url = 'https://version.chamilo.org/news/latest.php';
+    $url = 'https://version.chamilo.org/news-c2/latest.php';
+
+    $client = new Client();
+    $response = $client->request(
+        'GET',
+        $url,
+        [
+            'query' => [
+                'language' => api_get_language_isocode(),
+            ],
+        ]
+    );
+
+    if (200 !== $response->getStatusCode()) {
+        throw new Exception(get_lang('Deny access'));
+    }
+
+    return $response->getBody()->getContents();
+}
+
+/**
+ * Display the latest support services block.
+ *
+ * @throws \GuzzleHttp\Exception\GuzzleException
+ * @throws Exception
+ *
+ * @return string|void
+ */
+function getProSupport()
+{
+    $url = 'https://version.chamilo.org/support/latest.php';
 
     $client = new Client();
     $response = $client->request(

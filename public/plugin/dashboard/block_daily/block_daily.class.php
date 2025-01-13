@@ -11,6 +11,8 @@
  * required files for getting data.
  */
 
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+
 /**
  * This class is used like controller for this course block plugin,
  * the class name must be registered inside path.info file
@@ -123,7 +125,7 @@ class BlockDaily extends Block
         $content .= $data_table;
         if (!empty($course_data)) {
             $content .= '<div style="text-align:right;margin-top:10px;">
-            <a href="'.api_get_path(WEB_CODE_PATH).'mySpace/course.php">'.get_lang('See more').'</a></div>';
+            <a href="'.api_get_path(WEB_CODE_PATH).'my_space/course.php">'.get_lang('See more').'</a></div>';
         }
         //$content .= '</div>';
         return $content;
@@ -162,20 +164,20 @@ class BlockDaily extends Block
             // Attendance table
             $table_course = Database::get_course_table(TABLE_ATTENDANCE);
 
-            $sql = "SELECT id, name, attendance_qualify_max FROM $table_course
+            $sql = "SELECT id, title, attendance_qualify_max FROM $table_course
                     WHERE c_id = ".$course_info['real_id'].' AND active = 1 AND session_id = 0';
             $rs = Database::query($sql);
             $attendance = [];
             $attendances = [];
 
-            while ($row = Database::fetch_array($rs, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($rs)) {
                 $attendance['done'] = $row['attendance_qualify_max'];
                 $attendance['id'] = $row['id'];
                 //$attendance['name'] = $row['name'];
                 $attendance['course_code'] = $course_info['code'];
 
                 if ('0' != $attendance['done']) {
-                    $attendances[] = '<a href="'.api_get_path(WEB_PATH).'main/attendance/index.php?cidReq='.$attendance['course_code'].'&action=attendance_sheet_print&attendance_id='.$attendance['id'].'">'.Display::return_icon('printmgr.gif', get_lang('Print')).'</a>';
+                    $attendances[] = '<a href="'.api_get_path(WEB_PATH).'main/attendance/index.php?cidReq='.$attendance['course_code'].'&action=attendance_sheet_print&attendance_id='.$attendance['id'].'">'.Display::getMdiIcon(ActionIcon::PRINT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Print')).'</a>';
                 } else {
                     $attendances[] = get_lang('Not available');
                 }

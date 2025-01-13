@@ -15,7 +15,6 @@ use Chamilo\CourseBundle\Entity\CLpItem;
 use Chamilo\CourseBundle\Repository\CLpCategoryRepository;
 use Chamilo\CourseBundle\Repository\CLpItemRepository;
 use Chamilo\CourseBundle\Repository\CLpRepository;
-use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Schema;
 
 final class Version20201216122012 extends AbstractMigrationChamilo
@@ -27,33 +26,30 @@ final class Version20201216122012 extends AbstractMigrationChamilo
 
     public function up(Schema $schema): void
     {
-        $container = $this->getContainer();
-        $doctrine = $container->get('doctrine');
-        $em = $doctrine->getManager();
-        /** @var Connection $connection */
-        $connection = $em->getConnection();
+        $lpCategoryRepo = $this->container->get(CLpCategoryRepository::class);
+        $lpRepo = $this->container->get(CLpRepository::class);
+        $courseRepo = $this->container->get(CourseRepository::class);
+        $lpItemRepo = $this->container->get(CLpItemRepository::class);
 
-        $lpCategoryRepo = $container->get(CLpCategoryRepository::class);
-        $lpRepo = $container->get(CLpRepository::class);
-        $courseRepo = $container->get(CourseRepository::class);
-        $lpItemRepo = $container->get(CLpItemRepository::class);
-
-        $batchSize = self::BATCH_SIZE;
         $admin = $this->getAdmin();
 
-        $q = $em->createQuery('SELECT c FROM Chamilo\CoreBundle\Entity\Course c');
+        $q = $this->entityManager->createQuery('SELECT c FROM Chamilo\CoreBundle\Entity\Course c');
+
         /** @var Course $course */
         foreach ($q->toIterable() as $course) {
+            $counter = 1;
+
             $courseId = $course->getId();
             $course = $courseRepo->find($courseId);
 
             // c_lp_category.
             $sql = "SELECT * FROM c_lp_category WHERE c_id = {$courseId}
                     ORDER BY iid";
-            $result = $connection->executeQuery($sql);
+            $result = $this->connection->executeQuery($sql);
             $items = $result->fetchAllAssociative();
             foreach ($items as $itemData) {
                 $id = $itemData['iid'];
+
                 /** @var CLpCategory $resource */
                 $resource = $lpCategoryRepo->find($id);
                 if ($resource->hasResourceNode()) {
@@ -73,18 +69,23 @@ final class Version20201216122012 extends AbstractMigrationChamilo
                     continue;
                 }
 
-                $em->persist($resource);
-                $em->flush();
+                $this->entityManager->persist($resource);
+
+                if (0 === $counter % self::BATCH_SIZE) {
+                    $this->entityManager->flush();
+                }
+
+                $counter++;
             }
 
-            $em->flush();
-            $em->clear();
+            $this->entityManager->flush();
+
+            $counter = 1;
 
             $sql = "SELECT * FROM c_lp WHERE c_id = {$courseId}
                     ORDER BY iid";
-            $result = $connection->executeQuery($sql);
+            $result = $this->connection->executeQuery($sql);
             $lps = $result->fetchAllAssociative();
-            $counter = 1;
 
             $course = $courseRepo->find($courseId);
             $admin = $this->getAdmin();
@@ -111,8 +112,7 @@ final class Version20201216122012 extends AbstractMigrationChamilo
                     continue;
                 }
 
-                $em->persist($resource);
-                //$em->flush();
+                $this->entityManager->persist($resource);
 
                 $rootItem = $lpItemRepo->getRootItem($lpId);
 
@@ -126,18 +126,16 @@ final class Version20201216122012 extends AbstractMigrationChamilo
                     ->setLp($resource)
                     ->setItemType('root')
                 ;
-                $em->persist($rootItem);
-                //$em->flush();
+                $this->entityManager->persist($rootItem);
 
-                if (($counter % $batchSize) === 0) {
-                    $em->flush();
-                    $em->clear(); // Detaches all objects from Doctrine!
+                if (0 === $counter % self::BATCH_SIZE) {
+                    $this->entityManager->flush();
                 }
+
                 $counter++;
             }
 
-            $em->flush();
-            $em->clear();
+            $this->entityManager->flush();
         }
     }
 }

@@ -10,14 +10,14 @@ use Chamilo\CourseBundle\Entity\CWiki;
 
 class Wiki extends AbstractTool implements ToolInterface
 {
-    public function getName(): string
+    public function getTitle(): string
     {
         return 'wiki';
     }
 
     public function getIcon(): string
     {
-        return 'mdi-xml';
+        return 'mdi-view-dashboard-edit';
     }
 
     public function getLink(): string

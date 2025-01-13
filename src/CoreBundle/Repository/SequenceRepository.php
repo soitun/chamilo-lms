@@ -17,7 +17,6 @@ use Doctrine\Persistence\ManagerRegistry;
 use SessionManager;
 
 /**
- * Class SequenceRepository
  * The functions inside this class should return an instance of QueryBuilder.
  */
 class SequenceRepository extends ServiceEntityRepository
@@ -42,6 +41,7 @@ class SequenceRepository extends ServiceEntityRepository
                 }
 
                 break;
+
             case SequenceResource::SESSION_TYPE:
                 $sessionList = SessionManager::get_sessions_list();
                 if (!empty($sessionList)) {
@@ -63,11 +63,13 @@ class SequenceRepository extends ServiceEntityRepository
     {
         $resource = null;
         $repo = null;
+
         switch ($type) {
             case SequenceResource::COURSE_TYPE:
                 $repo = $this->getEntityManager()->getRepository(Course::class);
 
                 break;
+
             case SequenceResource::SESSION_TYPE:
                 $repo = $this->getEntityManager()->getRepository(Session::class);
 

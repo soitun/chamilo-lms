@@ -32,7 +32,7 @@ function validate_data($users, $checkUniqueEmail = false)
 
     // 1. Check if mandatory fields are set.
     $mandatory_fields = ['LastName', 'FirstName'];
-    if ('true' === api_get_setting('registration', 'email') || $checkUniqueEmail) {
+    if ('true' === api_get_setting('registration', false, 'email') || $checkUniqueEmail) {
         $mandatory_fields[] = 'Email';
     }
 
@@ -55,15 +55,6 @@ function validate_data($users, $checkUniqueEmail = false)
             // 2.1. Check whether username is too long.
             if (UserManager::is_username_too_long($username)) {
                 $user['message'] .= Display::return_message(get_lang('This login is too long'), 'warning');
-                $user['has_error'] = true;
-            }
-            // 2.1.1
-            $hasDash = strpos($username, '-');
-            if (false !== $hasDash) {
-                $user['message'] .= Display::return_message(
-                    get_lang('The username cannot contain the \' - \' character'),
-                    'warning'
-                );
                 $user['has_error'] = true;
             }
             // 2.2. Check whether the username was used twice in import file.
@@ -94,7 +85,7 @@ function validate_data($users, $checkUniqueEmail = false)
             if (isset($user['Email'])) {
                 $userFromEmail = api_get_user_info_from_email($user['Email']);
                 if (!empty($userFromEmail)) {
-                    $user['message'] .= Display::return_message(get_lang('This email is not available'), 'warning');
+                    $user['message'] .= Display::return_message(get_lang('This email is already in use on the platform.'), 'warning');
                     $user['has_error'] = true;
                 }
             }
@@ -339,7 +330,7 @@ function save_data($users, $sendMail = false)
 function parse_csv_data($users, $fileName, $sendEmail = 0, $checkUniqueEmail = true, $resumeImport = false)
 {
     $usersFromOrigin = $users;
-    $allowRandom = api_get_configuration_value('generate_random_login');
+    $allowRandom = ('true' === api_get_setting('platform.generate_random_login'));
     if ($allowRandom) {
         $factory = new RandomLib\Factory();
         $generator = $factory->getLowStrengthGenerator();
@@ -705,7 +696,7 @@ $defaults['formSent'] = 1;
 $defaults['sendMail'] = 0;
 $defaults['file_type'] = 'csv';
 
-$extraSettings = api_get_configuration_value('user_import_settings');
+$extraSettings = api_get_setting('profile.user_import_settings', true);
 if (!empty($extraSettings) && isset($extraSettings['options']) &&
     isset($extraSettings['options']['send_mail_default_option'])
 ) {
@@ -749,7 +740,7 @@ if ($count_fields > 0) {
     }
 }
 
-if (api_get_configuration_value('plugin_redirection_enabled')) {
+if ('true' === api_get_setting('admin.plugin_redirection_enabled')) {
     $list[] = 'Redirection';
     $list_reponse[] = api_get_path(WEB_PATH);
 }

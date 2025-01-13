@@ -18,7 +18,7 @@
             <div class="panel-body">
                 <div class="row">
                     <div class="col-md-8">
-                        <h2 class="session-title">{{ session.name }}</h2>
+                        <h2 class="session-title">{{ session.title }}</h2>
                         {% if show_tutor and session.generalCoach %}
                             <div class="session-tutor">
                                 <em class="fa fa-user"></em> {{ 'SessionGeneralCoach'|trans }}:
@@ -31,7 +31,7 @@
                             </div>
                         {% endif %}
 
-                        {% if not 'hide_social_media_links'|api_get_configuration_value %}
+                        {% if not "display.hide_social_media_links" | api_get_setting == 'true' %}
                             <div class="share-social-media">
                                 <ul class="sharing-buttons">
                                     <li>
@@ -44,13 +44,13 @@
                                         </a>
                                     </li>
                                     <li>
-                                        <a href="https://twitter.com/home?{{ {'status': session.getName() ~ ' ' ~ page_url }|url_encode }}"
+                                        <a href="https://twitter.com/home?{{ {'status': session.getTitle() ~ ' ' ~ page_url }|url_encode }}"
                                            target="_blank" class="btn btn-twitter btn-inverse btn-xs">
                                             <em class="fa fa-twitter"></em> Twitter
                                         </a>
                                     </li>
                                     <li>
-                                        <a href="https://www.linkedin.com/shareArticle?{{ {'mini': 'true', 'url': page_url , 'title': session.getName() }|url_encode }}"
+                                        <a href="https://www.linkedin.com/shareArticle?{{ {'mini': 'true', 'url': page_url , 'title': session.getTitle() }|url_encode }}"
                                            target="_blank" class="btn btn-linkedin btn-inverse btn-xs">
                                             <em class="fa fa-linkedin"></em> Linkedin
                                         </a>
@@ -73,12 +73,12 @@
                             {% if is_premium == false %}
                                 <h5>{{ 'CourseSubscription'|trans }}</h5>
                                 <div class="session-subscribe">
-                                    {% if is_granted('IS_AUTHENTICATED_FULLY')  and not is_subscribed %}
+                                    {% if is_granted('IS_AUTHENTICATED')  and not is_subscribed %}
 {#                                        {{ subscribe_button }}#}
-                                    {% elseif not is_granted('IS_AUTHENTICATED_FULLY')  %}
+                                    {% elseif not is_granted('IS_AUTHENTICATED')  %}
                                         {% if 'allow_registration'|api_get_setting != 'false' %}
                                             <a href="{{ _p.web_main ~ 'auth/inscription.php' ~ redirect_to_session }}"
-                                               class="btn btn-success btn-block btn-lg">
+                                               class="btn btn--success btn-block btn-lg">
                                                 <i class="fa fa-pencil" aria-hidden="true"></i> {{ 'SignUp'|trans }}
                                             </a>
                                         {% endif %}
@@ -94,7 +94,7 @@
                                     </div>
                                     <div class="buy-box">
                                         <a href="{{ _p.web }}plugin/buycourses/src/process.php?i={{ is_premium.product_id }}&t={{ is_premium.product_type }}"
-                                           class="btn btn-lg btn-primary btn-block">{{ 'BuyNow'|trans }}</a>
+                                           class="btn btn-lg btn--primary btn-block">{{ 'BuyNow'|trans }}</a>
                                     </div>
                                 </div>
                             {% endif %}
@@ -104,10 +104,10 @@
                                     {% for sequence in sequences %}
                                         {% if sequence.requirements %}
                                             <p>
-                                                {{ sequence.name }} :
+                                                {{ sequence.title }} :
                                                 {% for requirement in sequence.requirements %}
                                                     <a href="{{ _p.web ~ 'session/' ~ requirement.getId ~ '/about/' }}">
-                                                        {{ requirement.getName }}
+                                                        {{ requirement.getTitle }}
                                                     </a>
                                                 {% endfor %}
                                             </p>

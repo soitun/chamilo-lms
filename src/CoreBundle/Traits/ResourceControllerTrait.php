@@ -47,7 +47,7 @@ trait ResourceControllerTrait
         return $this->getResourceRepositoryFactory()->getRepositoryService($tool, $type);
     }
 
-    public function denyAccessUnlessValidResource(ResourceInterface $resource = null): void
+    public function denyAccessUnlessValidResource(?ResourceInterface $resource = null): void
     {
         if (null === $resource) {
             throw new EntityNotFoundException($this->trans("Resource doesn't exists."));
@@ -94,7 +94,7 @@ trait ResourceControllerTrait
                 $parentResourceNode = $this->getCourse()->getResourceNode();
             } elseif ($this->container->get('security.authorization_checker')->isGranted('IS_AUTHENTICATED_REMEMBERED')) {
                 /** @var User $user */
-                $user = $this->getUser();
+                $user = $this->userHelper->getCurrent();
                 if ($user) {
                     $parentResourceNode = $user->getResourceNode();
                 }
@@ -109,29 +109,5 @@ trait ResourceControllerTrait
         }
 
         return $parentResourceNode;
-    }
-
-    /**
-     * @return User|null
-     */
-    protected function getUser()
-    {
-        /*if (!$this->container->has('security.token_storage')) {
-            throw new \LogicException('The SecurityBundle is not registered in your application. Try running "composer require symfony/security-bundle".');
-        }*/
-
-        if (null === $token = $this->container->get('security.token_storage')->getToken()) {
-            return null;
-        }
-
-        /** @var User $user */
-        $user = $token->getUser();
-
-        if (!\is_object($user)) {
-            // e.g. anonymous authentication
-            return null;
-        }
-
-        return $user;
     }
 }

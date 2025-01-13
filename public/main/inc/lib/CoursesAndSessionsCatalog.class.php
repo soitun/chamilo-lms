@@ -4,6 +4,7 @@
 use Chamilo\CoreBundle\Entity\ExtraField;
 use Chamilo\CoreBundle\Entity\User;
 use Doctrine\ORM\Query\Expr\Join;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
 
 /**
  * @todo change class name
@@ -85,9 +86,9 @@ class CoursesAndSessionsCatalog
                 INNER JOIN $TABLE_COURSE_FIELD tcf
                 ON tcfv.field_id =  tcf.id
                 WHERE
-                    tcf.extra_field_type = $extraFieldType AND
+                    tcf.item_type = $extraFieldType AND
                     tcf.variable = 'hide_from_catalog' AND
-                    tcfv.value = 1
+                    tcfv.field_value = 1
                 ";
 
         $result = Database::query($sql);
@@ -179,7 +180,7 @@ class CoursesAndSessionsCatalog
         $allCategories = CourseCategory::getAllCategories();
         $categoryToAvoid = '';
         if (api_is_student()) {
-            $categoryToAvoid = api_get_configuration_value('course_category_code_to_use_as_model');
+            $categoryToAvoid = api_get_setting('course.course_category_code_to_use_as_model');
         }
         foreach ($allCategories as $category) {
             $categoryCode = $category['code'];
@@ -262,7 +263,7 @@ class CoursesAndSessionsCatalog
                 $tbl_url_rel_course = Database::get_main_table(TABLE_MAIN_ACCESS_URL_REL_COURSE);
 
                 $urlCondition = ' access_url_id = '.$urlId.' ';
-                $allowBaseCategories = api_get_configuration_value('allow_base_course_category');
+                $allowBaseCategories = ('true' === api_get_setting('course.allow_base_course_category'));
                 if ($allowBaseCategories) {
                     $urlCondition = ' (access_url_id = '.$urlId.' OR access_url_id = 1)  ';
                 }
@@ -479,7 +480,7 @@ class CoursesAndSessionsCatalog
             if (-1 != $urlId) {
                 $tbl_url_rel_course = Database::get_main_table(TABLE_MAIN_ACCESS_URL_REL_COURSE);
                 $urlCondition = ' access_url_id = '.$urlId.' AND';
-                $allowBaseCategories = api_get_configuration_value('allow_base_course_category');
+                $allowBaseCategories = ('true' === api_get_setting('course.allow_base_course_category'));
                 if ($allowBaseCategories) {
                     $urlCondition = ' (access_url_id = '.$urlId.' OR access_url_id = 1) AND ';
                 }
@@ -813,7 +814,7 @@ class CoursesAndSessionsCatalog
                         ->where(
                             $qb->expr()->eq('fv.field', $extraFieldInfo['id'])
                         )->andWhere(
-                            $qb->expr()->eq('fv.value ', 1)
+                            $qb->expr()->eq('fv.fieldValue ', 1)
                         )
                         ->getDQL()
                 )
@@ -875,7 +876,7 @@ class CoursesAndSessionsCatalog
                 $qb->expr()->like('t.tag', ':tag')
             )
             ->andWhere(
-                $qb->expr()->eq('f.extraFieldType', ExtraField::COURSE_FIELD_TYPE)
+                $qb->expr()->eq('f.itemType', ExtraField::COURSE_FIELD_TYPE)
             )
             ->andWhere($qb->expr()->gt('s.nbrCourses', 0))
             ->andWhere($qb->expr()->eq('url.accessUrlId', $urlId))
@@ -930,7 +931,7 @@ class CoursesAndSessionsCatalog
                 'url.sessionId = s.id'
             )
             ->andWhere($qb->expr()->eq('url.accessUrlId', $urlId))
-            ->andWhere('s.name LIKE :keyword')
+            ->andWhere('s.title LIKE :keyword')
             ->andWhere($qb->expr()->gt('s.nbrCourses', 0))
             ->setParameter('keyword', "%$keyword%")
         ;
@@ -1066,7 +1067,7 @@ class CoursesAndSessionsCatalog
             id="plist"
             data-trigger="focus"
             tabindex="0" role="button"
-            class="btn btn-default panel_popover"
+            class="btn btn--plain panel_popover"
             data-toggle="popover"
             title="'.addslashes(get_lang('CourseTeachers')).'"
             data-html="true"
@@ -1157,7 +1158,7 @@ class CoursesAndSessionsCatalog
             Display::getMdiIcon('check').' '.$title,
             api_get_self().'?action='.$action.'&sec_token='.$stok.
             '&course_code='.$course['code'].'&search_term='.$search_term.'&category_code='.$categoryCode,
-            ['class' => 'btn btn-success btn-sm', 'title' => $title, 'aria-label' => $title]
+            ['class' => 'btn btn--success btn-sm', 'title' => $title, 'aria-label' => $title]
         );
     }
 
@@ -1185,7 +1186,7 @@ class CoursesAndSessionsCatalog
         return Display::url(
             Display::getMdiIcon('login').'&nbsp;'.$title,
             $url,
-            ['class' => 'btn btn-danger', 'title' => $title, 'aria-label' => $title]
+            ['class' => 'btn btn--danger', 'title' => $title, 'aria-label' => $title]
         );
     }
 
@@ -1320,7 +1321,7 @@ class CoursesAndSessionsCatalog
         return Display::div(
             $icon,
             [
-                'class' => 'btn btn-default btn-sm registered',
+                'class' => 'btn btn--plain btn-sm registered',
                 'title' => get_lang("AlreadyRegisteredToSession"),
             ]
         );
@@ -1335,11 +1336,12 @@ class CoursesAndSessionsCatalog
      */
     public static function getSessionIcon($sessionName)
     {
-        return Display::return_icon(
-            'window_list.png',
-            $sessionName,
+        return Display::getMdiIcon(
+            ObjectIcon::SESSION,
+            'ch-tool-icon',
             null,
-            ICON_SIZE_MEDIUM
+            ICON_SIZE_MEDIUM,
+            $sessionName
         );
     }
 
@@ -1444,7 +1446,7 @@ class CoursesAndSessionsCatalog
 
     public static function getCatalogSearchSettings()
     {
-        $settings = api_get_configuration_value('catalog_settings');
+        $settings = api_get_setting('session.catalog_settings', true);
         if (empty($settings)) {
             // Default everything is visible
             $settings = [
@@ -1569,7 +1571,7 @@ class CoursesAndSessionsCatalog
         $tagRepo = \Chamilo\CoreBundle\Framework\Container::getTagRepository();
 
         $tagsField = $extraFieldRepo->findOneBy([
-            'extraFieldType' => Chamilo\CoreBundle\Entity\ExtraField::COURSE_FIELD_TYPE,
+            'itemType' => Chamilo\CoreBundle\Entity\ExtraField::COURSE_FIELD_TYPE,
             'variable' => 'tags',
         ]);
 
@@ -1630,7 +1632,7 @@ class CoursesAndSessionsCatalog
                 $cat = null;
                 $catName = '';
             } else {
-                $catName = $cat->getName();
+                $catName = $cat->getTitle();
             }
 
             $actions = null;
@@ -1643,7 +1645,7 @@ class CoursesAndSessionsCatalog
 
             $sessionsBlock = [
                 'id' => $session->getId(),
-                'name' => $session->getName(),
+                'name' => $session->getTitle(),
                 'image' => isset($imageField['value']) ? $imageField['value'] : null,
                 'nbr_courses' => $session->getNbrCourses(),
                 'nbr_users' => $session->getNbrUsers(),
@@ -1661,12 +1663,12 @@ class CoursesAndSessionsCatalog
                     $session->getId(),
                     $userId
                 ),
-                'icon' => self::getSessionIcon($session->getName()),
+                'icon' => self::getSessionIcon($session->getTitle()),
                 'date' => $sessionDates['display'],
                 'price' => !empty($isThisSessionOnSale['html']) ? $isThisSessionOnSale['html'] : '',
                 'subscribe_button' => isset($isThisSessionOnSale['buy_button']) ? $isThisSessionOnSale['buy_button'] : self::getRegisteredInSessionButton(
                     $session->getId(),
-                    $session->getName(),
+                    $session->getTitle(),
                     $hasRequirements
                 ),
                 'show_description' => $session->getShowDescription(),

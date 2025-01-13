@@ -27,15 +27,13 @@
                     <a
                         href="{{ url('chamilo_core_resource_view', {
                             'id': comment.resourceNode.id,
-                            'cid': course ? course.id : 0,
-                            'sid': session ? session.id : 0,
                             'type' : 'student_publications_comments',
                             'tool' : 'student_publications',
                         })
                         }}"
                     />
 
-                    {{ comment.resourceNode.resourceFile }}
+                    {{ comment.resourceNode.firstResourceFile }}
                     </a>
 {#                    {% if is_allowed_to_edit %}#}
 {#                        <a href="{{ comment.delete_file_url }}">#}

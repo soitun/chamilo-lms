@@ -14,6 +14,10 @@ use Chamilo\CourseBundle\Entity\CSurveyInvitation;
 use Chamilo\CourseBundle\Entity\CSurveyQuestion;
 use Chamilo\CourseBundle\Entity\CSurveyQuestionOption;
 use ChamiloSession as Session;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\ToolIcon;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
+use Chamilo\CoreBundle\Component\Utils\StateIcon;
 
 /**
  * This class offers a series of general utility functions for survey querying and display.
@@ -44,7 +48,7 @@ class SurveyUtil
         $total = Database::num_rows($result);
         $counter = 1;
         $error = false;
-        while ($row = Database::fetch_array($result, 'ASSOC')) {
+        while ($row = Database::fetch_assoc($result)) {
             if (1 == $counter && 'pagebreak' === $row['type']) {
                 echo Display::return_message(get_lang('The page break cannot be the first'), 'error', false);
                 $error = true;
@@ -108,6 +112,7 @@ class SurveyUtil
             $optionId = $optionId.'@:@'.$otherOption;
         }
 
+        $sessionId = api_get_session_id();
         $answer = new CSurveyAnswer();
         $answer
             ->setUser($user)
@@ -115,6 +120,7 @@ class SurveyUtil
             ->setQuestion($question)
             ->setOptionId($optionId)
             ->setValue((int) $optionValue)
+            ->setSessionId($sessionId ?: null)
         ;
 
         $em = Database::getManager();
@@ -361,7 +367,7 @@ class SurveyUtil
 					    survey_question.survey_id = '".$surveyId."'
 					ORDER BY survey_question.sort, survey_question_option.sort ASC";
             $result = Database::query($sql);
-            while ($row = Database::fetch_array($result, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($result)) {
                 if ('pagebreak' !== $row['type']) {
                     $questions[$row['sort']]['question_id'] = $row['question_id'];
                     $questions[$row['sort']]['survey_id'] = $row['survey_id'];
@@ -379,7 +385,7 @@ class SurveyUtil
                         survey_id = '".$surveyId."' AND
                         user = '".$userId."'";
             $result = Database::query($sql);
-            while ($row = Database::fetch_array($result, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($result)) {
                 $answers[$row['question_id']][] = $row['option_id'];
                 $all_answers[$row['question_id']][] = $row;
             }
@@ -440,26 +446,21 @@ class SurveyUtil
         // Actions bar
         if ($addActionBar) {
             $actions = '<a href="'.$reportingUrl.'">'.
-                Display::return_icon(
-                    'back.png',
-                    get_lang('Back to').' '.get_lang('Reporting overview'),
-                    '',
-                    ICON_SIZE_MEDIUM
-                )
+                Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back to').' '.get_lang('Reporting overview'))
                 .'</a>';
             if (isset($_GET['user'])) {
                 if (api_is_allowed_to_edit()) {
                     // The delete link
                     $actions .= '<a
                         href="'.$reportingUrl.'&action=deleteuserreport&user='.Security::remove_XSS($_GET['user']).'" >'.
-                        Display::return_icon('delete.png', get_lang('Delete'), '', ICON_SIZE_MEDIUM).'</a>';
+                        Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Delete')).'</a>';
                 }
 
                 // Export the user report
                 $actions .= '<a href="javascript: void(0);" onclick="document.form1a.submit();">'
-                    .Display::return_icon('export_csv.png', get_lang('CSV export'), '', ICON_SIZE_MEDIUM).'</a> ';
+                    .Display::getMdiIcon(ActionIcon::EXPORT_CSV, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('CSV export')).'</a> ';
                 $actions .= '<a href="javascript: void(0);" onclick="document.form1b.submit();">'
-                    .Display::return_icon('export_excel.png', get_lang('Excel export'), '', ICON_SIZE_MEDIUM).'</a> ';
+                    .Display::getMdiIcon(ActionIcon::EXPORT_SPREADSHEET, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Excel export')).'</a> ';
                 $actions .= '<form id="form1a" name="form1a" method="post" action="'.api_get_self().'?action='
                     .Security::remove_XSS($_GET['action']).'&survey_id='.$surveyId.'&'.api_get_cidreq().'&user_id='
                     .Security::remove_XSS($_GET['user']).'">';
@@ -518,19 +519,12 @@ class SurveyUtil
 
         $actions = '<a
             href="'.api_get_path(WEB_CODE_PATH).'survey/reporting.php?survey_id='.$surveyId.'&'.api_get_cidreq().'">'.
-            Display::return_icon(
-                'back.png',
-                get_lang('Back to').' '.get_lang('Reporting overview'),
+            Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back to').' '.get_lang('Reporting overview'),
                 '',
                 ICON_SIZE_MEDIUM
             ).'</a>';
         $actions .= Display::url(
-            Display::return_icon(
-                'pdf.png',
-                get_lang('ExportToPdf'),
-                '',
-                ICON_SIZE_MEDIUM
-            ),
+            Display::getMdiIcon(ActionIcon::EXPORT_PDF, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('ExportToPdf')),
             'javascript: void(0);',
             ['onclick' => 'exportToPdf();']
         );
@@ -636,7 +630,7 @@ class SurveyUtil
                             survey_id= $surveyId AND
                             question_id = $questionId ";
                 $result = Database::query($sql);
-                while ($row = Database::fetch_array($result, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($result)) {
                     echo $row['option_id'].'<hr noshade="noshade" size="1" />';
                 }
                 echo '</div>';
@@ -648,7 +642,7 @@ class SurveyUtil
                             question_id = $questionId
                         ORDER BY sort ASC";
                 $result = Database::query($sql);
-                while ($row = Database::fetch_array($result, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($result)) {
                     $options[$row['iid']] = $row;
                 }
                 // Getting the answers
@@ -661,7 +655,7 @@ class SurveyUtil
                 $result = Database::query($sql);
                 $number_of_answers = [];
                 $data = [];
-                while ($row = Database::fetch_array($result, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($result)) {
                     if (!isset($number_of_answers[$row['question_id']])) {
                         $number_of_answers[$row['question_id']] = 0;
                     }
@@ -790,7 +784,7 @@ class SurveyUtil
                         $sql_restriction";
             $result = Database::query($sql);
             echo '<ul>';
-            while ($row = Database::fetch_array($result, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($result)) {
                 $user_info = api_get_user_info($row['user']);
                 echo '<li><a href="'.api_get_path(WEB_CODE_PATH).'survey/reporting.php?action=userreport&survey_id='
                     .$surveyId.'&user='.$row['user'].'">'
@@ -961,19 +955,17 @@ class SurveyUtil
         if ($addActionBar) {
             $actions = '<a
                 href="'.api_get_path(WEB_CODE_PATH).'survey/reporting.php?survey_id='.$surveyId.'&'.api_get_cidreq().'">'
-                .Display::return_icon(
-                    'back.png',
-                    get_lang('Back to').' '.get_lang('Reporting overview'),
+                .Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back to').' '.get_lang('Reporting overview'),
                     [],
                     ICON_SIZE_MEDIUM
                 )
                 .'</a>';
             $actions .= '<a class="survey_export_link" href="javascript: void(0);" onclick="document.form1a.submit();">'
-                .Display::return_icon('export_csv.png', get_lang('CSV export'), '', ICON_SIZE_MEDIUM).'</a>';
+                .Display::getMdiIcon(ActionIcon::EXPORT_CSV, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('CSV export')).'</a>';
             $actions .= '<a class="survey_export_link" href="javascript: void(0);" onclick="document.form1b.submit();">'
-                .Display::return_icon('export_excel.png', get_lang('Excel export'), '', ICON_SIZE_MEDIUM).'</a>';
+                .Display::getMdiIcon(ActionIcon::EXPORT_SPREADSHEET, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Excel export')).'</a>';
             $actions .= '<a class="survey_export_link" href="javascript: void(0);" onclick="document.form1c.submit();">'
-                .Display::return_icon('export_compact_csv.png', get_lang('ExportAsCompactCSV'), '', ICON_SIZE_MEDIUM).'</a>';
+                .Display::getMdiIcon(ActionIcon::EXPORT_ARCHIVE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('ExportAsCompactCSV')).'</a>';
 
             $content .= Display::toolbarAction('survey', [$actions]);
 
@@ -1523,7 +1515,7 @@ class SurveyUtil
         $questionIdList = array_keys($possible_answers_type);
         $open_question_iterator = 1;
         $result = Database::query($sql);
-        while ($row = Database::fetch_array($result, 'ASSOC')) {
+        while ($row = Database::fetch_assoc($result)) {
             if (!in_array($row['question_id'], $questionIdList)) {
                 continue;
             }
@@ -1996,12 +1988,7 @@ class SurveyUtil
                 WEB_CODE_PATH
             ).'survey/reporting.php?survey_id='.$surveyId.'&'.api_get_cidreq()
             .'">'
-            .Display::return_icon(
-                'back.png',
-                get_lang('Back to').' '.get_lang('Reporting overview'),
-                [],
-                ICON_SIZE_MEDIUM
-            )
+            .Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back to').' '.get_lang('Reporting overview'))
             .'</a>';
         echo Display::toolbarAction('survey', [$actions]);
 
@@ -2438,13 +2425,22 @@ class SurveyUtil
                     ? explode(';', $already_invited['additional_users'])
                     : [];
             $my_alredy_invited = $already_invited['course_users'] ?? [];
-            if ((is_numeric($value) && !in_array($value, $my_alredy_invited)) ||
-                (!is_numeric($value) && !in_array($value, $addit_users_array))
-            ) {
+
+            $userId = 0;
+            if (is_string($value) && filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                $userInfo = api_get_user_info_from_email($value);
+                if ($userInfo && isset($userInfo['id'])) {
+                    $userId = $userInfo['id'];
+                }
+            } elseif (is_numeric($value)) {
+                $userId = $value;
+            }
+
+            if ($userId && !in_array($userId, $my_alredy_invited)) {
                 $new_user = true;
-                if (!array_key_exists($value, $survey_invitations)) {
+                if (!array_key_exists($userId, $survey_invitations)) {
                     self::saveInvitation(
-                        api_get_user_entity($value),
+                        api_get_user_entity($userId),
                         $invitation_code,
                         api_get_utc_datetime(time(), null, true),
                         $survey,
@@ -2809,7 +2805,7 @@ class SurveyUtil
         $table->set_header(7, get_lang('Invite'));
         $table->set_header(8, get_lang('Anonymous'));
 
-        if (api_get_configuration_value('allow_mandatory_survey')) {
+        if ('true' === api_get_setting('survey.allow_mandatory_survey')) {
             $table->set_header(9, get_lang('Mandatory?'));
             $table->set_header(10, get_lang('Edit'), false, 'width="150"');
             $table->set_column_filter(9, 'anonymous_filter');
@@ -2833,7 +2829,9 @@ class SurveyUtil
     public static function display_survey_list()
     {
         $parameters = [];
-        $parameters['cidReq'] = api_get_course_id();
+        $parameters['cid'] = api_get_course_int_id();
+        $parameters['sid'] = api_get_session_id();
+        $parameters['gid'] = api_get_group_id();
         if (isset($_GET['do_search']) && $_GET['do_search']) {
             $message = get_lang('Display search results').'<br />';
             $message .= '<a href="'.api_get_self().'?'.api_get_cidreq().'">'.get_lang('Display all').'</a>';
@@ -2858,7 +2856,7 @@ class SurveyUtil
         $table->set_header(7, get_lang('Invite'));
         $table->set_header(8, get_lang('Anonymous'));
 
-        if (api_get_configuration_value('allow_mandatory_survey')) {
+        if ('true' === api_get_setting('survey.allow_mandatory_survey')) {
             $table->set_header(9, get_lang('Mandatory?'));
             $table->set_header(10, get_lang('Edit'), false, 'width="150"');
             $table->set_column_filter(8, 'anonymous_filter');
@@ -2911,7 +2909,7 @@ class SurveyUtil
         $table->set_header(7, get_lang('Invite'));
         $table->set_header(8, get_lang('Anonymous'));
 
-        if (api_get_configuration_value('allow_mandatory_survey')) {
+        if ('true' === api_get_setting('survey.allow_mandatory_survey')) {
             $table->set_header(9, get_lang('Edit'), false, 'width="130"');
             $table->set_header(10, get_lang('Edit'), false, 'width="130"');
             $table->set_column_filter(8, 'anonymous_filter');
@@ -2934,18 +2932,20 @@ class SurveyUtil
      */
     public static function checkHideEditionToolsByCode($surveyCode)
     {
-        $hideSurveyEdition = api_get_configuration_value('hide_survey_edition');
+        $hideSurveyEdition = api_get_setting('survey.hide_survey_edition', true);
 
-        if (false === $hideSurveyEdition) {
+        if (empty($hideSurveyEdition) || 'false' === $hideSurveyEdition) {
             return false;
         }
 
-        if ('*' === $hideSurveyEdition['codes']) {
-            return true;
-        }
+        if (is_array($hideSurveyEdition)) {
+            if ('*' === $hideSurveyEdition['codes']) {
+                return true;
+            }
 
-        if (in_array($surveyCode, $hideSurveyEdition['codes'])) {
-            return true;
+            if (in_array($surveyCode, $hideSurveyEdition['codes'])) {
+                return true;
+            }
         }
 
         return false;
@@ -2963,7 +2963,7 @@ class SurveyUtil
      *
      * @version January 2007
      */
-    public static function modify_filter($survey_id, $drh = false)
+    public static function modify_filter($survey_id, $url_params, $row)
     {
         $repo = Container::getSurveyRepository();
         /** @var CSurvey|null $survey */
@@ -2981,17 +2981,17 @@ class SurveyUtil
 
         $survey_id = $survey->getIid();
         $actions = [];
-        $hideReportingButton = api_get_configuration_value('hide_survey_reporting_button');
+        $hideReportingButton = ('true' === api_get_setting('survey.hide_survey_reporting_button'));
         $codePath = api_get_path(WEB_CODE_PATH);
         $params = [];
         parse_str(api_get_cidreq(), $params);
 
         $reportingLink = Display::url(
-            Display::return_icon('statistics.png', get_lang('Reporting')),
+            Display::getMdiIcon(ToolIcon::TRACKING, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Reporting')),
             $codePath.'survey/reporting.php?'.http_build_query($params + ['survey_id' => $survey_id])
         );
 
-        if ($drh) {
+        if (!$row['can_edit']) {
             return $hideReportingButton ? '-' : $reportingLink;
         }
 
@@ -3009,48 +3009,48 @@ class SurveyUtil
             }
 
             $actions[] = Display::url(
-                Display::return_icon('edit.png', get_lang('Edit')),
+                Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Edit')),
                 $editUrl
             );
             $actions[] = Display::url(
-                Display::return_icon('settings.png', get_lang('Configure')),
+                Display::getMdiIcon(ToolIcon::SETTINGS, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Configure')),
                 $configUrl
             );
 
             if (SurveyManager::survey_generation_hash_available()) {
                 $actions[] = Display::url(
-                    Display::return_icon('new_link.png', get_lang('Generate survey access link')),
+                    Display::getMdiIcon(ToolIcon::LINK, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Generate survey access link')),
                     $codePath.'survey/generate_link.php?'.http_build_query($params + ['survey_id' => $survey_id])
                 );
             }
 
             if (3 != $type) {
                 $actions[] = Display::url(
-                    Display::return_icon('backup.png', get_lang('Copy survey')),
+                    Display::getMdiIcon(ActionIcon::COPY_CONTENT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Copy survey')),
                     $codePath.'survey/copy_survey.php?'.http_build_query($params + ['survey_id' => $survey_id])
                 );
 
                 $actions[] = Display::url(
-                    Display::return_icon('copy.png', get_lang('Duplicate survey')),
+                    Display::getMdiIcon(ObjectIcon::MULTI_ELEMENT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Duplicate survey')),
                     $codePath.'survey/survey_list.php?'
                     .http_build_query($params + ['action' => 'copy_survey', 'survey_id' => $survey_id])
                 );
 
                 $actions[] = Display::url(
-                    Display::return_icon('multiplicate_survey.png', get_lang('Multiplicate questions')),
+                    Display::getMdiIcon('view-grid-plus-outline', 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Multiplicate questions')),
                     $codePath.'survey/survey_list.php?'
                     .http_build_query($params + ['action' => 'multiplicate', 'survey_id' => $survey_id])
                 );
 
                 $actions[] = Display::url(
-                    Display::return_icon('multiplicate_survey_na.png', get_lang('RemoveMultiplicate questions')),
+                    Display::getMdiIcon('view-grid-plus-outline', 'ch-tool-icon-disabled', null, ICON_SIZE_SMALL, get_lang('RemoveMultiplicate questions')),
                     $codePath.'survey/survey_list.php?'
                     .http_build_query($params + ['action' => 'remove_multiplicate', 'survey_id' => $survey_id])
                 );
 
                 $warning = addslashes(api_htmlentities(get_lang('Empty survey').'?', ENT_QUOTES));
                 $actions[] = Display::url(
-                    Display::return_icon('clean.png', get_lang('Empty survey')),
+                    Display::getMdiIcon(ActionIcon::RESET, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Empty survey')),
                     $codePath.'survey/survey_list.php?'
                     .http_build_query($params + ['action' => 'empty', 'survey_id' => $survey_id]),
                     [
@@ -3062,13 +3062,13 @@ class SurveyUtil
 
         if (3 != $type) {
             $actions[] = Display::url(
-                Display::return_icon('preview_view.png', get_lang('Preview')),
+                Display::getMdiIcon(ActionIcon::PREVIEW_CONTENT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Preview')),
                 $codePath.'survey/preview.php?'.http_build_query($params + ['survey_id' => $survey_id])
             );
         }
 
         $actions[] = Display::url(
-            Display::return_icon('mail_send.png', get_lang('Publish')),
+            Display::getMdiIcon(StateIcon::MAIL_NOTIFICATION, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Publish')),
             $codePath.'survey/survey_invite.php?'.http_build_query($params + ['survey_id' => $survey_id])
         );
 
@@ -3076,7 +3076,7 @@ class SurveyUtil
         $groupData = $extraFieldValue->get_values_by_handler_and_field_variable($survey_id, 'group_id');
         if ($groupData && !empty($groupData['value'])) {
             $actions[] = Display::url(
-                Display::return_icon('teacher.png', get_lang('SendToGroupTutors')),
+                Display::getMdiIcon(ObjectIcon::TEACHER, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('SendToGroupTutors')),
                 $codePath.'survey/survey_list.php?action=send_to_tutors&'.http_build_query($params + ['survey_id' => $survey_id])
             );
         }
@@ -3092,7 +3092,7 @@ class SurveyUtil
 
             $warning = addslashes(api_htmlentities(get_lang('Delete survey').'?', ENT_QUOTES));
             $actions[] = Display::url(
-                Display::return_icon('delete.png', get_lang('Delete')),
+                Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Delete')),
                 $codePath.'survey/survey_list.php?'
                 .http_build_query($params + ['action' => 'delete', 'survey_id' => $survey_id]),
                 [
@@ -3114,21 +3114,26 @@ class SurveyUtil
      */
     public static function getAdditionalTeacherActions($surveyId, $iconSize = ICON_SIZE_SMALL)
     {
-        $additionalActions = api_get_configuration_value('survey_additional_teacher_modify_actions') ?: [];
+        $additionalActions = api_get_setting('survey.survey_additional_teacher_modify_actions', true) ?: [];
 
-        if (empty($additionalActions)) {
+        if (empty($additionalActions) || ('false' === $additionalActions)) {
             return '';
         }
 
-        $actions = [];
-        foreach ($additionalActions as $additionalAction) {
-            $actions[] = call_user_func(
-                $additionalAction,
-                ['survey_id' => $surveyId, 'icon_size' => $iconSize]
-            );
+        $action = '';
+        if (is_array($additionalActions)) {
+            $actions = [];
+            foreach ($additionalActions as $additionalAction) {
+                $actions[] = call_user_func(
+                    $additionalAction,
+                    ['survey_id' => $surveyId, 'icon_size' => $iconSize]
+                );
+            }
+            $action = implode(PHP_EOL, $actions);
         }
 
-        return implode(PHP_EOL, $actions);
+
+        return $action;
     }
 
     /**
@@ -3144,16 +3149,16 @@ class SurveyUtil
         $params = [];
         parse_str(api_get_cidreq(), $params);
         $actions[] = Display::url(
-            Display::return_icon('preview_view.png', get_lang('Preview')),
+            Display::getMdiIcon(ActionIcon::PREVIEW_CONTENT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Preview')),
             $codePath.'survey/preview.php?'.http_build_query($params + ['survey_id' => $survey_id])
         );
         $actions[] = Display::url(
-            Display::return_icon('mail_send.png', get_lang('Publish')),
+            Display::getMdiIcon(StateIcon::MAIL_NOTIFICATION, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Publish')),
             $codePath.'survey/survey_invite.php?'.http_build_query($params + ['survey_id' => $survey_id])
         );
         $warning = addslashes(api_htmlentities(get_lang('Empty survey').'?', ENT_QUOTES));
         $actions[] = Display::url(
-            Display::return_icon('clean.png', get_lang('Empty survey')),
+            Display::getMdiIcon(ActionIcon::RESET, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Empty survey')),
             $codePath.'survey/survey_list.php?'
                 .http_build_query($params + ['action' => 'empty', 'survey_id' => $survey_id]),
             [
@@ -3260,30 +3265,23 @@ class SurveyUtil
      * @version January 2007
      */
     public static function get_survey_data(
-        $from,
-        $number_of_items,
-        $column,
-        $direction,
-        $isDrh = false
-    ) {
+        int    $from,
+        int    $number_of_items,
+        int    $column,
+        string $direction,
+        bool $isDrh = false
+    ): array {
         $repo = Container::getSurveyRepository();
         $course = api_get_course_entity();
+        $sessionId = api_get_session_id();
         $session = api_get_session_entity();
+
         $qb = $repo->findAllByCourse($course, $session);
         /** @var CSurvey[] $surveys */
         $surveys = $qb->getQuery()->getResult();
 
-        $table_survey = Database::get_course_table(TABLE_SURVEY);
-        $table_user = Database::get_main_table(TABLE_MAIN_USER);
-        $table_survey_question = Database::get_course_table(TABLE_SURVEY_QUESTION);
-        $mandatoryAllowed = api_get_configuration_value('allow_mandatory_survey');
-        $allowSurveyAvailabilityDatetime = api_get_configuration_value('allow_survey_availability_datetime');
+        $mandatoryAllowed = ('true' === api_get_setting('survey.allow_mandatory_survey'));
 
-        // Searching
-        $search_restriction = self::survey_search_restriction();
-        if ($search_restriction) {
-            $search_restriction = ' AND '.$search_restriction;
-        }
         $from = (int) $from;
         $number_of_items = (int) $number_of_items;
         $column = (int) $column;
@@ -3291,129 +3289,122 @@ class SurveyUtil
             $direction = 'asc';
         }
 
-        // Condition for the session
-        $session_id = api_get_session_id();
-        $condition_session = api_get_session_condition($session_id);
-        $course_id = api_get_course_int_id();
-
-        $sql = "
-            SELECT
-                survey.iid AS col0,
-                survey.title AS col1,
-                survey.code AS col2,
-                count(survey_question.iid) AS col3, "
-                .(api_is_western_name_order()
-                ? "CONCAT(user.firstname, ' ', user.lastname)"
-                : "CONCAT(user.lastname, ' ', user.firstname)")
-                ."	AS col4,
-                survey.avail_from AS col5,
-                survey.avail_till AS col6,
-                survey.invited AS col7,
-                survey.anonymous AS col8,
-                survey.iid AS col9,
-                survey.session_id AS session_id,
-                survey.answered,
-                survey.invited,
-                survey.survey_type
-            FROM $table_survey survey
-            LEFT JOIN $table_survey_question survey_question
-            ON (survey.iid = survey_question.survey_id AND survey_question.c_id = $course_id)
-            LEFT JOIN $table_user user
-            ON (survey.author = user.id)
-            WHERE survey.c_id = $course_id
-            $search_restriction
-            $condition_session
-            GROUP BY survey.iid
-            ORDER BY col$column $direction
-            LIMIT $from,$number_of_items
-        ";
-
         $efv = new ExtraFieldValue('survey');
         $list = [];
-        foreach ($surveys as $survey) {
-            $array = [];
-            $surveyId = $survey->getIid();
-            $array[0] = $surveyId;
-            $type = $survey->getSurveyType();
 
-            $title = $survey->getTitle();
-            if (self::checkHideEditionToolsByCode($survey->getCode())) {
-                $array[1] = $title;
-            } else {
-                // Doodle
-                if (3 == $type) {
-                    $array[1] = Display::url(
-                        $title,
-                        api_get_path(WEB_CODE_PATH).'survey/meeting.php?survey_id='.$surveyId.'&'.api_get_cidreq()
-                    );
-                } else {
-                    $array[1] = Display::url(
-                        $title,
-                        api_get_path(WEB_CODE_PATH).'survey/survey.php?survey_id='.$surveyId.'&'.api_get_cidreq()
-                    );
+        if ($sessionId > 0) {
+            foreach ($surveys as $survey) {
+                $surveySession = $survey->getFirstResourceLink()->getSession();
+                if ($surveySession && $surveySession->getId() == $sessionId) {
+                    $list[] = self::prepare_survey_array($survey, $efv, $mandatoryAllowed, $isDrh);
                 }
             }
 
-            // Validation when belonging to a session
-            //$session_img = api_get_session_image($survey['session_id'], $_user['status']);
-            $session_img = '';
-            $array[2] = $survey->getCode();
-            $array[3] = $survey->getQuestions()->count();
-            $array[4] = UserManager::formatUserFullName($survey->getCreator());
-            // Dates
-            $array[5] = '';
-            $from = $survey->getAvailFrom() ? $survey->getAvailFrom()->format('Y-m-d H:i:s') : null;
-            if (null !== $from) {
-                $array[5] = api_convert_and_format_date(
-                    $from,
-                    $allowSurveyAvailabilityDatetime ? DATE_TIME_FORMAT_LONG : DATE_FORMAT_LONG
-                );
-            }
-            $till = $survey->getAvailTill() ? $survey->getAvailTill()->format('Y-m-d H:i:s') : null;
-            $array[6] = '';
-            if (null !== $till) {
-                $array[6] = api_convert_and_format_date(
-                    $till,
-                    $allowSurveyAvailabilityDatetime ? DATE_TIME_FORMAT_LONG : DATE_FORMAT_LONG
-                );
-            }
+            $lpRepo = Container::getLpRepository();
+            $lpsInSessionQb = $lpRepo->findAllByCourse($course, $session);
+            $lpsInSession = $lpsInSessionQb->getQuery()->getResult();
 
-            $array[7] =
-                Display::url(
-                    $survey->getAnswered(),
-                    api_get_path(WEB_CODE_PATH).'survey/survey_invitation.php?view=answered&survey_id='.$surveyId.'&'
-                        .api_get_cidreq()
-                ).' / '.
-                Display::url(
-                    $survey->getInvited(),
-                    api_get_path(WEB_CODE_PATH).'survey/survey_invitation.php?view=invited&survey_id='.$surveyId.'&'
-                        .api_get_cidreq()
-                );
-            // Anon
-            $array[8] = $survey->getAnonymous();
-            if ($mandatoryAllowed) {
-                $efvMandatory = $efv->get_values_by_handler_and_field_variable(
-                    $surveyId,
-                    'is_mandatory'
-                );
+            foreach ($lpsInSession as $lpInSession) {
+                $lpInSessionSession = $lpInSession->getFirstResourceLink()->getSession();
 
-                $array[9] = $efvMandatory ? $efvMandatory['value'] : 0;
-                // Survey id
-                $array[10] = $surveyId;
-            } else {
-                // Survey id
-                $array[9] = $surveyId;
+                if ($lpInSessionSession && $lpInSessionSession->getId() == $sessionId) {
+                    foreach ($lpInSession->getItems() as $sessionItem) {
+                        if ($sessionItem->getItemType() === 'survey') {
+                            $itemId = (int) $sessionItem->getPath();
+                            $survey = $repo->find($itemId);
+                            if ($survey && $survey->getFirstResourceLink()->getSession() == null) {
+                                $list[] = self::prepare_survey_array($survey, $efv, $mandatoryAllowed, $isDrh, false);
+                            }
+                        }
+                    }
+                }
             }
-
-            if ($isDrh) {
-                $array[1] = $title;
-                $array[7] = strip_tags($survey->getInvited());
+        } else {
+            foreach ($surveys as $survey) {
+                $list[] = self::prepare_survey_array($survey, $efv, $mandatoryAllowed, $isDrh);
             }
-
-            $list[] = $array;
         }
 
         return $list;
+    }
+
+
+    private static function prepare_survey_array($survey, $efv, $mandatoryAllowed, $isDrh, $canEdit = true) {
+        $array = [];
+        $surveyId = $survey->getIid();
+        $array[0] = $surveyId;
+        $type = $survey->getSurveyType();
+
+        $title = $survey->getTitle();
+        if (self::checkHideEditionToolsByCode($survey->getCode())) {
+            $array[1] = $title;
+        } else {
+            // Doodle
+            if (3 == $type) {
+                $array[1] = Display::url(
+                    $title,
+                    api_get_path(WEB_CODE_PATH).'survey/meeting.php?survey_id='.$surveyId.'&'.api_get_cidreq()
+                );
+            } else {
+                $array[1] = Display::url(
+                    $title,
+                    api_get_path(WEB_CODE_PATH).'survey/survey.php?survey_id='.$surveyId.'&'.api_get_cidreq()
+                );
+            }
+        }
+
+        $array[2] = $survey->getCode();
+        $array[3] = $survey->getQuestions()->count();
+        $array[4] = UserManager::formatUserFullName($survey->getCreator());
+
+        $array[5] = '';
+        $from = $survey->getAvailFrom() ? $survey->getAvailFrom()->format('Y-m-d H:i:s') : null;
+        if (null !== $from) {
+            $array[5] = api_convert_and_format_date(
+                $from,
+                DATE_TIME_FORMAT_LONG
+            );
+        }
+
+        $array[6] = '';
+        $till = $survey->getAvailTill() ? $survey->getAvailTill()->format('Y-m-d H:i:s') : null;
+        if (null !== $till) {
+            $array[6] = api_convert_and_format_date(
+                $till,
+                DATE_TIME_FORMAT_LONG
+            );
+        }
+
+        $array[7] = Display::url(
+                $survey->getAnswered(),
+                api_get_path(WEB_CODE_PATH).'survey/survey_invitation.php?view=answered&survey_id='.$surveyId.'&'.api_get_cidreq()
+            ).' / '.
+            Display::url(
+                $survey->getInvited(),
+                api_get_path(WEB_CODE_PATH).'survey/survey_invitation.php?view=invited&survey_id='.$surveyId.'&'.api_get_cidreq()
+            );
+
+        $array[8] = $survey->getAnonymous();
+        if ($mandatoryAllowed) {
+            $efvMandatory = $efv->get_values_by_handler_and_field_variable(
+                $surveyId,
+                'is_mandatory'
+            );
+
+            $array[9] = $efvMandatory ? $efvMandatory['value'] : 0;
+            $array[10] = $surveyId;
+        } else {
+            $array[9] = $surveyId;
+        }
+
+        if ($isDrh) {
+            $array[1] = $title;
+            $array[7] = strip_tags($survey->getInvited());
+        }
+
+        $array['can_edit'] = $canEdit;
+
+        return $array;
     }
 
     /**
@@ -3426,8 +3417,7 @@ class SurveyUtil
      */
     public static function get_survey_data_for_coach($from, $number_of_items, $column, $direction)
     {
-        $mandatoryAllowed = api_get_configuration_value('allow_mandatory_survey');
-        $allowSurveyAvailabilityDatetime = api_get_configuration_value('allow_survey_availability_datetime');
+        $mandatoryAllowed = ('true' === api_get_setting('survey.allow_mandatory_survey'));
         $repo = Container::getSurveyRepository();
         $qb = $repo->findAllByCourse(
             api_get_course_entity(),
@@ -3491,11 +3481,11 @@ class SurveyUtil
         while ($survey = Database::fetch_array($res)) {
             $survey['col5'] = api_convert_and_format_date(
                 $survey['col5'],
-                $allowSurveyAvailabilityDatetime ? DATE_TIME_FORMAT_LONG : DATE_FORMAT_LONG
+                DATE_TIME_FORMAT_LONG
             );
             $survey['col6'] = api_convert_and_format_date(
                 $survey['col6'],
-                $allowSurveyAvailabilityDatetime ? DATE_TIME_FORMAT_LONG : DATE_FORMAT_LONG
+                DATE_TIME_FORMAT_LONG
             );
 
             if ($mandatoryAllowed) {
@@ -3528,8 +3518,7 @@ class SurveyUtil
         $course_id = $_course['real_id'];
         $user_id = (int) $user_id;
         $sessionId = api_get_session_id();
-        $mandatoryAllowed = api_get_configuration_value('allow_mandatory_survey');
-        $allowSurveyAvailabilityDatetime = api_get_configuration_value('allow_survey_availability_datetime');
+        $mandatoryAllowed = ('true' === api_get_setting('survey.allow_mandatory_survey'));
 
         // Database table definitions
         $table_survey_invitation = Database::get_course_table(TABLE_SURVEY_INVITATION);
@@ -3549,7 +3538,7 @@ class SurveyUtil
 
         /** @var \DateTime $now */
         $now = api_get_utc_datetime(null, false, true);
-        $filterDate = $allowSurveyAvailabilityDatetime ? $now->format('Y-m-d H:i') : $now->format('Y-m-d');
+        $filterDate = $now->format('Y-m-d H:i');
         $sessionCondition = api_get_session_condition($sessionId, true, false, 'survey_invitation.session_id');
 
         $sql = "SELECT
@@ -3577,7 +3566,7 @@ class SurveyUtil
         $efv = new ExtraFieldValue('survey');
         $surveyIds = [];
         $repo = Container::getSurveyRepository();
-        while ($row = Database::fetch_array($result, 'ASSOC')) {
+        while ($row = Database::fetch_assoc($result)) {
             $surveyId = $row['iid'];
             if (in_array($surveyId, $surveyIds)) {
                 continue;
@@ -3590,12 +3579,7 @@ class SurveyUtil
             if (0 == $survey->getAnswered()) {
                 echo '<td>';
                 $url = self::generateFillSurveyLink($survey, $row['invitation_code'], $course, $row['session_id']);
-                $icon = Display::return_icon(
-                    'survey.png',
-                    get_lang('ClickHereToAnswerTheSurvey'),
-                    ['style' => 'margin-top: -4px'],
-                    ICON_SIZE_TINY
-                );
+                $icon = Display::getMdiIcon(ToolIcon::SURVEY, 'ch-tool-icon', null, ICON_SIZE_TINY, get_lang('ClickHereToAnswerTheSurvey'));
                 echo '<a href="'.$url.'">
                     '.$icon
                     .$row['title']
@@ -3605,12 +3589,7 @@ class SurveyUtil
                     $user_id,
                     $_course
                 );
-                $icon = Display::return_icon(
-                    'survey_na.png',
-                    get_lang('SurveysDone'),
-                    [],
-                    ICON_SIZE_TINY
-                );
+                $icon = Display::getMdiIcon(ObjectIcon::SURVEY, 'ch-tool-icon-disabled', null, ICON_SIZE_TINY, get_lang('SurveysDone'));
                 $showLink = (!api_is_allowed_to_edit(false, true) || $isDrhOfCourse)
                     && SURVEY_VISIBLE_TUTOR != $row['visible_results'];
 
@@ -3937,19 +3916,16 @@ class SurveyUtil
      *
      * @return bool return true if the survey has answers, false otherwise
      */
-    public static function checkIfSurveyHasAnswers($surveyId)
+    public static function checkIfSurveyHasAnswers(int $surveyId): bool
     {
         $tableSurveyAnswer = Database::get_course_table(TABLE_SURVEY_ANSWER);
-        $courseId = api_get_course_int_id();
-        $surveyId = (int) $surveyId;
 
-        if (empty($courseId) || empty($surveyId)) {
+        if (empty($surveyId)) {
             return false;
         }
 
         $sql = "SELECT * FROM $tableSurveyAnswer
                 WHERE
-                    c_id = $courseId AND
                     survey_id = '".$surveyId."'
                 ORDER BY iid, user ASC";
         $result = Database::query($sql);

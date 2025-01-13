@@ -1,52 +1,40 @@
 <template>
-  <q-card
-      v-if="announcement"
-      elevation="4"
-  >
-    <q-card-section>
-      <div class="text-h6">
-        {{ announcement.title }}
+  <BaseCard plain>
+    <template #header>
+      <div class="-mb-2 flex items-center justify-between gap-2 bg-gray-15 px-4 py-2">
+        <h6 v-text="announcement.title" />
+
+        <BaseButton
+          v-if="securityStore.isAdmin"
+          icon="edit"
+          label="Edit"
+          type="black"
+          @click="handleAnnouncementClick(announcement)"
+        />
       </div>
-    </q-card-section>
+    </template>
 
-    <q-card-section>
-        <p v-html="announcement.content"/>
-    </q-card-section>
-
-    <q-card-actions v-if="isAdmin">
-      <q-btn flat label="Edit" color="primary" v-close-popup @click="handleAnnouncementClick(announcement)"/>
-    </q-card-actions>
-  </q-card>
+    <div v-html="announcement.content" />
+  </BaseCard>
 </template>
 
-<script>
+<script setup>
+import BaseButton from "../basecomponents/BaseButton.vue"
+import BaseCard from "../basecomponents/BaseCard.vue"
+import { useSecurityStore } from "../../store/securityStore"
 
-import {mapGetters, useStore} from "vuex";
-import {useRouter} from "vue-router";
-import {reactive, toRefs} from "vue";
+const securityStore = useSecurityStore()
 
-export default {
-  name: 'SystemAnnouncementCard',
-  props: {
-    announcement: Object,
+defineProps({
+  announcement: {
+    type: Object,
+    required: true,
   },
-  setup() {
-    const router = useRouter();
-    const state = reactive({
-      handleAnnouncementClick: function(announcement) {
-        router
-            .push({path: `/main/admin/system_announcements.php?`, query: {id: announcement['id'], action: 'edit'}})
-            .catch(() => {
-            });
-      }
-    });
+})
 
-    return toRefs(state);
-  },
-  computed: {
-    ...mapGetters({
-      'isAdmin': 'security/isAdmin',
-    }),
-  }
-};
+function handleAnnouncementClick(announcement) {
+  // until announcement is migrated to vue we need to use a browser action
+  // when announcement is migrated we should use router.push here
+  location.assign(`/main/admin/system_announcements.php?id=${announcement["id"]}&action=edit`)
+}
 </script>

@@ -61,6 +61,7 @@ switch ($action) {
     case 'search_tags':
         header('Content-Type: application/json');
         $tag = isset($_REQUEST['q']) ? (string) $_REQUEST['q'] : '';
+        $byId = !empty($_REQUEST['byid']);
 
         $extraFieldRepo = Container::getExtraFieldRepository();
         $field = $extraFieldRepo->find($fieldId);
@@ -75,7 +76,7 @@ switch ($action) {
         $result = [];
         foreach ($tags as $tag) {
             $result[] = [
-                'id' => $tag->getId(),
+                'id' => $byId ? $tag->getId() : $tag->getTag(),
                 'text' => $tag->getTag(),
             ];
         }
@@ -188,7 +189,7 @@ switch ($action) {
                 $html .= '</li>';
             }
             $html .= '</ul>';
-            $html .= Display::url(get_lang('Save'), '#', ['id' => 'link_'.$variable, 'class' => 'btn btn-primary']);
+            $html .= Display::url(get_lang('Save'), '#', ['id' => 'link_'.$variable, 'class' => 'btn btn--primary']);
             echo $html;
         }
         break;

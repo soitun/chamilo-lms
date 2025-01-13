@@ -2,6 +2,9 @@
 
 /* For licensing terms, see /license.txt */
 
+use Chamilo\CoreBundle\Component\Utils\ToolIcon;
+use Chamilo\CoreBundle\Framework\Container;
+
 /**
  * Form element to select a date.
  */
@@ -17,7 +20,7 @@ class DatePicker extends HTML_QuickForm_text
         if (!isset($attributes['id'])) {
             $attributes['id'] = $elementName;
         }
-        $attributes['class'] = 'form-control';
+        $attributes['class'] = 'form-control border flex-grow';
 
         parent::__construct($elementName, $elementLabel, $attributes);
         $this->_appendName = true;
@@ -28,7 +31,7 @@ class DatePicker extends HTML_QuickForm_text
      *
      * @return string
      */
-    public function toHtml()
+    public function toHtml(): string
     {
         if ($this->_flagFrozen) {
             return $this->getFrozenHtml();
@@ -41,20 +44,37 @@ class DatePicker extends HTML_QuickForm_text
             $value = api_format_date($value, DATE_FORMAT_LONG_NO_DAY);
         }
 
+        $label = $this->getLabel();
+        $settingRequiredFields = api_get_setting('registration.required_extra_fields_in_inscription', true);
+        $requiredFields = 'false' !== $settingRequiredFields ? $settingRequiredFields : [];
+
+        if (!empty($requiredFields) && $requiredFields['options']) {
+            $requiredFields = $requiredFields['options'];
+        }
+        $variable = str_replace('extra_', '',$id);
+        $requiredSymbol = '';
+        if (!empty($requiredFields) && in_array($variable, $requiredFields)) {
+            $requiredSymbol = '<span class="form_required">*</span>';
+        }
+
+        $attrs = $this->_attributes;
+        unset($attrs['id']);
+
         return '
-            <div id="'.$id.'" class="flex flex-row mt-1">
-                <input '.$this->_getAttrString($this->_attributes).'
-                    class="form-control border" type="text" value="'.$value.'" placeholder="'.get_lang('Select date ..').'" data-input>
-                <div class="ml-1" id="button-addon3">
-                    <button class="btn btn-outline-secondary"  type="button" data-toggle>
-                        <i class="fas fa-calendar-alt"></i>
-                    </button>
-                    <button class="btn btn-outline-secondary" type="button" data-clear>
-                        <i class="fas fa-times"></i>
-                    </button>
-              </div>
+        <div>'.$requiredSymbol.$label.'</div>
+        <div id="'.$id.'" class="flex items-center mt-1 flatpickr-wrapper" data-wrap="true">
+            <input '.$this->_getAttrString($this->_attributes).'
+                value="'.$value.'" placeholder="'.get_lang('Select date').'" data-input>
+            <div class="flex space-x-1 ml-2" id="button-addon3">
+                <button class="btn btn--secondary-outline mr-2" type="button" data-toggle>
+                    <i class="pi pi-calendar pi-lg"></i>
+                </button>
+                <button class="btn btn--secondary-outline" type="button" data-clear>
+                    <i class="pi pi-times pi-lg"></i>
+                </button>
             </div>
-        '.$this->getElementJS();
+        </div>
+    '.$this->getElementJS();
     }
 
     /**
@@ -79,70 +99,87 @@ class DatePicker extends HTML_QuickForm_text
      *
      * @return string
      */
-    private function getElementJS()
+    private function getElementJS(): string
     {
-        $js = null;
+        $localeCode = $this->getLocaleCode();
         $id = $this->getAttribute('id');
-        //timeFormat: 'hh:mm'
-        $js .= "<script>
-            $(function() {
-                var config = {
+
+        $altFormat = ($localeCode === 'en') ? 'F d, Y' : 'd F, Y';
+
+        return "<script>
+        document.addEventListener('DOMContentLoaded', function () {
+            function initializeFlatpickr() {
+                const fp = flatpickr('#{$id}', {
+                    locale: '{$localeCode}',
                     altInput: true,
-                    altFormat: '".get_lang('F d, Y')."',
+                    altFormat: '{$altFormat}',
                     enableTime: false,
                     dateFormat: 'Y-m-d',
-                    wrap: true,
-                    locale: {
-                      firstDayOfWeek: 1
-                    }
-                };
-                $('#{$id}').flatpickr(config);
-             });
-        </script>";
-
-        return $js;
-
-        $js .= "<script>
-            $(function() {
-                var txtDate = $('#$id'),
-                    inputGroup = txtDate.parents('.input-group'),
-                    txtDateAlt = $('#{$id}_alt'),
-                    txtDateAltText = $('#{$id}_alt_text');
-
-                txtDate
-                    .hide()
-                    .datepicker({
-                        defaultDate: '".$this->getValue()."',
-                        dateFormat: 'yy-mm-dd',
-                        altField: '#{$id}_alt',
-                        altFormat: \"".get_lang('MM dd, yy')."\",
-                        showOn: 'both',
-                        buttonImage: '".Display::return_icon('attendance.png', null, [], ICON_SIZE_TINY, true, true)."',
-                        buttonImageOnly: true,
-                        buttonText: '".get_lang('Select date')."',
-                        changeMonth: true,
-                        changeYear: true,
-                        yearRange: 'c-60y:c+5y'
-                    })
-                    .on('change', function (e) {
-                        txtDateAltText.text(txtDateAlt.val());
-                    });
-
-                txtDateAltText.on('click', function () {
-                    txtDate.datepicker('show');
+                    time_24hr: true,
+                    wrap: true
                 });
 
-                inputGroup
-                    .find('button')
-                    .on('click', function (e) {
-                        e.preventDefault();
+                if ($('label[for=\"".$id."\"]').length > 0) {
+                    $('label[for=\"".$id."\"]').hide();
+                }
 
-                        $('#$id, #{$id}_alt').val('');
-                        $('#{$id}_alt_text').html('');
-                    });
-            });
-        </script>";
+                document.querySelector('label[for=\"' + '{$id}' + '\"]').classList.add('datepicker-label');
+            }
 
-        return $js;
+            function loadLocale() {
+                if ('{$localeCode}' !== 'en') {
+                    var script = document.createElement('script');
+                    script.src = '/build/flatpickr/l10n/{$localeCode}.js';
+                    script.onload = initializeFlatpickr;
+                    document.head.appendChild(script);
+                } else {
+                    initializeFlatpickr();
+                }
+            }
+
+            loadLocale();
+        });
+    </script>";
+    }
+
+    /**
+     * Retrieves the locale code based on user and course settings.
+     * Extracts the ISO language code from user or course settings and checks
+     * its availability in the list of supported locales. Returns 'en' if the language
+     * is not available.
+     *
+     * @return string Locale code (e.g., 'es', 'en', 'fr').
+     */
+    private function getLocaleCode(): string
+    {
+        $locale = api_get_setting('language.platform_language');
+        $request = Container::getRequest();
+        if ($request) {
+            $locale = $request->getLocale();
+        }
+
+        $userInfo = api_get_user_info();
+        if (is_array($userInfo) && !empty($userInfo['language']) && ANONYMOUS != $userInfo['status']) {
+            $locale = $userInfo['language'];
+        }
+
+        $courseInfo = api_get_course_info();
+        if (isset($courseInfo)) {
+            $locale = $courseInfo['language'];
+        }
+
+        $localeCode = explode('_', $locale)[0];
+        $availableLocales = [
+            'ar', 'ar-dz', 'at', 'az', 'be', 'bg', 'bn', 'bs', 'cat', 'ckb', 'cs', 'cy', 'da', 'de',
+            'eo', 'es', 'et', 'fa', 'fi', 'fo', 'fr', 'ga', 'gr', 'he', 'hi', 'hr', 'hu', 'hy',
+            'id', 'is', 'it', 'ja', 'ka', 'km', 'ko', 'kz', 'lt', 'lv', 'mk', 'mn', 'ms', 'my',
+            'nl', 'nn', 'no', 'pa', 'pl', 'pt', 'ro', 'ru', 'si', 'sk', 'sl', 'sq', 'sr', 'sr-cyr',
+            'sv', 'th', 'tr', 'uk', 'uz', 'uz_latn', 'vn', 'zh', 'zh-tw'
+        ];
+        if (!in_array($localeCode, $availableLocales)) {
+            $localeCode = 'en';
+        }
+
+        return $localeCode;
     }
 }

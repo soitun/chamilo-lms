@@ -39,13 +39,8 @@ class FormValidator extends HTML_QuickForm
             $attributes = [];
         }
 
-        // Default form class.
-        if (!isset($attributes['class']) || empty($attributes)) {
-            $attributes['class'] = 'form-horizontal q-pt-md';
-        }
-
-        if (isset($attributes['class']) && false !== strpos($attributes['class'], 'form-search')) {
-            $layout = 'inline';
+        if (isset($attributes['class']) && str_contains($attributes['class'], 'form-search')) {
+            $layout = self::LAYOUT_INLINE;
         }
 
         $this->setLayout($layout);
@@ -54,16 +49,11 @@ class FormValidator extends HTML_QuickForm
         $formTemplate = $this->getFormTemplate();
 
         switch ($layout) {
-            case self::LAYOUT_HORIZONTAL:
-                $attributes['class'] = 'ch w-full ';
-                break;
             case self::LAYOUT_BOX_SEARCH:
-                $attributes['class'] = 'ch w-full flex gap-2';
-                $formTemplate = $this->getInLineTemplate();
+                $attributes['class'] = 'form--search';
                 break;
             case self::LAYOUT_INLINE:
-                $attributes['class'] = 'ch flex gap-2 ';
-                $formTemplate = $this->getInLineTemplate();
+                $attributes['class'] = 'flex flex-row gap-3 ';
                 break;
             case self::LAYOUT_BOX:
                 $attributes['class'] = 'ch flex gap-1 ';
@@ -81,7 +71,7 @@ class FormValidator extends HTML_QuickForm
         $renderer->setFormTemplate($formTemplate);
 
         // Element template
-        if ((isset($attributes['class']) && 'form-inline' === $attributes['class']) ||
+        if ((isset($attributes['class']) && 'form--inline' === $attributes['class']) ||
             (self::LAYOUT_INLINE === $layout || self::LAYOUT_BOX_SEARCH === $layout)
         ) {
             $elementTemplate = ' {label}  {element} ';
@@ -106,7 +96,7 @@ class FormValidator extends HTML_QuickForm
         }
 
         //Set Header template
-        $renderer->setHeaderTemplate(' <h1 class="text-2xl font-small text-gray-800 mb-4">{header}<hr /></h1>');
+        $renderer->setHeaderTemplate(' <h1 class="text-h3 font-small text-gray-800 mb-4">{header}<hr /></h1>');
 
         $required = '<span class="form_required">*</span> <small>'.get_lang('Required field').'</small>';
         if ((self::LAYOUT_INLINE === $layout || self::LAYOUT_BOX_SEARCH === $layout)) {
@@ -115,34 +105,31 @@ class FormValidator extends HTML_QuickForm
         // Set required field template
         $this->setRequiredNote($required);
 
-        $noteTemplate = <<<EOT
+        if (self::LAYOUT_BOX_SEARCH !== $layout) {
+            $noteTemplate = <<<EOT
 	<div class="form-group">
 		<div class="col-sm-offset-2 col-sm-10">{requiredNote}</div>
 	</div>
 EOT;
-        $renderer->setRequiredNoteTemplate($noteTemplate);
+            $renderer->setRequiredNoteTemplate($noteTemplate);
+        }
     }
 
     public function getFormTemplate(): string
     {
-        return '
-                <div class="pt-4">
-                    <div class="q-card p-4">
-                        <form{attributes}>
-                            {content}
-                            {hidden}
-                        </form>
+        if (self::LAYOUT_BOX_SEARCH == $this->layout) {
+            return '<form {attributes}>
+                    <div class="form__group form__group--inline p-inputgroup">
+                        {content}
+                        {hidden}
                     </div>
-                </div>
-        ';
-    }
+                </form>';
+        }
 
-    public function getInLineTemplate(): string
-    {
         return '<form{attributes}>
-            {content}
-            {hidden}
-        </form>';
+                {content}
+                {hidden}
+            </form>';
     }
 
     public function getGridFormTemplate(): string
@@ -197,18 +184,12 @@ EOT;
             </div>';
     }
 
-    /**
-     * @return string
-     */
-    public function getLayout()
+    public function getLayout(): string
     {
         return $this->layout;
     }
 
-    /**
-     * @param string $layout
-     */
-    public function setLayout($layout)
+    public function setLayout(string $layout)
     {
         $this->layout = $layout;
     }
@@ -217,10 +198,13 @@ EOT;
      * Adds a text field to the form.
      * A trim-filter is attached to the field.
      *
-     * @param string|array $label      The label for the form-element
      * @param string       $name       The element name
+     * @param string|array $label      The label for the form-element
      * @param bool         $required   (optional)    Is the form-element required (default=true)
      * @param array        $attributes (optional)    List of attributes for the form-element
+     * @param bool         $createElement
+     *
+     * @throws Exception
      *
      * @return HTML_QuickForm_text
      */
@@ -245,7 +229,7 @@ EOT;
      */
     public function addCourseHiddenParams()
     {
-        $this->addHidden('cid', api_get_course_id());
+        $this->addHidden('cid', api_get_course_int_id());
         $this->addHidden('sid', api_get_session_id());
     }
 
@@ -350,7 +334,7 @@ EOT;
 
     /**
      * @param string $name
-     * @param string $value
+     * @param string|mixed $value
      * @param array  $attributes
      */
     public function addHidden($name, $value, $attributes = [])
@@ -994,7 +978,7 @@ EOT;
                             <div id="'.$id.'_crop_image" class="cropCanvas">
                                 <img id="'.$id.'_preview_image">
                             </div>
-                            <button class="btn btn-primary" type="button" name="cropButton" id="'.$id.'_crop_button">
+                            <button class="btn btn--primary" type="button" name="cropButton" id="'.$id.'_crop_button">
                                 <em class="fa fa-crop"></em> '.get_lang('Crop your picture').'
                             </button>
                         </div>
@@ -1025,57 +1009,62 @@ EOT;
         return true;
     }
 
-    public function addStartPanel(string $id, string $title, bool $open = false)
+    public function addStartPanel(string $id, string $title, bool $open = false, $icon = null): void
     {
+        // Same code as in Display::panelCollapse
         $parent = null;
-        $html = '
-                <script>
-                 document.addEventListener("DOMContentLoaded", function() {
-                    const query = window.location.hash.replace("#", "#collapse_");
-                    if (query) {
-                        const selected = document.querySelector(query);
-                        if (selected) {
-                             if (selected.classList.contains("hidden")) {
-                                selected.classList.remove("hidden");
-                            }
-                        }
-                    }
+        $javascript = '
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const buttons = document.querySelectorAll("#card_'.$id.' a");
+                const menus = document.querySelectorAll("#collapse_'.$id.'");
 
-                    const button = document.querySelector("#card_'.$id.'");
-                        button.addEventListener("click", (e) => {
-                        let menu = document.querySelector("#collapse_'.$id.'");
-                        if (menu.classList.contains("hidden")) {
-                            menu.classList.remove("hidden");
-                        } else {
-                            menu.classList.add("hidden");
-                        }
+                buttons.forEach((button, index) => {
+                    button.addEventListener("click", function() {
+                        menus.forEach((menu, menuIndex) => {
+                            if (index === menuIndex) {
+                                button.setAttribute("aria-expanded", "true" === button.getAttribute("aria-expanded") ? "false" : "true")
+                                button.classList.toggle("mdi-chevron-down")
+                                button.classList.toggle("mdi-chevron-up")
+                                menu.classList.toggle("active");
+                            } else {
+                                menu.classList.remove("active");
+                            }
+                        });
                     });
                 });
-                </script>
-                <div class="mt-4 rounded-lg">
-                    <div class="px-4 bg-gray-100 border border-gray-50" id="card_'.$id.'">
-                        <h5>
-                            <a role="button"
-                                class="'.(($open) ? 'collapse' : ' ').'"
-                                data-toggle="collapse"
-                                data-target="#collapse_'.$id.'"
-                                aria-expanded="true"
-                                aria-controls="collapse_'.$id.'"
-                            >
-                                '.$title.'
-                            </a>
-                        </h5>
-                    </div>
-                    <div
-                        id="collapse_'.$id.'"
-                        class="px-4 border border-gray-50 bg-white hidden collapse '.(($open) ? 'show' : ' ').'"
-                        aria-labelledby="heading_'.$id.'" data-parent="#'.$parent.'">
-                    <div id="collapse_contant_'.$id.'"  class="card-body ">';
+            });
+        </script>';
+
+        $this->addHtml($javascript);
+
+        $htmlIcon = '';
+        if ($icon) {
+            $htmlIcon = Display::getMdiIcon($icon, 'ch-tool-icon', 'float:left;', ICON_SIZE_SMALL);
+        }
+        $html = '
+        <div class="display-panel-collapse field">
+            <div class="display-panel-collapse__header" id="card_'.$id.'">
+                <a role="button"
+                    class="mdi mdi-chevron-down"
+                    data-toggle="collapse"
+                    data-target="#collapse_'.$id.'"
+                    aria-expanded="'.(($open) ? 'true' : 'false').'"
+                    aria-controls="collapse_'.$id.'"
+                >
+                    '.$htmlIcon.'&nbsp;'.$title.'
+                </a>
+            </div>
+            <div
+                id="collapse_'.$id.'"
+                class="display-panel-collapse__collapsible '.(($open) ? 'active' : '').'"
+            >
+                <div id="collapse_contant_'.$id.'"  class="card-body ">';
 
         $this->addHtml($html);
     }
 
-    public function addEndPanel()
+    public function addEndPanel(): void
     {
         $this->addHtml('</div></div></div>');
     }
@@ -1087,21 +1076,9 @@ EOT;
      * @param string $title     visible title
      * @param array  $groupList list of group or elements
      */
-    public function addPanelOption($name, $title, $groupList, $icon, $open, $parent)
+    public function addPanelOption($name, $title, $groupList, $icon, $open)
     {
-        $html = '<div class="card">';
-        $html .= '<div class="card-header" id="card_'.$name.'">';
-        $html .= '<h5 class="card-title">';
-        $html .= '<a role="button" class="'.(($open) ? 'collapse' : ' ').'"  data-toggle="collapse" data-target="#collapse_'.$name.'" aria-expanded="true" aria-controls="collapse_'.$name.'">';
-        if ($icon) {
-            $html .= Display::return_icon($icon, null, null, ICON_SIZE_SMALL);
-        }
-        $html .= $title;
-        $html .= '</a></h5></div>';
-        $html .= '<div id="collapse_'.$name.'" class="collapse '.(($open) ? 'show' : ' ').'" aria-labelledby="heading_'.$name.'" data-parent="#'.$parent.'">';
-        $html .= '<div class="card-body">';
-
-        $this->addHtml($html);
+        $this->addStartPanel($name, $title, $open, $icon);
 
         foreach ($groupList as $groupName => $group) {
             // Add group array
@@ -1114,7 +1091,7 @@ EOT;
             }
         }
 
-        $this->addHtml('</div></div></div>');
+        $this->addEndPanel();
     }
 
     /**
@@ -1649,7 +1626,7 @@ EOT;
             <div class="description-upload">
             '.get_lang('Click on the box below to select files from your computer (you can use CTRL + clic to select various files at a time), or drag and drop some files from your desktop directly over the box below. The system will handle the rest!').'
             </div>
-            <span class="btn btn-success fileinput-button">
+            <span class="btn btn--success fileinput-button">
                 <i class="glyphicon glyphicon-plus"></i>
                 <span>'.get_lang('Add files').'</span>
                 <!-- The file input field used as target for the file upload widget -->
@@ -1825,7 +1802,7 @@ EOT;
         if (!empty($urlToRedirect)) {
             $redirectCondition = "window.location.replace('$urlToRedirect'); ";
         }
-        $icon = Display::return_icon('file_txt.gif');
+        $icon = Display::getMdiIcon('text-box-outline', 'ch-tool-icon', null, ICON_SIZE_SMALL);
         $this->addHtml("
         <script>
         $(function () {
@@ -1840,7 +1817,7 @@ EOT;
 
             var url = '".$url."';
             var uploadButton = $('<button/>')
-                .addClass('btn btn-primary')
+                .addClass('btn btn--primary')
                 .prop('disabled', true)
                 .text('".addslashes(get_lang('Loading'))."')
                 .on('click', function () {

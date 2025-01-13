@@ -27,13 +27,13 @@ class TrackingSettingsSchema extends AbstractSettingsSchema
                 ]
             )
         ;
-//            ->setAllowedTypes(
-//                array(
-//                    // commenting this line allows setting to be null
-//                    //'header_extra_content' => array('string'),
-//                    //'footer_extra_content' => array('string'),
-//                )
-//            );
+        //            ->setAllowedTypes(
+        //                array(
+        //                    // commenting this line allows setting to be null
+        //                    //'header_extra_content' => array('string'),
+        //                    //'footer_extra_content' => array('string'),
+        //                )
+        //            );
     }
 
     public function buildForm(FormBuilderInterface $builder): void
@@ -47,5 +47,7 @@ class TrackingSettingsSchema extends AbstractSettingsSchema
             ->add('meta_twitter_site')
             ->add('meta_twitter_creator')
         ;
+
+        $this->updateFormFieldsFromSettingsInfo($builder);
     }
 }

@@ -10,224 +10,160 @@ use Chamilo\CoreBundle\Entity\AbstractResource;
 use Chamilo\CoreBundle\Entity\Asset;
 use Chamilo\CoreBundle\Entity\ResourceInterface;
 use Chamilo\CoreBundle\Entity\ResourceShowCourseResourcesInSessionInterface;
+use Chamilo\CourseBundle\Repository\CLpRepository;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
+use Stringable;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * Course learning paths (LPs).
- *
- * @ORM\Table(
- *     name="c_lp"
- * )
- * @ORM\Entity(repositoryClass="Chamilo\CourseBundle\Repository\CLpRepository")
  */
-class CLp extends AbstractResource implements ResourceInterface, ResourceShowCourseResourcesInSessionInterface
+#[ORM\Table(name: 'c_lp')]
+#[ORM\Entity(repositoryClass: CLpRepository::class)]
+class CLp extends AbstractResource implements ResourceInterface, ResourceShowCourseResourcesInSessionInterface, Stringable
 {
     public const LP_TYPE = 1;
     public const SCORM_TYPE = 2;
     public const AICC_TYPE = 3;
 
-    /**
-     * @ORM\Column(name="iid", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     */
-    protected int $iid;
+    #[ORM\Column(name: 'iid', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    protected ?int $iid = null;
 
-    /**
-     * @ORM\Column(name="lp_type", type="integer", nullable=false)
-     */
     #[Assert\NotBlank]
+    #[ORM\Column(name: 'lp_type', type: 'integer', nullable: false)]
     protected int $lpType;
 
-    /**
-     * @ORM\Column(name="name", type="string", length=255, nullable=false)
-     */
     #[Assert\NotBlank]
-    protected string $name;
+    #[ORM\Column(name: 'title', type: 'string', length: 255, nullable: false)]
+    protected string $title;
 
-    /**
-     * @ORM\Column(name="ref", type="text", nullable=true)
-     */
+    #[ORM\Column(name: 'ref', type: 'text', nullable: true)]
     protected ?string $ref = null;
 
-    /**
-     * @ORM\Column(name="description", type="text", nullable=true)
-     */
+    #[ORM\Column(name: 'description', type: 'text', nullable: true)]
     protected ?string $description;
 
-    /**
-     * @ORM\Column(name="path", type="text", nullable=false)
-     */
+    #[ORM\Column(name: 'path', type: 'text', nullable: false)]
     protected string $path;
 
-    /**
-     * @ORM\Column(name="force_commit", type="boolean", nullable=false)
-     */
+    #[ORM\Column(name: 'force_commit', type: 'boolean', nullable: false)]
     protected bool $forceCommit;
 
-    /**
-     * @ORM\Column(name="default_view_mod", type="string", length=32, nullable=false, options={"default":"embedded"})
-     */
+    #[ORM\Column(name: 'default_view_mod', type: 'string', length: 32, nullable: false, options: ['default' => 'embedded'])]
     protected string $defaultViewMod;
 
-    /**
-     * @ORM\Column(name="default_encoding", type="string", length=32, nullable=false, options={"default":"UTF-8"})
-     */
+    #[ORM\Column(name: 'default_encoding', type: 'string', length: 32, nullable: false, options: ['default' => 'UTF-8'])]
     protected string $defaultEncoding;
 
-    /**
-     * @ORM\Column(name="display_order", type="integer", nullable=false, options={"default":"0"})
-     */
-    protected int $displayOrder;
-
-    /**
-     * @ORM\Column(name="content_maker", type="text", nullable=false)
-     */
+    #[ORM\Column(name: 'content_maker', type: 'text', nullable: false)]
     protected string $contentMaker;
 
-    /**
-     * @ORM\Column(name="content_local", type="string", length=32, nullable=false, options={"default":"local"})
-     */
+    #[ORM\Column(name: 'content_local', type: 'string', length: 32, nullable: false, options: ['default' => 'local'])]
     protected string $contentLocal;
 
-    /**
-     * @ORM\Column(name="content_license", type="text", nullable=false)
-     */
+    #[ORM\Column(name: 'content_license', type: 'text', nullable: false)]
     protected string $contentLicense;
 
-    /**
-     * @ORM\Column(name="prevent_reinit", type="boolean", nullable=false, options={"default":"1"})
-     */
+    #[ORM\Column(name: 'prevent_reinit', type: 'boolean', nullable: false, options: ['default' => 1])]
     protected bool $preventReinit;
 
-    /**
-     * @ORM\Column(name="js_lib", type="text", nullable=false)
-     */
+    #[ORM\Column(name: 'js_lib', type: 'text', nullable: false)]
     protected string $jsLib;
 
-    /**
-     * @ORM\Column(name="debug", type="boolean", nullable=false)
-     */
+    #[ORM\Column(name: 'debug', type: 'boolean', nullable: false)]
     protected bool $debug;
 
-    /**
-     * @ORM\Column(name="theme", type="string", length=255, nullable=false)
-     */
     #[Assert\NotBlank]
+    #[ORM\Column(name: 'theme', type: 'string', length: 255, nullable: false)]
     protected string $theme;
 
-    /**
-     * @ORM\Column(name="author", type="text", nullable=false)
-     */
     #[Assert\NotBlank]
+    #[ORM\Column(name: 'author', type: 'text', nullable: false)]
     protected string $author;
 
-    /**
-     * @ORM\Column(name="prerequisite", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'prerequisite', type: 'integer', nullable: false)]
     protected int $prerequisite;
 
-    /**
-     * @ORM\Column(name="hide_toc_frame", type="boolean", nullable=false)
-     */
+    #[ORM\Column(name: 'hide_toc_frame', type: 'boolean', nullable: false)]
     protected bool $hideTocFrame;
 
-    /**
-     * @ORM\Column(name="seriousgame_mode", type="boolean", nullable=false)
-     */
+    #[ORM\Column(name: 'seriousgame_mode', type: 'boolean', nullable: false)]
     protected bool $seriousgameMode;
 
-    /**
-     * @ORM\Column(name="use_max_score", type="integer", nullable=false, options={"default":"1"})
-     */
+    #[ORM\Column(name: 'use_max_score', type: 'integer', nullable: false, options: ['default' => 1])]
     protected int $useMaxScore;
 
-    /**
-     * @ORM\Column(name="autolaunch", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'autolaunch', type: 'integer', nullable: false)]
     protected int $autolaunch;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CourseBundle\Entity\CLpCategory", inversedBy="lps")
-     * @ORM\JoinColumn(name="category_id", referencedColumnName="iid")
-     */
+    #[ORM\ManyToOne(targetEntity: CLpCategory::class, inversedBy: 'lps')]
+    #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'iid')]
     protected ?CLpCategory $category = null;
 
-    /**
-     * @ORM\Column(name="max_attempts", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'max_attempts', type: 'integer', nullable: false)]
     protected int $maxAttempts;
 
-    /**
-     * @ORM\Column(name="subscribe_users", type="integer", nullable=false)
-     */
+    #[ORM\Column(name: 'subscribe_users', type: 'integer', nullable: false)]
     protected int $subscribeUsers;
 
-    /**
-     * @Gedmo\Timestampable(on="create")
-     *
-     * @ORM\Column(name="created_on", type="datetime", nullable=false)
-     */
+    #[Gedmo\Timestampable(on: 'create')]
+    #[ORM\Column(name: 'created_on', type: 'datetime', nullable: false)]
     protected DateTime $createdOn;
 
-    /**
-     * @Gedmo\Timestampable(on="update")
-     *
-     * @ORM\Column(name="modified_on", type="datetime", nullable=false)
-     */
+    #[Gedmo\Timestampable(on: 'update')]
+    #[ORM\Column(name: 'modified_on', type: 'datetime', nullable: false)]
     protected DateTime $modifiedOn;
 
-    /**
-     * @ORM\Column(name="publicated_on", type="datetime", nullable=true)
-     */
-    protected ?DateTime $publicatedOn;
+    #[ORM\Column(name: 'published_on', type: 'datetime', nullable: true)]
+    protected ?DateTime $publishedOn;
 
-    /**
-     * @ORM\Column(name="expired_on", type="datetime", nullable=true)
-     */
+    #[ORM\Column(name: 'expired_on', type: 'datetime', nullable: true)]
     protected ?DateTime $expiredOn = null;
 
-    /**
-     * @ORM\Column(name="accumulate_scorm_time", type="integer", nullable=false, options={"default":1})
-     */
-    protected int $accumulateScormTime;
+    #[ORM\Column(name: 'accumulate_scorm_time', type: 'integer', nullable: false, options: ['default' => 1])]
+    protected int $accumulateScormTime = 1;
 
-    /**
-     * @ORM\Column(name="accumulate_work_time", type="integer", nullable=false, options={"default":0})
-     */
-    protected int $accumulateWorkTime;
+    #[ORM\Column(name: 'accumulate_work_time', type: 'integer', nullable: false, options: ['default' => 0])]
+    protected int $accumulateWorkTime = 0;
 
-    /**
-     * @var Collection|CLpItem[]
-     *
-     * @ORM\OneToMany(targetEntity="Chamilo\CourseBundle\Entity\CLpItem", mappedBy="lp", cascade={"persist", "remove"}, orphanRemoval=true)
-     */
+    #[ORM\Column(name: 'next_lp_id', type: 'integer', nullable: false, options: ['default' => 0])]
+    protected int $nextLpId = 0;
+
+    #[ORM\Column(name: 'subscribe_user_by_date', type: 'boolean', nullable: false, options: ['default' => 0])]
+    protected bool $subscribeUserByDate = false;
+
+    #[ORM\Column(name: 'display_not_allowed_lp', type: 'boolean', nullable: true, options: ['default' => 0])]
+    protected bool $displayNotAllowedLp = false;
+
+    #[ORM\OneToMany(mappedBy: 'lp', targetEntity: CLpItem::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     protected Collection $items;
 
     /**
-     * @var Collection|CForum[]
-     *
-     * @ORM\OneToMany(targetEntity="Chamilo\CourseBundle\Entity\CForum", mappedBy="lp", cascade={"persist", "remove"})
+     * @var Collection<int, CForum>
      */
+    #[ORM\OneToMany(mappedBy: 'lp', targetEntity: CForum::class, cascade: ['persist', 'remove'])]
     protected Collection $forums;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\Asset", cascade={"persist", "remove"})
-     * @ORM\JoinColumn(name="asset_id", referencedColumnName="id")
-     */
+    #[ORM\ManyToOne(targetEntity: Asset::class, cascade: ['persist', 'remove'])]
+    #[ORM\JoinColumn(name: 'asset_id', referencedColumnName: 'id')]
     protected ?Asset $asset = null;
+
+    #[ORM\Column(name: 'duration', type: 'integer', nullable: true)]
+    protected ?int $duration = null;
 
     public function __construct()
     {
         $now = new DateTime();
         $this->createdOn = $now;
         $this->modifiedOn = $now;
-        $this->publicatedOn = $now;
+        $this->publishedOn = $now;
         $this->accumulateScormTime = 1;
         $this->accumulateWorkTime = 0;
         $this->author = '';
@@ -238,7 +174,6 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         $this->defaultEncoding = 'UTF-8';
         $this->defaultViewMod = 'embedded';
         $this->description = '';
-        $this->displayOrder = 0;
         $this->debug = false;
         $this->forceCommit = false;
         $this->hideTocFrame = false;
@@ -251,13 +186,14 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         $this->subscribeUsers = 0;
         $this->useMaxScore = 1;
         $this->theme = '';
+        $this->nextLpId = 0;
         $this->items = new ArrayCollection();
         $this->forums = new ArrayCollection();
     }
 
     public function __toString(): string
     {
-        return $this->getName();
+        return $this->getTitle();
     }
 
     public function setLpType(int $lpType): self
@@ -267,26 +203,21 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get lpType.
-     *
-     * @return int
-     */
-    public function getLpType()
+    public function getLpType(): int
     {
         return $this->lpType;
     }
 
-    public function setName(string $name): self
+    public function setTitle(string $title): self
     {
-        $this->name = $name;
+        $this->title = $title;
 
         return $this;
     }
 
-    public function getName(): string
+    public function getTitle(): string
     {
-        return $this->name;
+        return $this->title;
     }
 
     public function setRef(string $ref): self
@@ -296,12 +227,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get ref.
-     *
-     * @return string
-     */
-    public function getRef()
+    public function getRef(): ?string
     {
         return $this->ref;
     }
@@ -325,12 +251,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get path.
-     *
-     * @return string
-     */
-    public function getPath()
+    public function getPath(): string
     {
         return $this->path;
     }
@@ -342,12 +263,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get forceCommit.
-     *
-     * @return bool
-     */
-    public function getForceCommit()
+    public function getForceCommit(): bool
     {
         return $this->forceCommit;
     }
@@ -359,12 +275,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get defaultViewMod.
-     *
-     * @return string
-     */
-    public function getDefaultViewMod()
+    public function getDefaultViewMod(): string
     {
         return $this->defaultViewMod;
     }
@@ -376,31 +287,9 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get defaultEncoding.
-     *
-     * @return string
-     */
-    public function getDefaultEncoding()
+    public function getDefaultEncoding(): string
     {
         return $this->defaultEncoding;
-    }
-
-    public function setDisplayOrder(int $displayOrder): self
-    {
-        $this->displayOrder = $displayOrder;
-
-        return $this;
-    }
-
-    /**
-     * Get displayOrder.
-     *
-     * @return int
-     */
-    public function getDisplayOrder()
-    {
-        return $this->displayOrder;
     }
 
     public function setContentMaker(string $contentMaker): self
@@ -410,12 +299,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get contentMaker.
-     *
-     * @return string
-     */
-    public function getContentMaker()
+    public function getContentMaker(): string
     {
         return $this->contentMaker;
     }
@@ -427,12 +311,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get contentLocal.
-     *
-     * @return string
-     */
-    public function getContentLocal()
+    public function getContentLocal(): string
     {
         return $this->contentLocal;
     }
@@ -444,12 +323,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get contentLicense.
-     *
-     * @return string
-     */
-    public function getContentLicense()
+    public function getContentLicense(): string
     {
         return $this->contentLicense;
     }
@@ -461,12 +335,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get preventReinit.
-     *
-     * @return bool
-     */
-    public function getPreventReinit()
+    public function getPreventReinit(): bool
     {
         return $this->preventReinit;
     }
@@ -478,12 +347,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get jsLib.
-     *
-     * @return string
-     */
-    public function getJsLib()
+    public function getJsLib(): string
     {
         return $this->jsLib;
     }
@@ -495,12 +359,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get debug.
-     *
-     * @return bool
-     */
-    public function getDebug()
+    public function getDebug(): bool
     {
         return $this->debug;
     }
@@ -536,12 +395,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get prerequisite.
-     *
-     * @return int
-     */
-    public function getPrerequisite()
+    public function getPrerequisite(): int
     {
         return $this->prerequisite;
     }
@@ -565,12 +419,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get seriousgameMode.
-     *
-     * @return bool
-     */
-    public function getSeriousgameMode()
+    public function getSeriousgameMode(): bool
     {
         return $this->seriousgameMode;
     }
@@ -582,12 +431,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get useMaxScore.
-     *
-     * @return int
-     */
-    public function getUseMaxScore()
+    public function getUseMaxScore(): int
     {
         return $this->useMaxScore;
     }
@@ -599,12 +443,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get autolaunch.
-     *
-     * @return int
-     */
-    public function getAutolaunch()
+    public function getAutolaunch(): int
     {
         return $this->autolaunch;
     }
@@ -616,12 +455,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get createdOn.
-     *
-     * @return DateTime
-     */
-    public function getCreatedOn()
+    public function getCreatedOn(): DateTime
     {
         return $this->createdOn;
     }
@@ -633,26 +467,21 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    /**
-     * Get modifiedOn.
-     *
-     * @return DateTime
-     */
-    public function getModifiedOn()
+    public function getModifiedOn(): DateTime
     {
         return $this->modifiedOn;
     }
 
-    public function setPublicatedOn(DateTime $publicatedOn): self
+    public function setPublishedOn(?DateTime $publishedOn): self
     {
-        $this->publicatedOn = $publicatedOn;
+        $this->publishedOn = $publishedOn;
 
         return $this;
     }
 
-    public function getPublicatedOn(): ?DateTime
+    public function getPublishedOn(): ?DateTime
     {
-        return $this->publicatedOn;
+        return $this->publishedOn;
     }
 
     public function setExpiredOn(?DateTime $expiredOn): self
@@ -677,7 +506,7 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return null !== $this->category;
     }
 
-    public function setCategory(CLpCategory $category = null): self
+    public function setCategory(?CLpCategory $category = null): self
     {
         $this->category = $category;
 
@@ -713,30 +542,56 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this->maxAttempts;
     }
 
+    public function getNextLpId(): int
+    {
+        return $this->nextLpId;
+    }
+
+    public function setNextLpId(int $nextLpId): self
+    {
+        $this->nextLpId = $nextLpId;
+
+        return $this;
+    }
+
+    public function getSubscribeUserByDate(): bool
+    {
+        return $this->subscribeUserByDate;
+    }
+
+    public function setSubscribeUserByDate(bool $subscribeUserByDate): self
+    {
+        $this->subscribeUserByDate = $subscribeUserByDate;
+
+        return $this;
+    }
+
+    public function getDisplayNotAllowedLp(): bool
+    {
+        return $this->displayNotAllowedLp;
+    }
+
+    public function setDisplayNotAllowedLp(bool $displayNotAllowedLp): self
+    {
+        $this->displayNotAllowedLp = $displayNotAllowedLp;
+
+        return $this;
+    }
+
     /**
-     * @return CLpItem[]|Collection
+     * @return Collection<int, CLpItem>
      */
-    public function getItems()
+    public function getItems(): Collection
     {
         return $this->items;
     }
 
-    /**
-     * Get iid.
-     *
-     * @return int
-     */
-    public function getIid()
+    public function getIid(): ?int
     {
         return $this->iid;
     }
 
-    /**
-     * Get subscribeUsers.
-     *
-     * @return int
-     */
-    public function getSubscribeUsers()
+    public function getSubscribeUsers(): int
     {
         return $this->subscribeUsers;
     }
@@ -749,19 +604,14 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
     }
 
     /**
-     * @return ArrayCollection|Collection|CForum[]
+     * @return Collection<int, CForum>
      */
-    public function getForums()
+    public function getForums(): Collection
     {
         return $this->forums;
     }
 
-    /**
-     * @param ArrayCollection|Collection $forums
-     *
-     * @return CLp
-     */
-    public function setForums($forums): self
+    public function setForums(ArrayCollection|Collection $forums): self
     {
         $this->forums = $forums;
 
@@ -785,18 +635,30 @@ class CLp extends AbstractResource implements ResourceInterface, ResourceShowCou
         return $this;
     }
 
-    public function getResourceIdentifier(): int
+    public function getDuration(): ?int
+    {
+        return $this->duration;
+    }
+
+    public function setDuration(?int $duration): self
+    {
+        $this->duration = $duration;
+
+        return $this;
+    }
+
+    public function getResourceIdentifier(): int|Uuid
     {
         return $this->getIid();
     }
 
     public function getResourceName(): string
     {
-        return $this->getName();
+        return $this->getTitle();
     }
 
     public function setResourceName(string $name): self
     {
-        return $this->setName($name);
+        return $this->setTitle($name);
     }
 }

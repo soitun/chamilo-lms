@@ -10,17 +10,14 @@ use Chamilo\CoreBundle\Entity\Course;
 use Chamilo\CoreBundle\Migrations\AbstractMigrationChamilo;
 use Chamilo\CoreBundle\Repository\Node\CourseRepository;
 use Chamilo\CoreBundle\Repository\Node\UserRepository;
-use Chamilo\CoreBundle\Repository\SessionRepository;
 use Chamilo\CourseBundle\Entity\CDocument;
 use Chamilo\CourseBundle\Entity\CQuiz;
 use Chamilo\CourseBundle\Entity\CQuizQuestion;
 use Chamilo\CourseBundle\Entity\CQuizQuestionCategory;
 use Chamilo\CourseBundle\Repository\CDocumentRepository;
-use Chamilo\CourseBundle\Repository\CGroupRepository;
 use Chamilo\CourseBundle\Repository\CQuizQuestionCategoryRepository;
 use Chamilo\CourseBundle\Repository\CQuizQuestionRepository;
 use Chamilo\CourseBundle\Repository\CQuizRepository;
-use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Schema;
 
 final class Version20201215142610 extends AbstractMigrationChamilo
@@ -32,30 +29,20 @@ final class Version20201215142610 extends AbstractMigrationChamilo
 
     public function up(Schema $schema): void
     {
-        $container = $this->getContainer();
-        $doctrine = $container->get('doctrine');
-        $em = $doctrine->getManager();
-        /** @var Connection $connection */
-        $connection = $em->getConnection();
+        $quizRepo = $this->container->get(CQuizRepository::class);
+        $quizQuestionRepo = $this->container->get(CQuizQuestionRepository::class);
+        $quizQuestionCategoryRepo = $this->container->get(CQuizQuestionCategoryRepository::class);
+        $documentRepo = $this->container->get(CDocumentRepository::class);
+        $courseRepo = $this->container->get(CourseRepository::class);
+        $userRepo = $this->container->get(UserRepository::class);
 
-        $quizRepo = $container->get(CQuizRepository::class);
-        $quizQuestionRepo = $container->get(CQuizQuestionRepository::class);
-        $quizQuestionCategoryRepo = $container->get(CQuizQuestionCategoryRepository::class);
+        $q = $this->entityManager->createQuery('SELECT c FROM Chamilo\CoreBundle\Entity\Course c');
 
-        $documentRepo = $container->get(CDocumentRepository::class);
-        $courseRepo = $container->get(CourseRepository::class);
-        $sessionRepo = $container->get(SessionRepository::class);
-        $groupRepo = $container->get(CGroupRepository::class);
-        $userRepo = $container->get(UserRepository::class);
-
-        $admin = $this->getAdmin();
-
-        $q = $em->createQuery('SELECT c FROM Chamilo\CoreBundle\Entity\Course c');
         /** @var Course $course */
         foreach ($q->toIterable() as $course) {
             $courseId = $course->getId();
             $course = $courseRepo->find($courseId);
-            $courseRelUserList = $course->getTeachers();
+            $courseRelUserList = $course->getTeachersSubscriptions();
             $courseAdmin = null;
             if (!empty($courseRelUserList)) {
                 foreach ($courseRelUserList as $courseRelUser) {
@@ -72,10 +59,11 @@ final class Version20201215142610 extends AbstractMigrationChamilo
             // Quiz
             $sql = "SELECT * FROM c_quiz WHERE c_id = {$courseId}
                     ORDER BY iid";
-            $result = $connection->executeQuery($sql);
+            $result = $this->connection->executeQuery($sql);
             $items = $result->fetchAllAssociative();
             foreach ($items as $itemData) {
                 $id = $itemData['iid'];
+
                 /** @var CQuiz $resource */
                 $resource = $quizRepo->find($id);
                 if ($resource->hasResourceNode()) {
@@ -94,39 +82,40 @@ final class Version20201215142610 extends AbstractMigrationChamilo
                     continue;
                 }
 
-                $em->persist($resource);
-                $em->flush();
+                $this->entityManager->persist($resource);
+                $this->entityManager->flush();
 
                 /*$sql = "SELECT q.* FROM c_quiz_question q
                         INNER JOIN c_quiz_rel_question cq
                         ON (q.iid = cq.exercice_id and q.c_id = cq.c_id)
                         WHERE q.c_id = $courseId AND exercice_id = $id
                         ORDER BY iid";
-                $result = $connection->executeQuery($sql);
+                $result = $this->connection->executeQuery($sql);
                 $questions = $result->fetchAllAssociative();
                 foreach ($questions as $questionData) {
                     $questionData[''];
                 }
                 $sql = "SELECT * FROM c_quiz_question WHERE c_id = $courseId
                         ORDER BY iid";
-                $result = $connection->executeQuery($sql);
+                $result = $this->connection->executeQuery($sql);
                 $items = $result->fetchAllAssociative();
                 foreach ($items as $itemData) {
                 }*/
             }
 
-            $em->flush();
-            $em->clear();
+            $this->entityManager->flush();
+            $this->entityManager->clear();
 
             // Question categories.
             $sql = "SELECT * FROM c_quiz_question_category WHERE c_id = {$courseId}
                     ORDER BY iid";
-            $result = $connection->executeQuery($sql);
+            $result = $this->connection->executeQuery($sql);
             $items = $result->fetchAllAssociative();
 
             $course = $courseRepo->find($courseId);
             foreach ($items as $itemData) {
                 $id = $itemData['iid'];
+
                 /** @var CQuizQuestionCategory $resource */
                 $resource = $quizQuestionCategoryRepo->find($id);
                 if ($resource->hasResourceNode()) {
@@ -144,20 +133,21 @@ final class Version20201215142610 extends AbstractMigrationChamilo
                     continue;
                 }
 
-                $em->persist($resource);
-                $em->flush();
+                $this->entityManager->persist($resource);
+                $this->entityManager->flush();
             }
 
-            $em->flush();
-            $em->clear();
+            $this->entityManager->flush();
+            $this->entityManager->clear();
 
             $sql = "SELECT * FROM c_quiz_question WHERE c_id = {$courseId}
                     ORDER BY iid";
-            $result = $connection->executeQuery($sql);
+            $result = $this->connection->executeQuery($sql);
             $items = $result->fetchAllAssociative();
             foreach ($items as $itemData) {
                 $id = $itemData['iid'];
                 $course = $courseRepo->find($courseId);
+
                 /** @var CQuizQuestion $question */
                 $question = $quizQuestionRepo->find($id);
                 if ($resource->hasResourceNode()) {
@@ -168,9 +158,9 @@ final class Version20201215142610 extends AbstractMigrationChamilo
                 $question->setParent($course);
                 $resourceNode = $quizQuestionRepo->addResourceNode($question, $courseAdmin, $course);
                 $question->addCourseLink($course);
-                $em->persist($resourceNode);
-                $em->persist($question);
-                $em->flush();
+                $this->entityManager->persist($resourceNode);
+                $this->entityManager->persist($question);
+                $this->entityManager->flush();
 
                 /** @var CQuizQuestion $question */
                 $question = $quizQuestionRepo->find($id);
@@ -179,17 +169,17 @@ final class Version20201215142610 extends AbstractMigrationChamilo
                     /** @var CDocument $document */
                     $document = $documentRepo->find($pictureId);
                     if ($document && $document->hasResourceNode() && $document->getResourceNode()->hasResourceFile()) {
-                        $resourceFile = $document->getResourceNode()->getResourceFile();
+                        $resourceFile = $document->getResourceNode()->getResourceFiles()->first();
                         $contents = $documentRepo->getResourceFileContent($document);
                         $quizQuestionRepo->addFileFromString($question, $resourceFile->getOriginalName(), $resourceFile->getMimeType(), $contents);
                     }
                 }
 
-                $em->persist($question);
-                $em->flush();
+                $this->entityManager->persist($question);
+                $this->entityManager->flush();
             }
-            $em->flush();
-            $em->clear();
+            $this->entityManager->flush();
+            $this->entityManager->clear();
         }
     }
 }

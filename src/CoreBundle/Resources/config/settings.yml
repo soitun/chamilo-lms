@@ -3,6 +3,14 @@ services:
         autowire: true
         public: true
 
+    _instanceof:
+      Chamilo\CoreBundle\Settings\AbstractSettingsSchema:
+        calls:
+          - method: 'setRepository'
+            arguments: [ '@Chamilo\CoreBundle\Repository\SettingsCurrentRepository' ]
+          - method: 'setTranslator'
+            arguments: [ '@translator' ]
+
     chamilo_core.settings.admin:
         class: Chamilo\CoreBundle\Settings\AdminSettingsSchema
         tags:
@@ -165,6 +173,11 @@ services:
         class: Chamilo\CoreBundle\Settings\SurveySettingsSchema
         tags:
             - {name: sylius.settings_schema, alias: chamilo_core.settings.survey, namespace: survey}
+
+    chamilo_core.settings.work:
+        class: Chamilo\CoreBundle\Settings\WorkSettingsSchema
+        tags:
+            - { name: sylius.settings_schema, alias: chamilo_core.settings.work, namespace: work }
 
     chamilo_core.settings.ticket:
         class: Chamilo\CoreBundle\Settings\TicketSettingsSchema

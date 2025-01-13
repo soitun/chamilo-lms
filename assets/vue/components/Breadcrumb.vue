@@ -1,184 +1,145 @@
 <template>
-  <div class="p-2" style="margin-left: -0.25rem; margin-bottom: 0.5rem">
-    <q-breadcrumbs
-        active-color="primary"
-        large
-    >
-<!--      <q-breadcrumbs-el v-for ="item in items" :label="item.text" :to="item.href" />-->
-      <q-breadcrumbs-el v-for="item in items" :label="item.text" :to="item.href" exact-path />
-    </q-breadcrumbs>
+  <div
+    v-if="itemList.length > 0"
+    class="app-breadcrumb"
+  >
+    <Breadcrumb :model="itemList">
+      <template #item="{ item, props }">
+        <BaseAppLink
+          :to="item.route"
+          :url="item.url"
+          v-bind="props.action"
+        >
+          {{ item.label }}
+        </BaseAppLink>
+      </template>
 
-<!--    <v-breadcrumbs-->
-<!--        rounded-->
-<!--        density="compact"-->
-<!--    >-->
-
-<!--        <a  v-for="item in items" :href="item.href"  >-->
-<!--          <v-breadcrumbs-item>-->
-<!--          {{item.text}}-->
-<!--            </v-breadcrumbs-item>-->
-<!--        </a>-->
-<!--    </v-breadcrumbs>-->
+      <template #separator> /</template>
+    </Breadcrumb>
+    <div
+      v-if="session"
+      class="app-breadcrumb__session-title"
+      v-text="session.title"
+    />
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, watchEffect } from "vue"
+import { useRoute, useRouter } from "vue-router"
+import { useI18n } from "vue-i18n"
+import Breadcrumb from "primevue/breadcrumb"
+import { useCidReqStore } from "../store/cidReq"
+import { storeToRefs } from "pinia"
+import BaseAppLink from "./basecomponents/BaseAppLink.vue"
 
-import {mapGetters} from "vuex";
-import isEmpty from 'lodash/isEmpty';
+const legacyItems = ref(window.breadcrumb)
 
-export default {
-  name: 'Breadcrumb',
-  props: ['layoutClass', 'legacy'],
-  computed: {
-    ...mapGetters('resourcenode', {
-      resourceNode: 'getResourceNode',
-    }),
-    ...mapGetters('course', {
-      course: 'getCourse',
-    }),
-    ...mapGetters('session', {
-      session: 'getSession',
-    }),
-    items() {
-      console.log('Breadcrumb.vue');
-      console.log(this.$route.name);
+const cidReqStore = useCidReqStore()
+const route = useRoute()
+const router = useRouter()
+const { t } = useI18n()
 
-      const items = [
-        {
-          text: this.$t('Home'),
-          href: '/'
-        }
-      ];
+const { course, session } = storeToRefs(cidReqStore)
 
-      const list = [
-        'CourseHome',
-        'MyCourses',
-        'MySessions',
-        'MySessionsUpcoming',
-        'MySessionsPast',
-        'Home',
-        'MessageList',
-        'MessageNew',
-        'MessageShow',
-        'MessageCreate',
-      ];
+const specialRouteNames = [
+  "MyCourses",
+  "MySessions",
+  "MySessionsUpcoming",
+  "MySessionsPast",
+  "Home",
+  "MessageList",
+  "MessageNew",
+  "MessageShow",
+  "MessageCreate",
+]
 
-      if (!isEmpty(this.$route.name) && this.$route.name.includes('Page')) {
-        items.push({
-          text: this.$t('Pages'),
-          href: '/resources/pages'
-        });
+const itemList = ref([])
+
+watchEffect(() => {
+  if ("/" === route.fullPath) {
+    return
+  }
+
+  itemList.value = []
+
+  if (route.fullPath.startsWith("/admin")) {
+    const parts = route.path.split("/").filter(Boolean)
+    parts.forEach((part, index) => {
+      const path = `/${parts.slice(0, index + 1).join("/")}`
+      const matchedRoute = router.getRoutes().find((r) => r.path === path)
+      if (matchedRoute) {
+        const label = matchedRoute.meta?.breadcrumb || t(part.charAt(0).toUpperCase() + part.slice(1))
+        itemList.value.push({
+          label: t(label),
+          route: { path },
+        })
       }
+    })
+  }
 
-      if (!isEmpty(this.$route.name) && this.$route.name.includes('Message')) {
-        items.push({
-          text: this.$t('Messages'),
-          //disabled: route.path === path || lastItem.path === route.path,
-          href: '/resources/messages'
-        });
-      }
+  if (route.name && route.name.includes("Page")) {
+    itemList.value.push({
+      label: t("Pages"),
+      to: "/resources/pages",
+    })
+  }
 
+  if (route.name && route.name.includes("Message")) {
+    itemList.value.push({
+      label: t("Messages"),
+      //disabled: route.path === path || lastItem.path === route.path,
+      to: "/resources/messages",
+    })
+  }
 
-      if (list.includes(this.$route.name)) {
-        return items;
-      }
-
-      if (this.legacy) {
-        console.log('legacy');
-        // Checking data from legacy main (1.11.x)
-        const mainUrl = window.location.href;
-        const mainPath = mainUrl.indexOf("main/");
-
-        for (let i = 0, len = this.legacy.length; i < len; i += 1) {
-          console.log(this.legacy[i]['name']);
-          let url = this.legacy[i]['url'].toString();
-
-          let newUrl = url;
-          if (url.indexOf("main/") > 0) {
-            newUrl = '/' + url.substring(mainPath, url.length);
-          }
-
-          if (newUrl === '/') {
-            newUrl = '#';
-          }
-
-          items.push({
-            text: this.legacy[i]['name'],
-            //disabled: route.path === path || lastItem.path === route.path,
-            href: newUrl
-          });
-        }
-      }
-
-      let folderParams = this.$route.query;
-      var queryParams = '';
-      for (var key in folderParams) {
-        if (queryParams != '') {
-          queryParams += "&";
-        }
-        queryParams += key + '=' + encodeURIComponent(folderParams[key]);
-      }
-
-      // course is set in documents/List.vue
-      if (this.course) {
-
-        let sessionTitle = '';
-        if (this.session) {
-          sessionTitle = ' (' + this.session.name + ') ';
-        }
-
-        items.push({
-          text:  this.course.title + sessionTitle,
-          href: '/course/' + this.course.id + '/home?'+queryParams
-        });
-      }
-
-      console.log(items);
-
-      const { path, matched } = this.$route;
-      const lastItem = matched[matched.length - 1];
-
-      if (this.resourceNode) {
-        const parts = this.resourceNode.path.split('/');
-
-        for (let i = 0, len = parts.length; i < len; i += 1) {
-          let route = parts[i];
-          let routeParts = route.split('-');
-          if (0 === i) {
-            let firstParts = parts[i + 1].split('-');
-            items.push({
-              text: matched[0].name,
-              href: '/resources/document/' + firstParts[1] + '/?' + queryParams
-            });
-            i++;
-            continue;
-          }
-
-          if (routeParts[0]) {
-            items.push({
-              text: routeParts[0],
-              href: '/resources/document/' + routeParts[1] + '/?' + queryParams
-            });
-          }
-        }
-      }
-
-      for (let i = 1, len = matched.length; i < len; i += 1) {
-        const route = matched[i];
-        if (route.path) {
-          items.push({
-            text: route.name,
-            disabled: route.path === path || lastItem.path === route.path,
-            href: route.path
-          });
-        }
-      }
-
-      console.log('BREADCRUMB');
-      console.log(items);
-      return items;
+  if (specialRouteNames.includes(route.name)) {
+    return
+  }
+  if (course.value) {
+    if (session.value) {
+      itemList.value.push({
+        label: t("My sessions"),
+        route: { name: "MySessions" },
+      })
+    } else {
+      itemList.value.push({
+        label: t("My courses"),
+        route: { name: "MyCourses" },
+      })
     }
   }
-};
+
+  if (legacyItems.value.length > 0) {
+    const mainUrl = window.location.href
+    const mainPath = mainUrl.indexOf("main/")
+
+    legacyItems.value.forEach((item) => {
+      let url = item.url.toString()
+      let newUrl = url
+
+      if (url.indexOf("main/") > 0) {
+        newUrl = "/" + url.substring(mainPath, url.length)
+      }
+
+      if (newUrl === "/") {
+        newUrl = "#"
+      }
+
+      itemList.value.push({
+        label: item["name"],
+        url: newUrl,
+      })
+    })
+
+    legacyItems.value = []
+  } else {
+    if (course.value && "CourseHome" !== route.name) {
+      itemList.value.push({
+        label: course.value.title,
+        route: { name: "CourseHome", params: { id: course.value.id }, query: route.query },
+      })
+    }
+  }
+})
 </script>

@@ -4,6 +4,9 @@
 /**
  * @author Julio Montoya <gugli100@gmail.com>
  */
+
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+
 // resetting the course id
 $cidReset = true;
 
@@ -96,7 +99,7 @@ echo Display::toolbarAction(
     'url',
     [
         Display::url(
-            Display::return_icon('view_more_stats.gif', get_lang('Add user to this URL')),
+            Display::getMdiIcon(ActionIcon::VIEW_DETAILS, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Add user to this URL')),
             api_get_path(WEB_CODE_PATH).'admin/access_url_add_courses_to_url.php'
         ),
     ]
@@ -214,18 +217,18 @@ $url_list = UrlManager::get_url_data();
                 <?php
                 if ($ajax_search) {
                     ?>
-                    <button class="btn btn-default" type="button" onclick="remove_item(document.getElementById('destination_users'))" >
-                        <em class="fa fa-arrow-left"></em>
+                    <button class="btn btn--plain" type="button" onclick="remove_item(document.getElementById('destination_users'))" >
+                        <i class="mdi mdi-rewind-outline ch-tool-icon"></i>
                     </button>
                 <?php
                 } else {
                     ?>
-                    <button class="btn btn-default" type="button" onclick="moveItem(document.getElementById('origin_users'), document.getElementById('destination_users'))" >
-                        <em class="fa fa-arrow-right"></em>
+                    <button class="btn btn--plain" type="button" onclick="moveItem(document.getElementById('origin_users'), document.getElementById('destination_users'))" >
+                        <i class="mdi mdi-fast-forward-outline ch-tool-icon"></i>
                     </button>
                     <br /><br />
-                    <button class="btn btn-default" type="button" onclick="moveItem(document.getElementById('destination_users'), document.getElementById('origin_users'))" >
-                        <em class="fa fa-arrow-left"></em>
+                    <button class="btn btn--plain" type="button" onclick="moveItem(document.getElementById('destination_users'), document.getElementById('origin_users'))" >
+                        <i class="mdi mdi-rewind-outline ch-tool-icon"></i>
                     </button>
                 <?php
                 }
@@ -252,9 +255,9 @@ $url_list = UrlManager::get_url_data();
                 <br />
                 <?php
                 if (isset($_GET['add'])) {
-                    echo '<button class="btn btn-default" onclick="valide()" >'.get_lang('Add courses to an URL').'</button>';
+                    echo '<button class="btn btn--plain" onclick="valide()" >'.get_lang('Add courses to an URL').'</button>';
                 } else {
-                    echo '<button class="btn btn-default" onclick="valide()" >'.get_lang('Edit courses of an URL').'</button>';
+                    echo '<button class="btn btn--plain" onclick="valide()" >'.get_lang('Edit courses of an URL').'</button>';
                 }
                 ?>
             </td>

@@ -1,13 +1,30 @@
 <template>
-  <q-layout>
-<!--    <q-tabs align="left" dense inline-label no-caps>-->
-<!--      <q-route-tab to="/courses" label="My courses" />-->
-<!--      <q-route-tab to="/sessions" label="My sessions" />-->
-<!--    </q-tabs>-->
-
-    <!-- this is where the Pages are injected -->
-    <q-page-container>
-      <router-view></router-view>
-    </q-page-container>
-  </q-layout>
+  <div class="flex justify-between items-center">
+    <h2 v-t="'My courses'" />
+    <Button
+      v-if="isTeacher"
+      :label="t('Course')"
+      class="p-button-secondary hidden md:inline-flex"
+      icon="pi pi-plus"
+      @click="redirectToCreateCourse"
+    />
+  </div>
+  <hr />
+  <router-view />
 </template>
+
+<script setup>
+import Button from "primevue/button"
+import { useI18n } from "vue-i18n"
+import { storeToRefs } from "pinia"
+import { useSecurityStore } from "../store/securityStore"
+import { useRouter } from "vue-router"
+
+const { t } = useI18n()
+const { isTeacher } = storeToRefs(useSecurityStore())
+const router = useRouter()
+
+const redirectToCreateCourse = () => {
+  router.push({ name: "CourseCreate" })
+}
+</script>

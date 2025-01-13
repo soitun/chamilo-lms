@@ -6,38 +6,57 @@ declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\EventListener;
 
+use Chamilo\CoreBundle\Exception\NotAllowedException;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Twig\Environment;
 
 class ExceptionListener
 {
     protected Environment $twig;
+    protected TokenStorageInterface $tokenStorage;
+    protected UrlGeneratorInterface $router;
 
-    public function __construct(Environment $twig)
+    public function __construct(Environment $twig, TokenStorageInterface $tokenStorage, UrlGeneratorInterface $router)
     {
         $this->twig = $twig;
+        $this->tokenStorage = $tokenStorage;
+        $this->router = $router;
     }
 
-    public function onKernelException(ExceptionEvent $event): void
+    public function __invoke(ExceptionEvent $event): void
     {
-        if (isset($_SERVER['APP_ENV']) && \in_array($_SERVER['APP_ENV'], ['dev', 'test'], true)) {
-            return;
-        }
-
         // You get the exception object from the received event
         $exception = $event->getThrowable();
-        /*$message = sprintf(
-            'My Error says: %s with code: %s',
-            $exception->getMessage(),
-            $exception->getCode()
-        );*/
+        $request = $event->getRequest();
+
+        if ($exception instanceof NotAllowedException) {
+            if (null === $this->tokenStorage->getToken()) {
+                $currentUrl = $request->getUri();
+                $parsedUrl = parse_url($currentUrl);
+                $baseUrl = $parsedUrl['scheme'].'://'.$parsedUrl['host'];
+                $path = rtrim($parsedUrl['path'], '/') ?: '';
+                $query = $parsedUrl['query'] ?? '';
+                $redirectUrl = $baseUrl.$path.($query ? '?'.$query : '');
+
+                $loginUrl = $this->router->generate('login', ['redirect' => $redirectUrl], UrlGeneratorInterface::ABSOLUTE_URL);
+                $event->setResponse(new RedirectResponse($loginUrl));
+
+                return;
+            }
+        }
+
+        if (isset($_SERVER['APP_ENV']) && \in_array($_SERVER['APP_ENV'], ['dev', 'test'], true)) {
+            throw $exception;
+        }
 
         $message = $this->twig->render(
             '@ChamiloCore/Exception/error.html.twig',
             [
-                'from_vue' => false,
                 'exception' => $exception,
             ]
         );

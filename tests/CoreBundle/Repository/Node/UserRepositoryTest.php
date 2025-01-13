@@ -8,6 +8,7 @@ use Chamilo\CoreBundle\Entity\AccessUrl;
 use Chamilo\CoreBundle\Entity\Group;
 use Chamilo\CoreBundle\Entity\User;
 use Chamilo\CoreBundle\Entity\UserRelUser;
+use Chamilo\CoreBundle\Framework\Container;
 use Chamilo\CoreBundle\Repository\Node\UserRepository;
 use Chamilo\Tests\AbstractApiTest;
 use Chamilo\Tests\ChamiloTestTrait;
@@ -21,8 +22,8 @@ class UserRepositoryTest extends AbstractApiTest
     public function testCount(): void
     {
         $count = self::getContainer()->get(UserRepository::class)->count([]);
-        // Admin + anon (registered in the DataFixture\AccessUrlAdminFixtures.php)
-        $this->assertSame(2, $count);
+        // Admin + anon + fallback (registered in the DataFixture\AccessUrlAdminFixtures.php)
+        $this->assertSame(3, $count);
     }
 
     public function testLoadUserByIdentifier(): void
@@ -53,10 +54,17 @@ class UserRepositoryTest extends AbstractApiTest
 
     public function testDeleteUser(): void
     {
+        // Force loading the legacy container to avoid issue in the user deletion process
+        // using api_get_local_time() which uses api_get_setting() which uses Container::$container
+        Container::$container = self::getContainer();
+
+        /** @var UserRepository $userRepo */
         $userRepo = self::getContainer()->get(UserRepository::class);
         $student = $this->createUser('student');
         $defaultCount = $userRepo->count([]);
-        $userRepo->deleteUser($student);
+        $userRepo->deleteUser($student); // soft delete
+        $this->assertSame($defaultCount, $userRepo->count([]));
+        $userRepo->deleteUser($student, true); // hard delete
         $this->assertSame($defaultCount - 1, $userRepo->count([]));
     }
 
@@ -93,7 +101,7 @@ class UserRepositoryTest extends AbstractApiTest
         $student = $this->createUser('student');
 
         $drh = $this->createUser('drh');
-        $drh->setRoles(['ROLE_RRHH']);
+        $drh->setRoles(['ROLE_HR']);
         $userRepo->update($drh);
 
         $student->addUserRelUser($drh, UserRelUser::USER_RELATION_TYPE_RRHH);
@@ -109,8 +117,8 @@ class UserRepositoryTest extends AbstractApiTest
         $userRepo = self::getContainer()->get(UserRepository::class);
 
         $count = $userRepo->count([]);
-        // By default, there are 2 users: admin + anon.
-        $this->assertSame(3, $count);
+        // By default, there are 3 users: admin + anon + fallback.
+        $this->assertSame(4, $count);
         $this->assertHasNoEntityViolations($student);
 
         $this->assertCount(1, $student->getRoles());
@@ -118,7 +126,7 @@ class UserRepositoryTest extends AbstractApiTest
 
         $this->assertSame('ROLE_TEACHER', User::getRoleFromStatus(1));
         $this->assertSame('ROLE_STUDENT', User::getRoleFromStatus(5));
-        $this->assertSame('ROLE_RRHH', User::getRoleFromStatus(4));
+        $this->assertSame('ROLE_HR', User::getRoleFromStatus(4));
         $this->assertSame('ROLE_SESSION_MANAGER', User::getRoleFromStatus(3));
         $this->assertSame('ROLE_STUDENT_BOSS', User::getRoleFromStatus(17));
         $this->assertSame('ROLE_INVITEE', User::getRoleFromStatus(20));
@@ -186,6 +194,7 @@ class UserRepositoryTest extends AbstractApiTest
 
         $admin->addGroup($group);
         $userRepo->update($admin);
+
         /** @var User $admin */
         $admin = $userRepo->find($admin->getId());
 
@@ -195,6 +204,10 @@ class UserRepositoryTest extends AbstractApiTest
 
     public function testCreateUserSkipResourceNode(): void
     {
+        // Force loading the legacy container to avoid issue in the user deletion process
+        // using api_get_local_time() which uses api_get_setting() which uses Container::$container
+        Container::$container = self::getContainer();
+
         $em = $this->getEntityManager();
         $userRepo = self::getContainer()->get(UserRepository::class);
 
@@ -202,7 +215,6 @@ class UserRepositoryTest extends AbstractApiTest
             ->setLastname('Doe')
             ->setFirstname('Joe')
             ->setUsername('admin2')
-            ->setEnabled(true)
             ->setSalt('')
             ->setRegistrationDate(new DateTime())
             ->setExpirationDate(new DateTime())
@@ -211,7 +223,7 @@ class UserRepositoryTest extends AbstractApiTest
             ->setConfirmationToken('conf')
             ->setRoles(['ROLE_TEST'])
             ->setStatus(1)
-            ->setActive(true)
+            ->setActive(User::ACTIVE)
             ->setDateOfBirth(new DateTime())
             ->setBiography('bio')
             ->setExpired(false)
@@ -229,7 +241,7 @@ class UserRepositoryTest extends AbstractApiTest
             ->setOfficialCode('ADMIN')
             ->setCreatorId(1)
             ->setSkipResourceNode(true)
-            ->addUserAsAdmin()//->addGroup($group)
+            ->addUserAsAdmin()// ->addGroup($group)
         ;
 
         $user->setRoleFromStatus(COURSEMANAGER);
@@ -239,7 +251,7 @@ class UserRepositoryTest extends AbstractApiTest
         $userRepo->addUserToResourceNode($user->getId(), $user->getId());
         $em->flush();
 
-        $this->assertSame(3, $userRepo->count([]));
+        $this->assertSame(4, $userRepo->count([]));
         $this->assertCount(4, $user->getRoles());
 
         $this->assertSame('Joe Doe', $user->getCompleteNameWithClasses());
@@ -351,6 +363,7 @@ class UserRepositoryTest extends AbstractApiTest
         $user = $this->createUser('user', 'user');
         $friend = $this->createUser('friend', 'friend');
 
+        /** @var UserRepository $userRepo */
         $userRepo = self::getContainer()->get(UserRepository::class);
 
         // user -> friend

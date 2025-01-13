@@ -17,7 +17,7 @@ if (empty($workId)) {
     api_not_allowed(true);
 }
 
-$blockAddDocuments = api_get_configuration_value('block_student_publication_add_documents');
+$blockAddDocuments = ('true' === api_get_setting('work.block_student_publication_add_documents'));
 if ($blockAddDocuments) {
     api_not_allowed(true);
 }
@@ -70,7 +70,7 @@ if (empty($docId)) {
             $docData = $docRepo->find($documentId);
             if ($docData) {
                 $url = $urlDocument.'?action=delete&id='.$workId.'&document_id='.$documentId.'&'.api_get_cidreq();
-                $link = Display::url(get_lang('Remove'), $url, ['class' => 'btn btn-danger']);
+                $link = Display::url(get_lang('Remove'), $url, ['class' => 'btn btn--danger']);
                 echo $docData->getTitle().' '.$link.'<br />';
             }
         }

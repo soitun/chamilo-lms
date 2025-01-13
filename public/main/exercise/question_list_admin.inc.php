@@ -3,6 +3,7 @@
 /* For licensing terms, see /license.txt */
 
 use ChamiloSession as Session;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
 
 /**
  * @author Olivier Brouckaert & Julio Montoya & Hubert Borderiou 21-10-2011 (Question by category)
@@ -11,7 +12,7 @@ use ChamiloSession as Session;
  *    This script allows to manage the question list
  *    It is included from the script admin.php
  */
-$limitTeacherAccess = api_get_configuration_value('limit_exercise_teacher_access');
+$limitTeacherAccess = ('true' === api_get_setting('exercise.limit_exercise_teacher_access'));
 
 // deletes a question from the exercise (not from the data base)
 if ($deleteQuestion) {
@@ -56,6 +57,7 @@ $ajax_url = api_get_path(WEB_AJAX_PATH).'exercise.ajax.php?'.api_get_cidreq().'&
             }
         });
 
+        var isDragging = false;
         $("#question_list").accordion({
             icons: null,
             heightStyle: "content",
@@ -63,6 +65,10 @@ $ajax_url = api_get_path(WEB_AJAX_PATH).'exercise.ajax.php?'.api_get_cidreq().'&
             collapsible: true,
             header: ".header_operations",
             beforeActivate: function (e, ui) {
+                if (isDragging) {
+                    e.preventDefault();
+                    isDragging = false;
+                }
                 var data = ui.newHeader.data();
                 if (typeof data === 'undefined') {
                     return;
@@ -94,18 +100,28 @@ $ajax_url = api_get_path(WEB_AJAX_PATH).'exercise.ajax.php?'.api_get_cidreq().'&
         })
         .sortable({
             cursor: "move", // works?
+            axis: "y",
+            placeholder: "ui-state-highlight", //defines the yellow highlight
+            handle: ".moved", //only the class "moved"
+            start: function(event, ui) {
+                isDragging = true;
+            },
+            stop: function(event, ui) {
+                stop = true;
+                setTimeout(function() {
+                    isDragging = false;
+                }, 50);
+            },
             update: function (event, ui) {
                 var order = $(this).sortable("serialize") + "&a=update_question_order&exercise_id=<?php echo $exerciseId; ?>";
                 $.post("<?php echo $ajax_url; ?>", order, function (result) {
                     $("#message").html(result);
                 });
-            },
-            axis: "y",
-            placeholder: "ui-state-highlight", //defines the yellow highlight
-            handle: ".moved", //only the class "moved"
-            stop: function () {
-                stop = true;
             }
+        });
+
+        $(".moved").on('click', function(event) {
+            event.stopImmediatePropagation();
         });
     });
 </script>
@@ -119,11 +135,7 @@ $token = Security::get_token();
 //deletes a session when using don't know question type (ugly fix)
 Session::erase('less_answer');
 
-// If we are in a test
-$inATest = isset($exerciseId) && $exerciseId > 0;
-if (!$inATest) {
-    echo Display::return_message(get_lang('Choose question type'), 'warning');
-} else {
+if (isset($exerciseId) && $exerciseId > 0) {
     if ($nbrQuestions) {
         // In the building exercise mode show question list ordered as is.
         $objExercise->setCategoriesGrouping(false);
@@ -132,33 +144,15 @@ if (!$inATest) {
         // In building mode show all questions not render by teacher order.
         $objExercise->questionSelectionType = EX_Q_SELECTION_ORDERED;
         $allowQuestionOrdering = true;
-        $showPagination = api_get_configuration_value('show_question_pagination');
+        $showPagination = api_get_setting('exercise.show_question_pagination');
+        $length = api_get_setting('exercise.question_pagination_length');
+        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+
         if (!empty($showPagination) && $nbrQuestions > $showPagination) {
-            $length = api_get_configuration_value('question_pagination_length');
-            $url = api_get_self().'?'.api_get_cidreq();
-            // Use pagination for exercise with more than 200 questions.
             $allowQuestionOrdering = false;
             $start = ($page - 1) * $length;
-            $questionList = $objExercise->getQuestionForTeacher($start, $length);
-            $paginator = new Knp\Component\Pager\Paginator();
-            $pagination = $paginator->paginate([]);
-            $pagination->setTotalItemCount($nbrQuestions);
-            $pagination->setItemNumberPerPage($length);
-            $pagination->setCurrentPageNumber($page);
-            $pagination->renderer = function ($data) use ($url) {
-                $render = '<ul class="pagination">';
-                for ($i = 1; $i <= $data['pageCount']; $i++) {
-                    $pageContent = '<li><a href="'.$url.'&page='.$i.'">'.$i.'</a></li>';
-                    if ($data['current'] == $i) {
-                        $pageContent = '<li class="active"><a href="#" >'.$i.'</a></li>';
-                    }
-                    $render .= $pageContent;
-                }
-                $render .= '</ul>';
-
-                return $render;
-            };
-            echo $pagination;
+            $questionList = $objExercise->selectQuestionList(true, true);
+            $questionList = array_slice($questionList, $start, $length);
         } else {
             // Classic order
             $questionList = $objExercise->selectQuestionList(true, true);
@@ -166,7 +160,7 @@ if (!$inATest) {
         $objExercise->questionSelectionType = $originalQuestionSelectType;
 
         echo '
-            <div class="row gt-xs my-4">
+            <div class="row gt-xs my-4 question-header">
                 <div class="col-sm-5"><strong>'.get_lang('Questions').'</strong></div>
                 <div class="col-sm-1 text-center"><strong>'.get_lang('Type').'</strong></div>
                 <div class="col-sm-2"><strong>'.get_lang('Category').'</strong></div>
@@ -193,50 +187,30 @@ if (!$inATest) {
                 }
 
                 $clone_link = Display::url(
-                    Display::return_icon(
-                        'cd.png',
-                        get_lang('Copy'),
-                        [],
-                        ICON_SIZE_TINY
-                    ),
+                    Display::getMdiIcon(ActionIcon::COPY_CONTENT, 'ch-tool-icon', null, ICON_SIZE_TINY, get_lang('Copy')),
                     api_get_self().'?'.api_get_cidreq().'&clone_question='.$id.'&page='.$page,
-                    ['class' => 'btn btn-default btn-sm']
+                    ['class' => 'btn btn--plain btn-sm']
                 );
 
                 $edit_link = CALCULATED_ANSWER == $objQuestionTmp->selectType() && $objQuestionTmp->isAnswered()
                     ? Display::span(
-                        Display::return_icon(
-                            'edit_na.png',
-                            get_lang('Question edition is not available because the question has been already answered. However, you can copy and modify it.'),
-                            [],
-                            ICON_SIZE_TINY
-                        ),
-                        ['class' => 'btn btn-default btn-sm']
+                        Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon-disabled', null, ICON_SIZE_TINY, get_lang('Question edition is not available because the question has been already answered. However, you can copy and modify it.')),
+                        ['class' => 'btn btn--plain btn-sm']
                     )
                     : Display::url(
-                        Display::return_icon(
-                            'edit.png',
-                            get_lang('Edit'),
-                            [],
-                            ICON_SIZE_TINY
-                        ),
+                        Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_TINY, get_lang('Edit')),
                         api_get_self().'?'.api_get_cidreq().'&'
                             .http_build_query([
                                 'type' => $objQuestionTmp->selectType(),
                                 'editQuestion' => $id,
                                 'page' => $page,
                             ]),
-                        ['class' => 'btn btn-default btn-sm']
+                        ['class' => 'btn btn--plain btn-sm']
                     );
                 $delete_link = null;
                 if (true == $objExercise->edit_exercise_in_lp) {
                     $delete_link = Display::url(
-                        Display::return_icon(
-                            'delete.png',
-                            get_lang('Remove from test'),
-                            [],
-                            ICON_SIZE_TINY
-                        ),
+                        Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_TINY, get_lang('Remove from test')),
                         api_get_self().'?'.api_get_cidreq().'&'
                             .http_build_query([
                                 'id' => $exerciseId,
@@ -245,7 +219,7 @@ if (!$inATest) {
                             ]),
                         [
                             'id' => "delete_$id",
-                            'class' => 'delete-swal btn btn-default btn-sm',
+                            'class' => 'delete-swal btn btn--plain btn-sm',
                             'data-title' => get_lang('Are you sure you want to delete'),
                             'title' => get_lang('Delete'),
                         ]
@@ -265,7 +239,7 @@ if (!$inATest) {
                 $title = strip_tags($title);
                 $move = '&nbsp;';
                 if ($allowQuestionOrdering) {
-                    $move = Display::getMdiIcon('cursor-move');
+                    $move = Display::getMdiIcon('cursor-move', 'moved');
                 }
 
                 // Question name
@@ -335,7 +309,17 @@ if (!$inATest) {
         }
 
         echo '</div>'; //question list div
+        // Pagination navigation
+        $totalPages = ceil($nbrQuestions / $length);
+        echo '<div class="pagination flex justify-center mt-4">';
+        for ($i = 1; $i <= $totalPages; $i++) {
+            $isActive = ($i == $page) ? 'bg-primary text-white' : 'border-gray-300 text-gray-700 hover:bg-gray-200';
+            echo '<a href="?'.http_build_query(array_merge($_GET, ['page' => $i])).'" class="mx-1 px-4 py-2 border '.$isActive.' rounded">'.$i.'</a>';
+        }
+        echo '</div>';
     } else {
         echo Display::return_message(get_lang('Questions list (there is no question so far).'), 'warning');
     }
+} else {
+    echo Display::return_message(get_lang('Choose question type'), 'warning');
 }

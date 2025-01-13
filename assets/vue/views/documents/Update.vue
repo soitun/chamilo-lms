@@ -1,63 +1,49 @@
 <template>
-  <div v-if="!isLoading && item && isCurrentTeacher">
-    <Toolbar
-        :handle-submit="onSendFormData"
-        :handle-reset="resetForm"
-    />
+  <div v-if="item && canEditItem">
     <DocumentsForm
-      ref="updateForm"
-      :values="item"
-      :errors="violations"
+      v-model="item"
+      @submit="updateItemWithFormData"
     >
-      <EditLinks :item="item" links-type="users" />
+      <EditLinks
+        v-model="item"
+        :show-share-with-user="false"
+        :show-status="false"
+        links-type="users"
+      />
     </DocumentsForm>
-    <Loading :visible="isLoading || deleteLoading" />
+    <Loading :visible="isLoading" />
   </div>
 </template>
 
-<script>
-import { mapActions, mapGetters } from 'vuex';
-import { mapFields } from 'vuex-map-fields';
-import DocumentsForm from '../../components/documents/Form.vue';
-import Loading from '../../components/Loading.vue';
-import Toolbar from '../../components/Toolbar.vue';
-import UpdateMixin from '../../mixins/UpdateMixin';
-import EditLinks from "../../components/resource_links/EditLinks.vue";
+<script setup>
+import { computed, onMounted, ref } from "vue"
+import DocumentsForm from "../../components/documents/Form.vue"
+import Loading from "../../components/Loading.vue"
+import EditLinks from "../../components/resource_links/EditLinks.vue"
+import { useDatatableUpdate } from "../../composables/datatableUpdate"
+import { useSecurityStore } from "../../store/securityStore"
+import { useRoute } from "vue-router"
+import { checkIsAllowedToEdit } from "../../composables/userPermissions"
 
-const servicePrefix = 'Documents';
+const securityStore = useSecurityStore()
+const route = useRoute()
+const isAllowedToEdit = ref(false)
+const isCurrentTeacher = computed(() => securityStore.isCurrentTeacher || isAllowedToEdit.value)
+const { item, retrieve, updateItemWithFormData, isLoading } = useDatatableUpdate("Documents")
 
-export default {
-  name: 'DocumentsUpdate',
-  servicePrefix,
-  components: {
-    EditLinks,
-    Loading,
-    Toolbar,
-    DocumentsForm,
-  },
-  mixins: [UpdateMixin],
-  computed: {
-    ...mapFields('documents', {
-      deleteLoading: 'isLoading',
-      isLoading: 'isLoading',
-      error: 'error',
-      updated: 'updated',
-      violations: 'violations'
-    }),
-    ...mapGetters('documents', ['find']),
-    ...mapGetters({
-      'isCurrentTeacher': 'security/isCurrentTeacher',
-    }),
-  },
-  methods: {
-    ...mapActions('documents', {
-      createReset: 'resetCreate',
-      deleteItem: 'del',
-      delReset: 'resetDelete',
-      retrieve: 'load',
-      updateWithFormData: 'updateWithFormData',
-      updateReset: 'resetUpdate'
-    })
-  }
-};
+const canEditItem = computed(() => {
+  console.log("item.value ::: ", item.value)
+
+  const resourceLink = item.value?.resourceLinkListFromEntity?.[0]
+  const sidFromResourceLink = resourceLink?.session?.["@id"]
+  return (
+    (sidFromResourceLink && sidFromResourceLink === `/api/sessions/${route.query.sid}` && isAllowedToEdit.value) ||
+    isCurrentTeacher.value
+  )
+})
+
+onMounted(async () => {
+  isAllowedToEdit.value = await checkIsAllowedToEdit(true, true, true)
+  await retrieve()
+})
 </script>

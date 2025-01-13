@@ -14,7 +14,6 @@ use Symfony\Component\HttpKernel\HttpKernel;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 /**
- * Class OnlineListener
  * Adds objects into the session like the old global.inc.
  */
 class OnlineListener
@@ -31,7 +30,7 @@ class OnlineListener
     /**
      * Update the user "lastActivity" on each request.
      */
-    public function onCoreController(ControllerEvent $event): void
+    public function __invoke(ControllerEvent $event): void
     {
         /*  Here we are checking that the current request is a "MASTER_REQUEST",
             and ignore any subrequest in the process (for example when doing a

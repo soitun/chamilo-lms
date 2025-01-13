@@ -17,8 +17,7 @@ use Chamilo\CoreBundle\Repository\Node\MessageAttachmentRepository;
 use Chamilo\CoreBundle\Repository\Node\UserRepository;
 use Chamilo\Tests\AbstractApiTest;
 use Chamilo\Tests\ChamiloTestTrait;
-use DateTime;
-use Symfony\Component\Messenger\Transport\InMemoryTransport;
+use Symfony\Component\HttpFoundation\Response;
 
 class MessageRepositoryTest extends AbstractApiTest
 {
@@ -26,59 +25,103 @@ class MessageRepositoryTest extends AbstractApiTest
 
     public function testCreateMessage(): void
     {
-        $em = $this->getEntityManager();
+        $this->createUser('from');
+        $senderUserIri = $this->findIriBy(User::class, ['username' => 'from']);
+        $fromUserToken = $this->getUserToken(['username' => 'from', 'password' => 'from']);
 
-        $messageRepo = self::getContainer()->get(MessageRepository::class);
-        $userRepo = self::getContainer()->get(UserRepository::class);
-        $messageRelUserRepo = $em->getRepository(MessageRelUser::class);
+        $this->createUser('to');
+        $receiverUserIri = $this->findIriBy(User::class, ['username' => 'to']);
+        $receiverUserToken = $this->getUserToken(['username' => 'to', 'password' => 'to']);
 
-        $admin = $this->getUser('admin');
-        $testUser = $this->createUser('test');
+        $this->createUser('cc');
+        $receiverCopyUserIri = $this->findIriBy(User::class, ['username' => 'cc']);
+        $receiverCopyUserToken = $this->getUserToken(['username' => 'cc', 'password' => 'cc']);
 
-        $message = (new Message())
-            ->setTitle('hello')
-            ->setContent('content')
-            ->setMsgType(Message::MESSAGE_TYPE_INBOX)
-            ->setSender($admin)
-            ->addReceiver($testUser)
-            ->setSendDate(new DateTime())
-            ->setVotes(0)
-            ->setGroup(null)
-            ->setUpdateDate(new DateTime())
-            ->setParent(null)
+        $response = $this
+            ->createClientWithCredentials($fromUserToken)
+            ->request(
+                'POST',
+                '/api/messages',
+                [
+                    'json' => [
+                        'title' => 'hello',
+                        'content' => 'content of hello',
+                        'msgType' => Message::MESSAGE_TYPE_INBOX,
+                        'sender' => $senderUserIri,
+                        'receivers' => [
+                            [
+                                'receiver' => $receiverUserIri,
+                                'receiverType' => MessageRelUser::TYPE_TO,
+                            ],
+                            [
+                                'receiver' => $receiverCopyUserIri,
+                                'receiverType' => MessageRelUser::TYPE_CC,
+                            ],
+                        ],
+                    ],
+                ]
+            )
         ;
 
-        $this->assertHasNoEntityViolations($message);
-        $messageRepo->update($message);
+        $this->assertResponseIsSuccessful();
+        $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
+        $this->assertResponseHeaderSame('content-type', 'application/ld+json; charset=utf-8');
+        $this->assertJsonContains(
+            [
+                '@context' => '/api/contexts/Message',
+                '@type' => 'Message',
+                'sender' => [
+                    '@id' => $senderUserIri,
+                ],
+                'msgType' => Message::MESSAGE_TYPE_INBOX,
+                'receiversTo' => [
+                    0 => [
+                        '@type' => 'MessageRelUser',
+                        'receiver' => [
+                            '@id' => $receiverUserIri,
+                        ],
+                        'receiverType' => MessageRelUser::TYPE_TO,
+                    ],
+                ],
+                'receiversCc' => [
+                    0 => [
+                        '@type' => 'MessageRelUser',
+                        'receiver' => [
+                            '@id' => $receiverCopyUserIri,
+                        ],
+                        'receiverType' => MessageRelUser::TYPE_CC,
+                    ],
+                ],
+            ]
+        );
+        $this->assertEmailCount(2);
 
-        $this->assertNotNull($message->getUpdateDate());
-        $this->assertNull($message->getParent());
-        $this->assertTrue($message->hasReceiver($testUser));
+        $messageArray = $response->toArray();
+        $messageRelUserIri = $messageArray['firstReceiver']['@id'];
 
-        $transport = $this->getContainer()->get('messenger.transport.sync_priority_high');
-        $this->assertCount(1, $transport->getSent());
+        $this
+            ->createClientWithCredentials($receiverUserToken)
+            ->request(
+                'PUT',
+                $messageRelUserIri,
+                [
+                    'json' => [
+                        'read' => true,
+                        'starred' => true,
+                    ],
+                ]
+            )
+        ;
 
-        // 1. Message exists in the inbox.
-        $count = $messageRepo->count(['msgType' => Message::MESSAGE_TYPE_INBOX]);
-        $this->assertSame(1, $count);
-
-        // One receiver in MessageRelUser.
-        $this->assertSame(1, $messageRelUserRepo->count([]));
-        $this->assertSame(0, $message->getVotes());
-        $this->assertSame(1, $message->getReceivers()->count());
-
-        // Check if message was schedule to be sent.
-        /** @var InMemoryTransport $transport */
-        $transport = $this->getContainer()->get('messenger.transport.sync_priority_high');
-        $this->assertCount(1, $transport->getSent());
-
-        $em->clear();
-
-        /** @var User $testUser */
-        $testUser = $userRepo->find($testUser->getId());
-
-        // Receiver should have one message.
-        $this->assertSame(1, $testUser->getReceivedMessages()->count());
+        $this->assertResponseIsSuccessful();
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
+        $this->assertJsonContains(
+            [
+                '@type' => 'MessageRelUser',
+                'read' => true,
+                'starred' => true,
+            ]
+        );
     }
 
     public function testCreateMessageWithTags(): Message
@@ -98,7 +141,7 @@ class MessageRepositoryTest extends AbstractApiTest
             ->setContent('content')
             ->setMsgType(Message::MESSAGE_TYPE_INBOX)
             ->setSender($admin)
-            ->addReceiver($testUser)
+            ->addReceiverTo($testUser)
         ;
 
         $this->assertHasNoEntityViolations($message);
@@ -143,6 +186,7 @@ class MessageRepositoryTest extends AbstractApiTest
 
         /** @var User $testUser */
         $testUser = $userRepo->find($testUser->getId());
+
         /** @var MessageRelUser $receivedMessage */
         $receivedMessage = $testUser->getReceivedMessages()->first();
 
@@ -224,7 +268,35 @@ class MessageRepositoryTest extends AbstractApiTest
 
         $client = $this->createClientWithCredentials($user1Token);
 
-        $responseMessage = $client->request(
+        $file = $this->getUploadedFile();
+
+        $resourceFile = $client->request(
+            'POST',
+            '/api/resource_files',
+            [
+                'headers' => [
+                    'Content-Type' => 'multipart/form-data',
+                ],
+                'extra' => [
+                    'files' => [
+                        'file' => $file,
+                    ],
+                ],
+            ]
+        );
+
+        $this->assertResponseIsSuccessful();
+        $this->assertResponseHeaderSame('content-type', 'application/ld+json; charset=utf-8');
+        $this->assertJsonContains(
+            [
+                '@context' => '/api/contexts/ResourceFile',
+                '@type' => 'http://schema.org/MediaObject',
+            ]
+        );
+
+        $resourceFileId = $resourceFile->toArray()['@id'];
+
+        $client->request(
             'POST',
             '/api/messages',
             [
@@ -239,6 +311,11 @@ class MessageRepositoryTest extends AbstractApiTest
                         ],
                     ],
                     'sender' => "/api/users/{$user1->getId()}",
+                    'attachments' => [
+                        [
+                            'resourceFileToAttach' => $resourceFileId,
+                        ],
+                    ],
                 ],
             ]
         );
@@ -264,37 +341,20 @@ class MessageRepositoryTest extends AbstractApiTest
                 'msgType' => Message::MESSAGE_TYPE_INBOX,
                 'title' => 'Message title',
                 'content' => 'Message content',
-            ]
-        );
-
-        $messageId = $responseMessage->toArray()['id'];
-
-        $file = $this->getUploadedFile();
-
-        $responseAttachment = $client->request(
-            'POST',
-            '/api/message_attachments',
-            [
-                'headers' => [
-                    'Content-Type' => 'multipart/form-data',
-                ],
-                'extra' => [
-                    'files' => [
-                        'file' => $file,
-                    ],
-                    'parameters' => [
-                        'messageId' => $messageId,
+                'attachments' => [
+                    [
+                        '@type' => 'http://schema.org/MediaObject',
+                        'resourceNode' => [
+                            '@type' => 'ResourceNode',
+                            'resourceFiles' => [
+                                [
+                                    '@type' => 'http://schema.org/MediaObject',
+                                    '@id' => $resourceFileId,
+                                ],
+                            ],
+                        ],
                     ],
                 ],
-            ]
-        );
-
-        $this->assertResponseIsSuccessful();
-        $this->assertResponseHeaderSame('content-type', 'application/ld+json; charset=utf-8');
-        $this->assertJsonContains(
-            [
-                '@context' => '/api/contexts/MessageAttachment',
-                '@type' => 'http://schema.org/MediaObject',
             ]
         );
     }
@@ -318,7 +378,7 @@ class MessageRepositoryTest extends AbstractApiTest
             ->setContent('content')
             ->setMsgType(Message::MESSAGE_TYPE_INBOX)
             ->setSender($admin)
-            ->addReceiver($testUser)
+            ->addReceiverTo($testUser)
         ;
 
         $this->assertHasNoEntityViolations($message);
@@ -344,6 +404,7 @@ class MessageRepositoryTest extends AbstractApiTest
         // Create tag.
         /** @var User $testUser */
         $testUser = $userRepo->find($testUser->getId());
+
         /** @var MessageRelUser $receivedMessage */
         $receivedMessage = $testUser->getReceivedMessages()->first();
 
@@ -371,160 +432,6 @@ class MessageRepositoryTest extends AbstractApiTest
         $this->assertSame(0, $messageTagRepo->count([]));
     }
 
-    public function testCreateMessageWithCc(): void
-    {
-        $em = $this->getEntityManager();
-
-        $messageRepo = self::getContainer()->get(MessageRepository::class);
-        $userRepo = self::getContainer()->get(UserRepository::class);
-        $messageRelUserRepo = $em->getRepository(MessageRelUser::class);
-
-        $admin = $this->getUser('admin');
-        $testUser = $this->createUser('test');
-        $receiverCopy = $this->createUser('cc');
-
-        $message =
-            (new Message())
-                ->setTitle('hello')
-                ->setContent('content')
-                ->setMsgType(Message::MESSAGE_TYPE_INBOX)
-                ->setSender($admin)
-                ->addReceiver($testUser)
-                ->addReceiver($receiverCopy, MessageRelUser::TYPE_CC)
-        ;
-
-        $this->assertHasNoEntityViolations($message);
-        $messageRepo->update($message);
-
-        // 1. Message exists in the inbox.
-        $count = $messageRepo->count(['msgType' => Message::MESSAGE_TYPE_INBOX]);
-        $this->assertSame(1, $count);
-
-        $this->assertSame(2, $messageRelUserRepo->count([]));
-
-        // Check if message was schedule to be sent.
-        /** @var InMemoryTransport $transport */
-        $transport = $this->getContainer()->get('messenger.transport.sync_priority_high');
-        $this->assertCount(1, $transport->getSent());
-
-        $em->clear();
-        /** @var Message $message */
-        $message = $messageRepo->find($message->getId());
-
-        $this->assertSame(2, $message->getReceivers()->count());
-
-        // Delete message.
-        $messageRepo->delete($message);
-
-        // No messages.
-        $this->assertSame(0, $messageRepo->count([]));
-        // No message_rel_user.
-        $this->assertSame(0, $messageRelUserRepo->count([]));
-    }
-
-    public function testCreateMessageWithApi(): void
-    {
-        $fromUser = $this->createUser('from');
-        $toUser = $this->createUser('to');
-        $messageRepo = self::getContainer()->get(MessageRepository::class);
-
-        $tokenFrom = $this->getUserToken(
-            [
-                'username' => 'from',
-                'password' => 'from',
-            ]
-        );
-
-        $response = $this->createClientWithCredentials($tokenFrom)->request(
-            'POST',
-            '/api/messages',
-            [
-                'json' => [
-                    'title' => 'hello',
-                    'content' => 'content of hello',
-                    'msgType' => Message::MESSAGE_TYPE_INBOX,
-                    'sender' => $fromUser->getIri(),
-                    'receivers' => [
-                        [
-                            'receiver' => $toUser->getIri(),
-                        ],
-                    ],
-                ],
-            ]
-        );
-
-        $this->assertResponseIsSuccessful();
-        $this->assertResponseStatusCodeSame(201);
-        $this->assertResponseHeaderSame('content-type', 'application/ld+json; charset=utf-8');
-        $this->assertJsonContains(
-            [
-                '@context' => '/api/contexts/Message',
-                '@type' => 'Message',
-                'title' => 'hello',
-                'receivers' => [
-                    [
-                        '@type' => 'MessageRelUser',
-                        'receiver' => [
-                            '@id' => $toUser->getIri(),
-                            '@type' => 'http://schema.org/Person',
-                            'username' => $toUser->getUsername(),
-                        ],
-                        'read' => false,
-                        'starred' => false,
-                    ],
-                ],
-            ]
-        );
-
-        // Messages: 1 from inbox
-        $this->assertSame(1, $messageRepo->count(['msgType' => Message::MESSAGE_TYPE_INBOX]));
-
-        // The message was added in the queue.
-        /** @var InMemoryTransport $transport */
-        $transport = $this->getContainer()->get('messenger.transport.sync_priority_high');
-        $this->assertCount(1, $transport->getSent());
-
-        // Receiver adds tags + starred
-
-        $messageId = $response->toArray()['id'];
-        /** @var Message $message */
-        $message = $messageRepo->find($messageId);
-
-        /** @var MessageRelUser $messageRelUser */
-        $messageRelUser = $message->getReceivers()->first();
-
-        $response = $this->createClientWithCredentials($tokenFrom)->request(
-            'PUT',
-            '/api/message_rel_users/'.$messageRelUser->getId(),
-            [
-                'json' => [
-                    'read' => true,
-                    'starred' => true,
-                    /*'tags' => [
-                        [
-                            '',
-                        ],
-                        [
-                            'tag' => 'pop',
-                        ]
-                    ]*/
-                ],
-            ]
-        );
-
-        $this->assertResponseIsSuccessful();
-        $this->assertResponseStatusCodeSame(200);
-        $this->assertJsonContains(
-            [
-                '@context' => '/api/contexts/MessageRelUser',
-                '@type' => 'MessageRelUser',
-                'read' => true,
-                'starred' => true,
-                //'tags' => []
-            ]
-        );
-    }
-
     public function testCreateMessageWithApiAsOtherUser(): void
     {
         $fromUser = $this->createUser('from');
@@ -549,7 +456,7 @@ class MessageRepositoryTest extends AbstractApiTest
                     'content' => 'content of hello',
                     'msgType' => Message::MESSAGE_TYPE_INBOX,
                     'sender' => $fromUser->getIri(),
-                    'receivers' => [
+                    'receiversTo' => [
                         [
                             'receiver' => $toUser->getIri(),
                         ],
@@ -659,7 +566,7 @@ class MessageRepositoryTest extends AbstractApiTest
             ->setContent('content')
             ->setMsgType(Message::MESSAGE_TYPE_INBOX)
             ->setSender($admin)
-            ->addReceiver($testUser)
+            ->addReceiverTo($testUser)
         ;
 
         $this->assertHasNoEntityViolations($message);

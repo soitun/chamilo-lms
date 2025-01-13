@@ -2,6 +2,7 @@
 
 /* For licensing terms, see /license.txt */
 
+use Chamilo\CoreBundle\Entity\Skill;
 use Chamilo\CoreBundle\Framework\Container;
 
 /**
@@ -17,6 +18,8 @@ SkillModel::isAllowed($userId);
 $isStudent = api_is_student();
 $isStudentBoss = api_is_student_boss();
 $isDRH = api_is_drh();
+
+$em = Database::getManager();
 
 if (!$isStudent && !$isStudentBoss && !$isDRH) {
     header('Location: '.api_get_path(WEB_CODE_PATH).'social/skills_wheel.php');
@@ -52,7 +55,7 @@ if ($isStudent) {
     $result = $objSkill->getUserSkillsTable($userId);
     $tableRows = $result['skills'];
     $tpl->assign('skill_table', $result['table']);
-    $tplPath = 'skill/student_report.tpl';
+    $tplPath = 'skill/student_report.html.twig';
 } elseif ($isStudentBoss) {
     $tableRows = [];
     $followedStudents = UserManager::getUsersFollowedByStudentBoss($userId);
@@ -74,7 +77,7 @@ if ($isStudent) {
     if ($frmStudents->validate()) {
         $selectedStudent = (int) $frmStudents->exportValue('student');
 
-        $sql = "SELECT s.name, sru.acquired_skill_at, c.title, c.directory, c.id as course_id
+        $sql = "SELECT s.id AS skill_id9i, sru.acquired_skill_at, c.title, c.directory, c.id as course_id
                 FROM $skillTable s
                 INNER JOIN $skillRelUserTable sru
                 ON s.id = sru.skill_id
@@ -86,9 +89,11 @@ if ($isStudent) {
         $result = Database::query($sql);
 
         while ($resultData = Database::fetch_assoc($result)) {
+            $skill = $em->find(Skill::class, $resultData['skill_id']);
+
             $tableRow = [
                 'complete_name' => $followedStudents[$selectedStudent]['completeName'],
-                'skill_name' => SkillModel::translateName($resultData['name']),
+                'skill_name' => $skill->getTitle(),
                 'achieved_at' => api_format_date($resultData['acquired_skill_at'], DATE_FORMAT_NUMBER),
                 'course_image' => Display::return_icon(
                     'course.png',

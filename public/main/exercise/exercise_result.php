@@ -2,6 +2,7 @@
 /* For licensing terms, see /license.txt */
 
 use ChamiloSession as Session;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
 
 /**
  * Exercise result
@@ -62,7 +63,8 @@ $interbreadcrumb[] = [
 ];
 
 $htmlHeadXtra[] = '<link rel="stylesheet" href="'.api_get_path(WEB_LIBRARY_JS_PATH).'hotspot/css/hotspot.css">';
-if (api_get_configuration_value('quiz_prevent_copy_paste')) {
+$htmlHeadXtra[] = '<script src="'.api_get_path(WEB_LIBRARY_JS_PATH).'hotspot/js/hotspot.js"></script>';
+if ('true' === api_get_setting('exercise.quiz_prevent_copy_paste')) {
     $htmlHeadXtra[] = '<script src="'.api_get_path(WEB_LIBRARY_JS_PATH).'jquery.nocopypaste.js"></script>';
 }
 
@@ -87,11 +89,11 @@ if (api_is_course_admin() && !in_array($origin, ['learnpath', 'embeddable'])) {
         'exercise_result_actions',
         [
             Display::url(
-                Display::return_icon('back.png', get_lang('GoBackToQuestionList'), [], 32),
+                Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('GoBackToQuestionList')),
                 'admin.php?'.api_get_cidreq().'&exerciseId='.$objExercise->id
             )
             .Display::url(
-                Display::return_icon('settings.png', get_lang('ModifyExercise'), [], 32),
+                Display::getMdiIcon('cog', 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('ModifyExercise')),
                 'exercise_admin.php?'.api_get_cidreq().'&modifyExercise=yes&exerciseId='.$objExercise->id
             ),
         ]
@@ -125,7 +127,7 @@ if ('learnpath' === $origin) {
     ';
 }
 
-$i = $total_score = $max_score = 0;
+$i = $total_score = $maxScore = 0;
 $remainingMessage = '';
 $attemptButton = '';
 
@@ -147,9 +149,9 @@ if ('embeddable' !== $origin) {
 $attempt_count = Event::get_attempt_count(
     $currentUserId,
     $objExercise->id,
-    $learnpath_id,
-    $learnpath_item_id,
-    $learnpath_item_view_id
+    (int) $learnpath_id,
+    (int) $learnpath_item_id,
+    (int) $learnpath_item_view_id
 );
 
 if ($objExercise->selectAttempts() > 0) {
@@ -187,7 +189,7 @@ if (!empty($exercise_stat_info)) {
     $total_score = $exercise_stat_info['score'];
 }
 
-$max_score = $objExercise->get_max_score();
+$maxScore = $objExercise->getMaxScore();
 
 if ('embeddable' === $origin) {
     $pageTop .= showEmbeddableFinishButton();
@@ -207,7 +209,7 @@ $stats = ExerciseLib::displayQuestionListByAttempt(
     $saveResults,
     $remainingMessage,
     $allowSignature,
-    api_get_configuration_value('quiz_results_answers_report'),
+    ('true' === api_get_setting('exercise.quiz_results_answers_report')),
     false
 );
 $pageContent .= ob_get_contents();
@@ -225,7 +227,7 @@ $statsTeacher = ExerciseLib::displayQuestionListByAttempt(
     false,
     $remainingMessage,
     $allowSignature,
-    api_get_configuration_value('quiz_results_answers_report'),
+    ('true' === api_get_setting('exercise.quiz_results_answers_report')),
     false
 );
 ob_end_clean();
@@ -264,11 +266,11 @@ ExerciseLib::exercise_time_control_delete(
 ExerciseLib::delete_chat_exercise_session($exeId);
 
 if (!in_array($origin, ['learnpath', 'embeddable', 'mobileapp'])) {
-    $pageBottom .= '<div class="question-return">';
+    $pageBottom .= '<div class="question-return mb-4">';
     $pageBottom .= Display::url(
         get_lang('Return to Course Homepage'),
         api_get_course_url(),
-        ['class' => 'btn btn-primary']
+        ['class' => 'btn btn--primary']
     );
     $pageBottom .= '</div>';
 
@@ -297,8 +299,12 @@ if (!in_array($origin, ['learnpath', 'embeddable', 'mobileapp'])) {
     Session::write('attempt_remaining', $remainingMessage);
 
     // Record the results in the learning path, using the SCORM interface (API)
-    $pageBottom .= "<script>window.parent.API.void_save_asset('$total_score', '$max_score', 0, 'completed');</script>";
-    $pageBottom .= '<script type="text/javascript">'.$href.'</script>';
+    $pageBottom .= "<script>window.parent.API.void_save_asset('$total_score', '$maxScore', 0, 'completed');</script>";
+
+    $courseId = isset($_REQUEST['cid']) ? (int) $_REQUEST['cid'] : api_get_course_int_id();
+    Exercise::saveExerciseInLp($learnpath_item_id, $exeId, $courseId);
+
+    //$pageBottom .= '<script type="text/javascript">'.$href.'</script>';
 
     $showFooter = false;
 }

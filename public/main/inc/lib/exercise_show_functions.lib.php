@@ -3,6 +3,7 @@
 
 use Chamilo\CoreBundle\Entity\TrackEExercise;
 use Chamilo\CoreBundle\Framework\Container;
+use Chamilo\CoreBundle\Component\Utils\StateIcon;
 
 class ExerciseShowFunctions
 {
@@ -15,8 +16,8 @@ class ExerciseShowFunctions
      * @param int      $id                           Exercise ID
      * @param int      $questionId                   Question ID
      * @param int      $resultsDisabled
-     * @param string   $originalStudentAnswer
      * @param bool     $showTotalScoreAndUserChoices
+     * @param string   $originalStudentAnswer
      */
     public static function display_fill_in_blanks_answer(
         $exercise,
@@ -25,8 +26,8 @@ class ExerciseShowFunctions
         $id,
         $questionId,
         $resultsDisabled,
-        $originalStudentAnswer = '',
-        $showTotalScoreAndUserChoices
+        $showTotalScoreAndUserChoices,
+        $originalStudentAnswer = ''
     ) {
         $answerHTML = FillBlanks::getHtmlDisplayForAnswer(
             $answer,
@@ -184,7 +185,13 @@ class ExerciseShowFunctions
             echo Display::tag('p', Security::remove_XSS($answer));
         }
 
-        if ($showAlertIfNotCorrected && !$questionScore && EXERCISE_FEEDBACK_TYPE_EXAM != $feedback_type) {
+        $comment = Event::get_comments($trackExerciseId, $questionId);
+        $teacherAudio = ExerciseLib::getOralFeedbackAudio(
+                        $trackExerciseId,
+                        $questionId
+                    );
+
+        if ($showAlertIfNotCorrected && !$questionScore && EXERCISE_FEEDBACK_TYPE_EXAM != $feedback_type && empty($comment) && empty($teacherAudio)) {
             echo Display::tag('p', ExerciseLib::getNotCorrectedYetText());
         }
     }
@@ -376,12 +383,33 @@ class ExerciseShowFunctions
                 break;
         }
 
-        $icon = in_array($answerType, [UNIQUE_ANSWER, UNIQUE_ANSWER_NO_OPTION]) ? 'radio' : 'checkbox';
-        $icon .= $studentChoice ? '_on' : '_off';
-        $icon .= '.png';
-        $iconAnswer = in_array($answerType, [UNIQUE_ANSWER, UNIQUE_ANSWER_NO_OPTION]) ? 'radio' : 'checkbox';
-        $iconAnswer .= $answerCorrect ? '_on' : '_off';
-        $iconAnswer .= '.png';
+        if (in_array($answerType, [UNIQUE_ANSWER, UNIQUE_ANSWER_NO_OPTION])) {
+            if ($studentChoice) {
+                $icon = StateIcon::RADIOBOX_MARKED;
+            } else {
+                $icon = StateIcon::RADIOBOX_BLANK;
+            }
+        } else {
+            if ($studentChoice) {
+                $icon = StateIcon::CHECKBOX_MARKED;
+            } else {
+                $icon = StateIcon::CHECKBOX_BLANK;
+            }
+        }
+        if (in_array($answerType, [UNIQUE_ANSWER, UNIQUE_ANSWER_NO_OPTION])) {
+            if ($answerCorrect) {
+                $iconAnswer = StateIcon::RADIOBOX_MARKED;
+            } else {
+                $iconAnswer = StateIcon::RADIOBOX_BLANK;
+            }
+        } else {
+            if ($answerCorrect) {
+                $iconAnswer = StateIcon::CHECKBOX_MARKED;
+            } else {
+                $iconAnswer = StateIcon::CHECKBOX_BLANK;
+            }
+
+        }
 
         $studentChoiceClass = '';
         if (in_array(
@@ -399,22 +427,22 @@ class ExerciseShowFunctions
 
         echo '<tr class="'.$studentChoiceClass.'">';
 
-        echo '<td width="5%">';
-        echo Display::return_icon($icon, null, null, ICON_SIZE_TINY);
+        echo '<td style="width:5%">';
+        echo Display::getMdiIcon($icon, 'ch-tool-icon', null, ICON_SIZE_TINY);
         echo '</td>';
         if ($exercise->showExpectedChoiceColumn()) {
             if (false === $hide_expected_answer) {
-                echo '<td width="5%">';
-                echo Display::return_icon($iconAnswer, null, null, ICON_SIZE_TINY);
+                echo '<td style="width:5%">';
+                echo Display::getMdiIcon($iconAnswer, 'ch-tool-icon', null, ICON_SIZE_TINY);
                 echo '</td>';
             } else {
-                echo '<td width="5%">';
+                echo '<td style="width:5%">';
                 echo '-';
                 echo '</td>';
             }
         }
 
-        echo '<td width="40%">';
+        echo '<td style="width:40%">';
         echo $answer;
         echo '</td>';
 
@@ -438,7 +466,7 @@ class ExerciseShowFunctions
 
         if (false === $exercise->hideComment) {
             if ($showComment) {
-                echo '<td width="20%">';
+                echo '<td style="width:20%">';
                 $color = 'black';
                 if ($answerCorrect) {
                     $color = 'green';
@@ -463,14 +491,17 @@ class ExerciseShowFunctions
      * Display the answers to a multiple choice question.
      *
      * @param Exercise $exercise
-     * @param int Answer type
-     * @param int Student choice
-     * @param string  Textual answer
-     * @param string  Comment on answer
-     * @param string  Correct answer comment
-     * @param int Exercise ID
-     * @param int Question ID
-     * @param bool Whether to show the answer comment or not
+     * @param int $feedbackType Feedback type
+     * @param int $answerType Answer type
+     * @param int $studentChoice Student choice
+     * @param string  $answer Textual answer
+     * @param string  $answerComment Comment on answer
+     * @param string  $answerCorrect Correct answer comment
+     * @param int $id Exercise ID
+     * @param int $questionId Question ID
+     * @param bool $ans Whether to show the answer comment or not
+     * @param int $resultsDisabled
+     * @param bool $showTotalScoreAndUserChoices
      */
     public static function display_multiple_answer_true_false(
         $exercise,
@@ -517,10 +548,18 @@ class ExerciseShowFunctions
         if (false === $hideStudentChoice) {
             $content .= '<td width="5%">';
             $course_id = api_get_course_int_id();
-            $new_options = Question::readQuestionOption($questionId, $course_id);
+            $new_options = [];
+            $originOptions = Question::readQuestionOption($questionId);
+
+            if (!empty($originOptions)) {
+                foreach ($originOptions as $item) {
+                    $new_options[$item['iid']] = $item;
+                }
+            }
+
             // Your choice
             if (isset($new_options[$studentChoice])) {
-                $content .= get_lang($new_options[$studentChoice]['name']);
+                $content .= get_lang($new_options[$studentChoice]['title']);
             } else {
                 $content .= '-';
             }
@@ -532,7 +571,7 @@ class ExerciseShowFunctions
             if (!$hide_expected_answer) {
                 $content .= '<td width="5%">';
                 if (isset($new_options[$answerCorrect])) {
-                    $content .= get_lang($new_options[$answerCorrect]['name']);
+                    $content .= get_lang($new_options[$answerCorrect]['title']);
                 } else {
                     $content .= '-';
                 }

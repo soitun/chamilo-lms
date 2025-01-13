@@ -1,0 +1,53 @@
+.p-checkbox {
+  @apply relative inline-flex select-none align-bottom h-4 w-4;
+
+  &-input {
+    @apply cursor-pointer;
+  }
+
+  &-box {
+    @apply flex justify-center items-center;
+  }
+
+  & &-input {
+    @apply appearance-none absolute top-0 left-0 w-full h-full p-0 m-0 opacity-0 z-[1] outline-none border-2 border-support-3 rounded;
+  }
+
+  & &-box {
+    @apply border-2 border-support-3 bg-white w-4 h-4 text-primary rounded transition-none outline-none;
+
+    .p-checkbox-icon {
+      @apply duration-200 text-white text-tiny;
+
+      &.p-icon {
+        @apply w-2.5 h-2.5;
+      }
+    }
+  }
+
+  &:has(&-input--legacy:checked) &-box,
+  &.p-highlight &-box {
+    @apply border-primary bg-primary;
+  }
+
+  &:not(.p-disabled):has(&-input:hover) {
+    .p-checkbox-box {
+      @apply border-primary;
+    }
+
+    &:has(.p-checkbox-input--legacy:checked) .p-checkbox-box,
+    &.p-highlight .p-checkbox-box {
+      @apply border-primary bg-primary text-white;
+    }
+  }
+
+  &:not(.p-disabled):has(&-input:focus-visible) {
+    .p-checkbox-box {
+      @apply outline-none drop-shadow-lg bg-primary;
+    }
+  }
+
+  &.p-invalid > &-box {
+    @apply border-error;
+  }
+}

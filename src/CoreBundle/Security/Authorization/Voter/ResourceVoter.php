@@ -8,13 +8,15 @@ namespace Chamilo\CoreBundle\Security\Authorization\Voter;
 
 use Chamilo\CoreBundle\Entity\AbstractResource;
 use Chamilo\CoreBundle\Entity\Course;
+use Chamilo\CourseBundle\Component\CourseCopy\Resources\Resource;
 use Chamilo\CourseBundle\Entity\CGroup;
-use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Acl\Permission\MaskBuilder;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
-use Symfony\Component\Security\Core\Security;
 
+/**
+ * @extends Voter<'CREATE'|'VIEW'|'EDIT'|'DELETE'|'EXPORT', Resource>
+ */
 class ResourceVoter extends Voter
 {
     public const VIEW = 'VIEW';
@@ -22,15 +24,6 @@ class ResourceVoter extends Voter
     public const EDIT = 'EDIT';
     public const DELETE = 'DELETE';
     public const EXPORT = 'EXPORT';
-
-    private RequestStack $requestStack;
-    private Security $security;
-
-    public function __construct(Security $security, RequestStack $requestStack)
-    {
-        $this->security = $security;
-        $this->requestStack = $requestStack;
-    }
 
     public static function getReaderMask(): int
     {
@@ -66,9 +59,9 @@ class ResourceVoter extends Voter
             return false;
         }
 
-        // Course/CGroup/ are AbstractResource but it's checked with the CourseVoter
-        if ($subject instanceof Course ||
-            $subject instanceof CGroup
+        // Course/CGroup/ are AbstractResource, but it's checked with the CourseVoter
+        if ($subject instanceof Course
+            || $subject instanceof CGroup
         ) {
             return false;
         }

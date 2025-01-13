@@ -8,12 +8,14 @@ namespace Chamilo\CoreBundle\Security\Authorization\Voter;
 
 use Chamilo\CoreBundle\Entity\User;
 use Chamilo\CoreBundle\Entity\UserRelUser;
-use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
-use Symfony\Component\Security\Core\Security;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+/**
+ * @extends Voter<'CREATE'|'VIEW'|'EDIT'|'DELETE', UserRelUser>
+ */
 class UserRelUserVoter extends Voter
 {
     public const CREATE = 'CREATE';
@@ -21,16 +23,9 @@ class UserRelUserVoter extends Voter
     public const EDIT = 'EDIT';
     public const DELETE = 'DELETE';
 
-    private EntityManagerInterface $entityManager;
-    private Security $security;
-
     public function __construct(
-        EntityManagerInterface $entityManager,
-        Security $security
-    ) {
-        $this->entityManager = $entityManager;
-        $this->security = $security;
-    }
+        private readonly Security $security
+    ) {}
 
     protected function supports(string $attribute, $subject): bool
     {
@@ -74,20 +69,23 @@ class UserRelUserVoter extends Voter
                 }
 
                 break;
+
             case self::EDIT:
                 if ($userRelUser->getUser() === $user) {
                     return true;
                 }
 
-                if ($userRelUser->getFriend() === $user &&
-                    UserRelUser::USER_RELATION_TYPE_FRIEND_REQUEST === $userRelUser->getRelationType()
+                if ($userRelUser->getFriend() === $user
+                    && UserRelUser::USER_RELATION_TYPE_FRIEND_REQUEST === $userRelUser->getRelationType()
                 ) {
                     return true;
                 }
 
                 break;
+
             case self::VIEW:
                 return true;
+
             case self::DELETE:
                 if ($userRelUser->getUser() === $user) {
                     return true;

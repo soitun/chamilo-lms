@@ -10,10 +10,10 @@ use Chamilo\CoreBundle\Component\Utils\ChamiloApi;
 use Chamilo\CoreBundle\Entity\AccessUrl;
 use Chamilo\CoreBundle\Entity\Course;
 use Chamilo\CoreBundle\Entity\CourseRelUser;
-use Chamilo\CoreBundle\Entity\ResourceNode;
 use Chamilo\CoreBundle\Entity\User;
 use Chamilo\CoreBundle\Repository\ResourceRepository;
 use Doctrine\Common\Collections\Criteria;
+use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\Query\Expr\Join;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
@@ -35,9 +35,9 @@ class CourseRepository extends ResourceRepository
         $em = $this->getEntityManager();
 
         // Deleting all nodes connected to the course:
-        //$node = $course->getResourceNode();
-        //$children = $node->getChildren();
-        ///* var ResourceNode $child
+        // $node = $course->getResourceNode();
+        // $children = $node->getChildren();
+        // /* var ResourceNode $child
         /*foreach ($children as $child) {
             var_dump($child->getId().'-'.$child->getTitle().'<br />');
             var_dump(get_class($child));
@@ -59,9 +59,9 @@ class CourseRepository extends ResourceRepository
     /**
      * Get course user relationship based in the course_rel_user table.
      *
-     * @return CourseRelUser[]
+     * @return array<int, CourseRelUser>
      */
-    public function getCoursesByUser(User $user, AccessUrl $url)
+    public function getCoursesByUser(User $user, AccessUrl $url): array
     {
         $qb = $this->getEntityManager()->createQueryBuilder();
 
@@ -69,7 +69,7 @@ class CourseRepository extends ResourceRepository
             ->select('courseRelUser')
             ->from(Course::class, 'c')
             ->innerJoin(CourseRelUser::class, 'courseRelUser')
-            //->innerJoin('c.users', 'courseRelUser')
+            // ->innerJoin('c.users', 'courseRelUser')
             ->innerJoin('c.urls', 'accessUrlRelCourse')
             ->where('courseRelUser.user = :user')
             ->andWhere('accessUrlRelCourse.url = :url')
@@ -82,6 +82,43 @@ class CourseRepository extends ResourceRepository
         $query = $qb->getQuery();
 
         return $query->getResult();
+    }
+
+    /**
+     * Get info from courses where the user has the given role.
+     *
+     * @return Course[]
+     */
+    public function getCoursesInfoByUser(User $user, AccessUrl $url, int $status, string $keyword = ''): array
+    {
+        $qb = $this->getEntityManager()->createQueryBuilder();
+
+        $qb->select('DISTINCT c.id, c.title, c.code')
+            ->from(Course::class, 'c')
+            ->innerJoin(CourseRelUser::class, 'courseRelUser')
+            ->innerJoin('c.urls', 'accessUrlRelCourse')
+            ->where('accessUrlRelCourse.url = :url')
+            ->andWhere('courseRelUser.user = :user')
+            ->andWhere('courseRelUser.status = :status')
+            ->setParameters([
+                'user' => $user,
+                'url' => $url,
+                'status' => $status,
+            ])
+        ;
+
+        if (!empty($keyword)) {
+            $qb->andWhere($qb->expr()->orX(
+                $qb->expr()->like('c.title', ':keyword'),
+                $qb->expr()->like('c.code', ':keyword')
+            ))
+                ->setParameter('keyword', '%'.$keyword.'%')
+            ;
+        }
+
+        $query = $qb->getQuery();
+
+        return $query->getArrayResult();
     }
 
     /**
@@ -169,5 +206,30 @@ class CourseRepository extends ResourceRepository
         ;
 
         return $queryBuilder;
+    }
+
+    public function courseCodeExists(string $code): bool
+    {
+        $qb = $this->createQueryBuilder('c')
+            ->select('count(c.id)')
+            ->where('c.code = :code OR c.visualCode = :code')
+            ->setParameter('code', $code)
+            ->getQuery()
+        ;
+
+        return (int) $qb->getSingleScalarResult() > 0;
+    }
+
+    public function findCourseAsArray($id)
+    {
+        $qb = $this->createQueryBuilder('c')
+            ->select('c.id, c.code, c.title, c.visualCode, c.courseLanguage, c.departmentUrl, c.departmentName')
+            ->where('c.id = :id')
+            ->setParameter('id', $id)
+        ;
+
+        $query = $qb->getQuery();
+
+        return $query->getOneOrNullResult(AbstractQuery::HYDRATE_ARRAY);
     }
 }

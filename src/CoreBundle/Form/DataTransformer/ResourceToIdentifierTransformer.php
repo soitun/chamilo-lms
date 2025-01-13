@@ -8,8 +8,10 @@ use Doctrine\Persistence\ObjectRepository;
 use Symfony\Component\Form\DataTransformerInterface;
 use Symfony\Component\Form\Exception\TransformationFailedException;
 use Symfony\Component\PropertyAccess\PropertyAccess;
-use Webmozart\Assert\Assert;
 
+/**
+ * @implements DataTransformerInterface<object, int|string|null>
+ */
 final class ResourceToIdentifierTransformer implements DataTransformerInterface
 {
     private ObjectRepository $repository;
@@ -22,29 +24,29 @@ final class ResourceToIdentifierTransformer implements DataTransformerInterface
         $this->identifier = $identifier ?? 'id';
     }
 
-    public function transform($value)
+    public function transform($value): mixed
     {
-        if (null === $value) {
+        if (empty($value)) {
             return null;
         }
 
-        /* @psalm-suppress ArgumentTypeCoercion */
-        Assert::isInstanceOf($value, $this->repository->getClassName());
+        \assert(get_class($value) === $this->repository->getClassName());
 
         return PropertyAccess::createPropertyAccessor()->getValue($value, $this->identifier);
     }
 
-    public function reverseTransform($value)
+    public function reverseTransform($value): mixed
     {
-        if (null === $value) {
+        if (empty($value)) {
             return null;
         }
 
         $resource = $this->repository->findOneBy([
             $this->identifier => $value,
         ]);
+
         if (null === $resource) {
-            throw new TransformationFailedException(sprintf('Object "%s" with identifier "%s"="%s" does not exist.', $this->repository->getClassName(), $this->identifier, $value));
+            throw new TransformationFailedException(\sprintf('Object "%s" with identifier "%s"="%s" does not exist.', $this->repository->getClassName(), $this->identifier, $value));
         }
 
         return $resource;

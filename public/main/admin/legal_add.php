@@ -4,6 +4,9 @@
 /**
  * Management of legal conditions.
  */
+
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+
 $cidReset = true;
 require_once __DIR__.'/../inc/global.inc.php';
 $this_section = SECTION_PLATFORM_ADMIN;
@@ -33,7 +36,7 @@ foreach ($types as $variable => $name) {
     $params = [
         'variable' => $variable,
         'display_text' => $label,
-        'field_type' => ExtraField::FIELD_TYPE_TEXTAREA,
+        'value_type' => ExtraField::FIELD_TYPE_TEXTAREA,
         'default_value' => '',
         'visible' => true,
         'changeable' => true,
@@ -169,9 +172,9 @@ if (isset($_POST['language'])) {
     // Submit & preview button
     $buttons = '<div class="row" align="center">
                 <div class="formw">
-                <button type="submit" class="btn btn-default back" 	 name="send" value="back">'.get_lang('Back').'</button>
-                <button type="submit" class="btn btn-default search" name="send" value="preview">'.get_lang('Preview').'</button>
-                <button type="submit" class="btn btn-primary save" 	 name="send" value="save">'.get_lang('Save').'</button>
+                <button type="submit" class="btn btn--plain back" 	 name="send" value="back">'.get_lang('Back').'</button>
+                <button type="submit" class="btn btn--plain search" name="send" value="preview">'.get_lang('Preview').'</button>
+                <button type="submit" class="btn btn--primary save" 	 name="send" value="save">'.get_lang('Save').'</button>
                 </div>
             </div>';
     $form->addElement('html', $buttons);
@@ -202,7 +205,7 @@ function sendlang() {
 // action menu
 echo '<div class="actions">';
 echo '<a href="'.api_get_path(WEB_CODE_PATH).'admin/legal_list.php">'.
-    Display::return_icon('search.gif', get_lang('Edit terms and conditions'), '').
+    Display::getMdiIcon(ActionIcon::SEARCH, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Edit terms and conditions')).
     get_lang('All versions').'</a>';
 echo '</div>';
 

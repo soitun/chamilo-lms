@@ -1,6 +1,6 @@
 <div id="service" class="service">
     <div class="page-header">
-        <h2>{{ service.name }}</h2>
+        <h2>{{ service.title }}</h2>
     </div>
     <section id="service-info">
         <div class="panel panel-default">
@@ -17,7 +17,7 @@
                             {% elseif service.image %}
                             <div class="service-image">
                                 <a href="{{ _p.web }}service/{{ service.id }}">
-                                    <img alt="{{ service.name }}" class="img-rounded img-responsive"
+                                    <img alt="{{ service.title }}" class="img-rounded img-responsive"
                                          src="{{ service.image ? service.image : 'session_default.png'|icon() }}">
                                 </a>
                             </div>
@@ -35,13 +35,13 @@
                                     </a>
                                 </li>
                                 <li>
-                                    <a href="https://twitter.com/home?{{ {'status': session.getName() ~ ' ' ~ pageUrl}|url_encode }}"
+                                    <a href="https://twitter.com/home?{{ {'status': session.getTitle() ~ ' ' ~ pageUrl}|url_encode }}"
                                        target="_blank" class="btn btn-twitter btn-inverse btn-xs">
                                         <em class="fa fa-twitter"></em> Twitter
                                     </a>
                                 </li>
                                 <li>
-                                    <a href="https://www.linkedin.com/shareArticle?{{ {'mini': 'true', 'url': pageUrl, 'title': session.getName() }|url_encode }}"
+                                    <a href="https://www.linkedin.com/shareArticle?{{ {'mini': 'true', 'url': pageUrl, 'title': session.getTitle() }|url_encode }}"
                                        target="_blank" class="btn btn-linkedin btn-inverse btn-xs">
                                         <em class="fa fa-linkedin"></em> Linkedin
                                     </a>
@@ -80,7 +80,7 @@
                                 </div>
                                 <div class="col-sm-6">
                                     <a href="{{ _p.web_plugin ~ 'buycourses/src/service_process.php?t=4&i=' ~ service.id }}"
-                                       class="btn btn-success btn-lg btn-block">
+                                       class="btn btn--success btn-lg btn-block">
                                         <em class="fa fa-shopping-cart"></em> {{ 'Buy'|get_plugin_lang('BuyCoursesPlugin') }}
                                     </a>
                                 </div>

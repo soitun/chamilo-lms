@@ -36,7 +36,7 @@ if (!empty($group_id) && $allowed_action) {
         api_not_allowed(true);
     }
 
-    $to_group = $group_info['name'];
+    $to_group = $group_info['title'];
     if (!empty($message_id)) {
         /*$message_info = MessageManager::get_message_by_id($message_id);
         if ('reply_message_group' === $allowed_action) {
@@ -88,7 +88,7 @@ if ('true' === api_get_setting('allow_message_tool')) {
         'label',
         get_lang('Attachments'),
         '<div id="link-more-attach">
-            <a class="btn btn-default" href="javascript://" onclick="return add_image_form()">
+            <a class="btn btn--plain" href="javascript://" onclick="return add_image_form()">
                 '.get_lang('Add one more file').'
             </a>
         </div>'

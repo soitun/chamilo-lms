@@ -4,7 +4,7 @@
 <link href="https://chamilo.org/the-association/" rel="author" />
 <link href="https://chamilo.org/the-association/" rel="copyright" />
 {{ prefetch }}
-{{ favico }}
+<link rel="shortcut icon" href="{{ theme_asset('images/favicon.ico') }}" type="image/x-icon" />
 {{ browser_specific_head }}
 <link rel="apple-touch-icon" href="{{ _p.web }}apple-touch-icon.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -23,7 +23,7 @@
 </h2>
 {% if termsRejected == 1 %}
 <div class="error-message legal-terms-popup">
-    {{ "YouMustAcceptTermsAndConditions"  | get_plugin_lang("AdvancedSubscriptionPlugin") | format(session.name) }}
+    {{ "YouMustAcceptTermsAndConditions"  | get_plugin_lang("AdvancedSubscriptionPlugin") | format(session.title) }}
 </div>
 {% endif %}
 
@@ -45,13 +45,13 @@
 </div>
 <div class="legal-terms-buttons legal-terms-popup">
     <a
-        class="btn btn-success btn-advanced-subscription btn-accept"
+        class="btn btn--success btn-advanced-subscription btn-accept"
         href="{{ acceptTermsUrl }}"
     >
         {{ "AcceptInfinitive" | get_plugin_lang("AdvancedSubscriptionPlugin") }}
     </a>
     <a
-        class="btn btn-danger btn-advanced-subscription btn-reject"
+        class="btn btn--danger btn-advanced-subscription btn-reject"
         href="{{ rejectTermsUrl }}"
     >
         {{ "RejectInfinitive" | get_plugin_lang("AdvancedSubscriptionPlugin") }}

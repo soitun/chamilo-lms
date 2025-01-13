@@ -50,7 +50,7 @@ class HTML_QuickForm_checkbox extends HTML_QuickForm_input
         ?array $attributes = []
     ) {
         $this->labelClass = isset($attributes['label-class']) ? $attributes['label-class'] : '';
-        $this->checkboxClass = isset($attributes['checkbox-class']) ? $attributes['checkbox-class'] : 'checkbox';
+        $this->checkboxClass = isset($attributes['checkbox-class']) ? $attributes['checkbox-class'] : 'field-checkbox';
 
         if (isset($attributes['label-class'])) {
             unset($attributes['label-class']);
@@ -114,12 +114,14 @@ class HTML_QuickForm_checkbox extends HTML_QuickForm_input
      */
     public function toHtml()
     {
-        $extraClass = " border border-gray-200 text-gray-700 rounded leading-tight";
+        $extraClass = "p-checkbox-input p-checkbox-input--legacy";
+
         if (isset($this->_attributes['class'])) {
             $this->_attributes['class'] .= $extraClass;
         } else {
             $this->_attributes['class'] = $extraClass;
         }
+
         if (0 == strlen($this->_text)) {
             $label = '';
         } elseif ($this->_flagFrozen) {
@@ -130,13 +132,19 @@ class HTML_QuickForm_checkbox extends HTML_QuickForm_input
             $name = $this->_attributes['name'];
             $id = $this->getAttribute('id');
 
-            return '<div id="'.$name.'" class="'.$checkClass.' flex items-center  ">
-                        '.HTML_QuickForm_input::toHtml().'
-                        <label for="'.$id.'" class="'.$labelClass.' ml-2 ">
-                            '.$this->_text.
-                        '</label>
-                      </div>
-            ';
+            return '<div id="'.$name.'" class="'.$checkClass.'">
+                <div class="p-checkbox p-component">
+                    '.parent::toHtml().'
+                    <div class="p-checkbox-box" data-pc-section="box">
+                        <div class="p-checkbox-icon" data-pc-section="icon">
+                            <span class="mdi mdi-check" aria-hidden="true"></span>
+                        </div>
+                    </div>
+                </div>
+                    <label for="'.$id.'" class="'.$labelClass.'">
+                        '.$this->_text.
+                    '</label>
+                </div>';
         }
 
         return HTML_QuickForm_input::toHtml().$label;

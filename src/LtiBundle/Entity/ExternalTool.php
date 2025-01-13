@@ -15,125 +15,80 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\Common\Collections\Criteria;
 use Doctrine\ORM\Mapping as ORM;
+use Stringable;
 use UnserializeApi;
 
-/**
- * Class ExternalTool.
- *
- * @ORM\Table(name="lti_external_tool")
- * @ORM\Entity
- */
-class ExternalTool extends AbstractResource implements ResourceInterface, ResourceToRootInterface
+#[ORM\Table(name: 'lti_external_tool')]
+#[ORM\Entity]
+class ExternalTool extends AbstractResource implements ResourceInterface, ResourceToRootInterface, Stringable
 {
     public const V_1P1 = 'lti1p1';
     public const V_1P3 = 'lti1p3';
 
-    /**
-     * @ORM\Column(name="id", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     */
-    protected int $id;
+    #[ORM\Column(name: 'id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    protected ?int $id = null;
 
-    /**
-     * @ORM\Column(name="name", type="string")
-     */
-    protected string $name;
+    #[ORM\Column(name: 'title', type: 'string')]
+    protected string $title;
 
-    /**
-     * @ORM\Column(name="description", type="text", nullable=true)
-     */
+    #[ORM\Column(name: 'description', type: 'text', nullable: true)]
     protected ?string $description;
 
-    /**
-     * @ORM\Column(name="launch_url", type="string")
-     */
+    #[ORM\Column(name: 'launch_url', type: 'string')]
     protected string $launchUrl;
 
-    /**
-     * @ORM\Column(name="consumer_key", type="string", nullable=true)
-     */
+    #[ORM\Column(name: 'consumer_key', type: 'string', nullable: true)]
     protected ?string $consumerKey;
 
-    /**
-     * @ORM\Column(name="shared_secret", type="string", nullable=true)
-     */
+    #[ORM\Column(name: 'shared_secret', type: 'string', nullable: true)]
     protected ?string $sharedSecret;
 
-    /**
-     * @ORM\Column(name="custom_params", type="text", nullable=true)
-     */
+    #[ORM\Column(name: 'custom_params', type: 'text', nullable: true)]
     protected ?string $customParams;
 
-    /**
-     * @ORM\Column(name="active_deep_linking", type="boolean", nullable=false, options={"default": false})
-     */
+    #[ORM\Column(name: 'active_deep_linking', type: 'boolean', nullable: false, options: ['default' => false])]
     protected bool $activeDeepLinking;
 
-    /**
-     * @ORM\Column(name="privacy", type="text", nullable=true, options={"default": null})
-     */
+    #[ORM\Column(name: 'privacy', type: 'text', nullable: true, options: ['default' => null])]
     protected ?string $privacy;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\Course")
-     * @ORM\JoinColumn(name="c_id", referencedColumnName="id")
-     */
+    #[ORM\ManyToOne(targetEntity: Course::class)]
+    #[ORM\JoinColumn(name: 'c_id', referencedColumnName: 'id')]
     protected ?Course $course;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\GradebookEvaluation")
-     * @ORM\JoinColumn(name="gradebook_eval_id", referencedColumnName="id", onDelete="SET NULL")
-     */
+    #[ORM\ManyToOne(targetEntity: GradebookEvaluation::class)]
+    #[ORM\JoinColumn(name: 'gradebook_eval_id', referencedColumnName: 'id', onDelete: 'SET NULL')]
     protected ?GradebookEvaluation $gradebookEval;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\LtiBundle\Entity\ExternalTool", inversedBy="children")
-     * @ORM\JoinColumn(name="parent_id", referencedColumnName="id")
-     */
+    #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'children')]
+    #[ORM\JoinColumn(name: 'parent_id', referencedColumnName: 'id')]
     protected ?ExternalTool $parent;
 
-    /**
-     * @ORM\OneToMany(targetEntity="Chamilo\LtiBundle\Entity\ExternalTool", mappedBy="parent")
-     */
+    #[ORM\OneToMany(targetEntity: self::class, mappedBy: 'parent')]
     protected Collection $children;
 
-    /**
-     * @ORM\Column(name="client_id", type="string", nullable=true)
-     */
-    private ?string $clientId;
-    /**
-     * @ORM\Column(name="login_url", type="string", nullable=true)
-     */
-    private ?string $loginUrl;
+    #[ORM\Column(name: 'client_id', type: 'string', nullable: true)]
+    private ?string $clientId = null;
+    #[ORM\Column(name: 'login_url', type: 'string', nullable: true)]
+    private ?string $loginUrl = null;
 
-    /**
-     * @ORM\Column(name="redirect_url", type="string", nullable=true)
-     */
-    private ?string $redirectUrl;
+    #[ORM\Column(name: 'redirect_url', type: 'string', nullable: true)]
+    private ?string $redirectUrl = null;
 
-    /**
-     * @ORM\Column(name="advantage_services", type="json", nullable=true)
-     */
+    #[ORM\Column(name: 'advantage_services', type: 'json', nullable: true)]
     private ?array $advantageServices;
 
-    /**
-     * @ORM\OneToMany(targetEntity="Chamilo\LtiBundle\Entity\LineItem", mappedBy="tool")
-     */
+    #[ORM\OneToMany(targetEntity: LineItem::class, mappedBy: 'tool')]
     private Collection $lineItems;
 
-    /**
-     * @ORM\Column(name="version", type="string", options={"default": "lti1p1"})
-     */
+    #[ORM\Column(name: 'version', type: 'string', options: ['default' => 'lti1p1'])]
     private string $version;
-    /**
-     * @ORM\Column(name="launch_presentation", type="json")
-     */
+    #[ORM\Column(name: 'launch_presentation', type: 'json')]
     private array $launchPresentation;
 
-    /**
-     * @ORM\Column(name="replacement_params", type="json")
-     */
+    #[ORM\Column(name: 'replacement_params', type: 'json')]
     private array $replacementParams;
 
     public function __construct()
@@ -160,7 +115,7 @@ class ExternalTool extends AbstractResource implements ResourceInterface, Resour
 
     public function __toString(): string
     {
-        return $this->getName();
+        return $this->getTitle();
     }
 
     public function getId(): int
@@ -168,14 +123,14 @@ class ExternalTool extends AbstractResource implements ResourceInterface, Resour
         return $this->id;
     }
 
-    public function getName(): string
+    public function getTitle(): string
     {
-        return $this->name;
+        return $this->title;
     }
 
-    public function setName(string $name): static
+    public function setTitle(string $title): static
     {
-        $this->name = $name;
+        $this->title = $title;
 
         return $this;
     }
@@ -295,7 +250,7 @@ class ExternalTool extends AbstractResource implements ResourceInterface, Resour
         return $this->course;
     }
 
-    public function setCourse(Course $course = null): static
+    public function setCourse(?Course $course = null): static
     {
         $this->course = $course;
 
@@ -580,20 +535,18 @@ class ExternalTool extends AbstractResource implements ResourceInterface, Resour
     public function getChildrenInCourses(array $coursesId): Collection
     {
         return $this->children->filter(
-            function (self $child) use ($coursesId) {
-                return \in_array($child->getCourse()->getId(), $coursesId, true);
-            }
+            fn (self $child) => \in_array($child->getCourse()->getId(), $coursesId, true)
         );
     }
 
     public function getResourceName(): string
     {
-        return $this->getName();
+        return $this->getTitle();
     }
 
-    public function setResourceName(string $name): static
+    public function setResourceName(string $title): static
     {
-        return $this->setName($name);
+        return $this->setTitle($title);
     }
 
     public function getResourceIdentifier(): int

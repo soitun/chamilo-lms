@@ -8,12 +8,12 @@ namespace Chamilo\CoreBundle\Repository;
 
 use Chamilo\CoreBundle\Entity\Language;
 use Chamilo\CoreBundle\Entity\Legal;
-use Chamilo\CoreBundle\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Common\Collections\Criteria;
+use Doctrine\ORM\NonUniqueResultException;
+use Doctrine\ORM\NoResultException;
 use Doctrine\Persistence\ManagerRegistry;
 use Exception;
-use ExtraFieldValue;
 
 class LegalRepository extends ServiceEntityRepository
 {
@@ -26,9 +26,9 @@ class LegalRepository extends ServiceEntityRepository
      * Count the legal terms by language (only count one set of terms for each
      * language).
      *
-     * @throws Exception
-     *
      * @return int
+     *
+     * @throws Exception
      */
     public function countAllActiveLegalTerms()
     {
@@ -82,41 +82,6 @@ class LegalRepository extends ServiceEntityRepository
     }
 
     /**
-     * Checks whether we already approved the last version term and condition.
-     *
-     * @return bool true if we pass false otherwise
-     */
-    public function checkTermCondition(User $user)
-    {
-        if ('true' === api_get_setting('allow_terms_conditions')) {
-            // Check if exists terms and conditions
-            if (0 === $this->countTerms()) {
-                return true;
-            }
-
-            $extraFieldValue = new ExtraFieldValue('user');
-            $data = $extraFieldValue->get_values_by_handler_and_field_variable(
-                $user->getId(),
-                'legal_accept'
-            );
-
-            if (!empty($data) && isset($data['value']) && !empty($data['value'])) {
-                $result = $data['value'];
-                $userConditions = explode(':', $result);
-                $version = $userConditions[0];
-                $langId = (int) $userConditions[1];
-                $realVersion = $this->getLastVersion($langId);
-
-                return $version >= $realVersion;
-            }
-
-            return false;
-        }
-
-        return false;
-    }
-
-    /**
      * Gets the number of terms and conditions available.
      *
      * @return int
@@ -141,19 +106,72 @@ class LegalRepository extends ServiceEntityRepository
         $result = $qb
             ->select('l.version')
             ->where(
-                $qb->expr()->eq('l.language_id', $languageId)
+                $qb->expr()->eq('l.languageId', $languageId)
             )
             ->setMaxResults(1)
             ->orderBy('l.version', Criteria::DESC)
             ->getQuery()
             ->getOneOrNullResult()
-            ;
-        if (!empty($result)) {
-            $version = explode(':', $result);
+        ;
 
-            return (int) $version[0];
+        if (!empty($result['version'])) {
+            $lastVersion = $result['version'];
+            if (!is_numeric($lastVersion)) {
+                $version = explode(':', $lastVersion);
+                $lastVersion = (int) $version[0];
+            }
+
+            return $lastVersion;
         }
 
         return false;
+    }
+
+    public function getLastConditionByLanguage(int $languageId): ?Legal
+    {
+        try {
+            $qb = $this->createQueryBuilder('l');
+            $qb->where('l.languageId = :languageId')
+                ->setParameter('languageId', $languageId)
+                ->orderBy('l.version', 'DESC')
+                ->setMaxResults(1)
+            ;
+
+            $result = $qb->getQuery()->getSingleResult();
+
+            if ($result->getContent()) {
+                $result->setContent($this->replaceTags($result->getContent()));
+            }
+
+            return $result;
+        } catch (NoResultException|NonUniqueResultException $e) {
+            return null;
+        }
+    }
+
+    public function findLastConditionByLanguage(int $languageId): ?Legal
+    {
+        return $this->createQueryBuilder('l')
+            ->andWhere('l.languageId = :languageId')
+            ->setParameter('languageId', $languageId)
+            ->orderBy('l.version', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult()
+        ;
+    }
+
+    /**
+     * Replace tags in content.
+     *
+     * @param string $content the content with tags
+     *
+     * @return string the content with tags replaced
+     */
+    private function replaceTags(string $content): string
+    {
+        // Replace tags logic goes here
+        // For example: return str_replace('[SITE_NAME]', 'YourSiteName', $content);
+        return $content;
     }
 }

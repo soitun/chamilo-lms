@@ -1,47 +1,26 @@
 <template>
-  <v-card>
-
-    <q-item>
-      <q-item-section side>
-        <q-avatar size="64px">
-          <img :src="user.illustrationUrl + '?w=80&h=80&fit=crop'" />
-        </q-avatar>
-      </q-item-section>
-      <q-item-section>
-        <q-item-label>{{ user.fullName }}</q-item-label>
-        <q-item-label caption>{{ user.username }}</q-item-label>
-      </q-item-section>
-    </q-item>
-
-    <q-tabs align="left" dense inline-label no-caps>
-      <q-route-tab to="/resources/friends" label="My friends" />
-      <q-route-tab to="/resources/personal_files" label="My files" />
-    </q-tabs>
-
-    <a href="/account/edit" class="btn btn-primary">
-      Edit profile
-    </a>
-  </v-card>
+  <div class="flex flex-col md:flex-row gap-4">
+    <div class="md:basis-1/3 lg:basis-1/4 2xl:basis-1/6 flex flex-col">
+      <UserProfileCard />
+    </div>
+    <div class="md:basis-2/3 lg:basis-3/4 2xl:basis-5/6">
+      <SocialWall :hidePostForm="true" />
+    </div>
+  </div>
 </template>
 
-<script>
-import { useRoute } from 'vue-router'
-import axios from "axios";
-import { ENTRYPOINT } from '../../config/entrypoint';
-import {computed, reactive, ref, toRefs} from 'vue'
-import {mapGetters, useStore} from "vuex";
+<script setup>
+import { onMounted, provide } from "vue"
+import UserProfileCard from "../../components/social/UserProfileCard.vue"
+import { useSocialInfo } from "../../composables/useSocialInfo"
+import SocialWall from "../social/SocialWall.vue"
 
-export default {
-  name: 'Home',
-  components: {
-  },
-  setup() {
-    const state = reactive({user: []});
-    const store = useStore();
-    state.user = computed(() => store.getters['security/getUser']);
-    state.isAuthenticated = computed(() => store.getters['security/isAuthenticated']);
+const { user, isCurrentUser, groupInfo, isGroup, loadUser } = useSocialInfo()
 
-    return toRefs(state);
-  },
-};
+provide("social-user", user)
+provide("is-current-user", isCurrentUser)
+provide("group-info", groupInfo)
+provide("is-group", isGroup)
+
+onMounted(loadUser)
 </script>

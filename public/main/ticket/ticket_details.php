@@ -2,6 +2,8 @@
 
 /* For licensing terms, see /license.txt */
 
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+
 $cidReset = true;
 
 require_once __DIR__.'/../inc/global.inc.php';
@@ -131,7 +133,7 @@ if (empty($ticket)) {
     api_not_allowed(true);
 }
 $projectId = (int) $ticket['ticket']['project_id'];
-$userIsAllowInProject = TicketManager::userIsAllowInProject(api_get_user_entity(), $projectId);
+$userIsAllowInProject = true; //TicketManager::userIsAllowInProject($projectId);
 $allowEdition = $ticket['ticket']['assigned_last_user'] == $user_id
     || $ticket['ticket']['sys_insert_user_id']
     == $user_id
@@ -141,6 +143,24 @@ if (false === $userIsAllowInProject) {
     // make sure it's either a user assigned to this ticket, or the reporter, or and admin
     if (false === $allowEdition) {
         api_not_allowed(true);
+    }
+}
+
+if (isset($_GET['action'])) {
+    $action = $_GET['action'];
+
+    switch ($action) {
+        case 'subscribe':
+            TicketManager::subscribeUserToTicket($ticket_id, $user_id);
+            Display::addFlash(Display::return_message(get_lang('Subscribed successfully')));
+            header('Location: '.api_get_self().'?ticket_id='.$ticket_id);
+            exit;
+
+        case 'unsubscribe':
+            TicketManager::unsubscribeUserFromTicket($ticket_id, $user_id);
+            Display::addFlash(Display::return_message(get_lang('Unsubscribed successfully')));
+            header('Location: '.api_get_self().'?ticket_id='.$ticket_id);
+            exit;
     }
 }
 
@@ -187,7 +207,7 @@ foreach ($messages as $message) {
 
     $messageToShow .= '<a id="note-'.$counter.'"> </a><h4>'
         .sprintf(
-            get_lang('Update successfulByX'),
+            get_lang('Updated by %s'),
             $message['user_info']['complete_name_with_message_link']
         );
 
@@ -265,14 +285,14 @@ if ($allowEdition
                 );
                 $newPriorityTitle = '-';
                 if ($newPriority) {
-                    $newPriorityTitle = $newPriority->getName();
+                    $newPriorityTitle = $newPriority->getTitle();
                 }
                 $oldPriority = TicketManager::getPriority(
                     $ticket['ticket']['priority_id']
                 );
                 $oldPriorityTitle = '-';
                 if ($oldPriority) {
-                    $oldPriorityTitle = $oldPriority->getName();
+                    $oldPriorityTitle = $oldPriority->getTitle();
                 }
                 $messageToSend .= sprintf(
                     get_lang('Priority changed from %s to %s'),
@@ -287,14 +307,14 @@ if ($allowEdition
                 );
                 $newTitle = '-';
                 if ($newStatus) {
-                    $newTitle = $newStatus->getName();
+                    $newTitle = $newStatus->getTitle();
                 }
                 $oldStatus = TicketManager::getStatus(
                     $ticket['ticket']['status_id']
                 );
                 $oldStatusTitle = '-';
                 if ($oldStatus) {
-                    $oldStatusTitle = $oldStatus->getName();
+                    $oldStatusTitle = $oldStatus->getTitle();
                 }
 
                 $messageToSend .= sprintf(
@@ -329,18 +349,37 @@ if ($allowEdition
     }
 }
 
+$isSubscribed = TicketManager::isUserSubscribedToTicket($ticket_id, $user_id);
+if ($isSubscribed) {
+    $subscribeAction = Display::url(
+        Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Unsubscribe')),
+        api_get_self().'?ticket_id='.$ticket_id.'&action=unsubscribe',
+        ['title' => get_lang('Unsubscribe')]
+    );
+} else {
+    $subscribeAction = Display::url(
+        Display::getMdiIcon(ActionIcon::ADD, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Subscribe')),
+        api_get_self().'?ticket_id='.$ticket_id.'&action=subscribe',
+        ['title' => get_lang('Subscribe')]
+    );
+}
+
+$actions = [
+    Display::url(
+        Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Tickets')),
+        api_get_path(WEB_CODE_PATH).'ticket/tickets.php?project_id='.$projectId
+    ),
+    $subscribeAction,
+];
+
 Display::display_header();
-$actions = Display::url(
-    Display::return_icon('back.png', get_lang('Tickets'), [], ICON_SIZE_MEDIUM),
-    api_get_path(WEB_CODE_PATH).'ticket/tickets.php?project_id='.$projectId
-);
-echo Display::toolbarAction('ticket', [$actions]);
+echo Display::toolbarAction('ticket', $actions);
 
 $bold = '';
 if (TicketManager::STATUS_CLOSE == $ticket['ticket']['status_id']) {
     $bold = 'style = "font-weight: bold;"';
 }
-$senderData = get_lang('added by').' '.$ticket['usuario']['complete_name_with_message_link'];
+$senderData = get_lang('added by').' '.$ticket['user']['complete_name_with_message_link'];
 echo '<div class="prose">';
 echo '<table width="100%">
         <tr>
@@ -365,7 +404,7 @@ echo '<table width="100%">
           </td>
         </tr>
         <tr>
-           <td><p><b>'.get_lang('Category').': </b>'.$ticket['ticket']['name'].'</p></td>
+           <td><p><b>'.get_lang('Category').': </b>'.$ticket['ticket']['title'].'</p></td>
         </tr>
         <tr>
            <td><p '.$bold.'><b>'.get_lang('Status').':</b> '.$ticket['ticket']['status'].'</p></td>
@@ -399,7 +438,7 @@ if (null != $ticket['ticket']['course_url']) {
             <td></td>
             <td colspan="2"></td>
           </tr>';
-    if (api_get_configuration_value('ticket_lp_quiz_info_add')) {
+    if ('true' === api_get_setting('lp.ticket_lp_quiz_info_add')) {
         if (!empty($ticket['ticket']['exercise_url'])) {
             echo '<tr>
                 <td><b>'.get_lang('Exercise').':</b> '.$ticket['ticket']['exercise_url'].' </td>
@@ -529,7 +568,7 @@ function getForm($ticket)
     );
     $form->addLabel(
         '',
-        '<span id="link-more-attach"><span class="btn btn-success" onclick="return add_image_form()">'
+        '<span id="link-more-attach"><span class="btn btn--success" onclick="return add_image_form()">'
         .get_lang('Add one more file')
         .'</span></span>('
         .sprintf(

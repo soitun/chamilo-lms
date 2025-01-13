@@ -1,0 +1,65 @@
+.p-inputgroup {
+  @apply flex items-stretch w-full;
+
+  .p-float-label {
+    @apply flex items-stretch w-full;
+
+    &:first-child input {
+      @apply rounded-l-lg;
+    }
+
+    &:last-child input {
+       @apply rounded-r-lg;
+    }
+  }
+
+  .p-inputtext,
+  .p-inputwrapper {
+    @apply flex-1 w-[1%];
+  }
+
+  > .p-component,
+  > .p-inputwrapper > .p-inputtext,
+  > .p-float-label > .p-component {
+    @apply rounded-none m-0;
+
+    + .p-inputgroup-addon {
+      @apply border-l-0;
+    }
+
+    &:focus {
+      @apply z-[1];
+
+      ~ label {
+        @apply z-[1];
+      }
+    }
+  }
+
+  button,
+  input {
+    @apply first:rounded-l-lg last:rounded-r-lg;
+  }
+
+  > .p-inputwrapper:first-child {
+    @apply rounded-l-lg;
+
+    > .p-inputtext {
+      @apply rounded-l-lg;
+    }
+  }
+
+  > .p-inputwrapper:last-child {
+    @apply rounded-r-lg;
+
+    > .p-inputtext {
+      @apply rounded-r-lg;
+    }
+  }
+}
+
+.p-inputgroup-addon {
+  @apply flex items-center justify-center bg-white border-t border-l border-b border-support-3 px-4 py-3
+    last:border-r last:rounded-r-lg
+    first:rounded-l-lg;
+}

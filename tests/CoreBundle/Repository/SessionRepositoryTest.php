@@ -51,7 +51,7 @@ class SessionRepositoryTest extends AbstractApiTest
         $repo = self::getContainer()->get(SessionRepository::class);
 
         $session = (new Session())
-            ->setName($name)
+            ->setTitle($name)
             ->addGeneralCoach($this->getUser('admin'))
             ->addAccessUrl($this->getAccessUrl())
         ;
@@ -72,7 +72,7 @@ class SessionRepositoryTest extends AbstractApiTest
             '/api/sessions',
             [
                 'json' => [
-                    'name' => 'test',
+                    'title' => 'test',
                     'generalCoach' => $user->getIri(),
                 ],
             ]
@@ -84,7 +84,7 @@ class SessionRepositoryTest extends AbstractApiTest
         $this->assertJsonContains(
             [
                 '@context' => '/api/contexts/Session',
-                'name' => 'test',
+                'title' => 'test',
             ]
         );
     }
@@ -101,7 +101,7 @@ class SessionRepositoryTest extends AbstractApiTest
             '/api/sessions/'.$session->getId(),
             [
                 'json' => [
-                    'name' => $newSessionName,
+                    'title' => $newSessionName,
                 ],
             ]
         );
@@ -111,7 +111,7 @@ class SessionRepositoryTest extends AbstractApiTest
         $this->assertJsonContains(
             [
                 '@context' => '/api/contexts/Session',
-                'name' => $newSessionName,
+                'title' => $newSessionName,
             ]
         );
     }
@@ -255,7 +255,7 @@ class SessionRepositoryTest extends AbstractApiTest
 
         $session->setAccessStartDate(new DateTime());
         $sessionRepo->update($session);
-        $student->setActive(false);
+        $student->setActive(User::INACTIVE);
         $userRepo->update($student);
 
         $this->expectException(Exception::class);
@@ -275,7 +275,7 @@ class SessionRepositoryTest extends AbstractApiTest
         $student = $this->createUser('student');
         $sessionAdmin = $this->createUser('session_admin');
         $generalCoach = $this->createUser('general_coach');
-        $drh = $this->createUser('drh', '', '', 'ROLE_RRHH');
+        $drh = $this->createUser('drh', '', '', 'ROLE_HR');
         $courseCoach = $this->createUser('course_coach', '', '', 'ROLE_TEACHER');
 
         // Add session admin + add course to session.
@@ -313,8 +313,8 @@ class SessionRepositoryTest extends AbstractApiTest
         $this->assertTrue($session->hasStudentInCourse($student, $course));
         $this->assertFalse($session->hasStudentInCourse($sessionAdmin, $course));
 
-        $this->assertCount(1, $student->getStudentSessions());
-        $this->assertCount(0, $sessionAdmin->getStudentSessions());
+        $this->assertCount(1, $student->getSessionsAsStudent());
+        $this->assertCount(0, $sessionAdmin->getSessionsAsStudent());
 
         $em->clear();
 
@@ -391,80 +391,58 @@ class SessionRepositoryTest extends AbstractApiTest
         $userRepo = self::getContainer()->get(UserRepository::class);
 
         // Add session + course + user.
-        $name = 'session';
-        $session = $this->createSession($name);
         $course = $this->createCourse('new');
         $user = $this->createUser('student');
         $sessionAdmin = $this->createUser('session_admin');
-
-        $this->assertHasNoEntityViolations($session);
-
-        // 2. Add course to session.
-        $session
+        $name = 'session';
+        $session = $this->createSession($name)
             ->addSessionAdmin($sessionAdmin)
             ->setDisplayStartDate(new DateTime('2010-01-01 15:00'))
             ->setDisplayEndDate(new DateTime('2010-01-01 18:00'))
-            ->addCourse($course)
         ;
+
+        $this->assertHasNoEntityViolations($session);
         $sessionRepo->update($session);
-        $this->assertSame(1, $session->getCourses()->count());
+
+        // 2. Add course to session.
+        $session->addCourse($course);
+        $sessionRepo->update($session);
+        $this->assertSame(
+            1,
+            $session->getCourses()->count()
+        );
 
         // 3. Add student to session - course.
-        $course = $this->getCourse($course->getId());
-
-        /** @var User $user */
-        $user = $userRepo->find($user->getId());
-        /** @var Session $session */
-        $session = $sessionRepo->find($session->getId());
-        $studentStatus = Session::STUDENT;
-
-        $sessionRepo->addUserInCourse($studentStatus, $user, $course, $session);
+        $sessionRepo->addUserInCourse(Session::STUDENT, $user, $course, $session);
         $sessionRepo->update($session);
 
-        $em->clear();
+        $this->assertCount(1, $user->getSessionsAsStudent());
 
-        /** @var User $user */
-        $user = $userRepo->find($user->getId());
-        /** @var Session $session */
-        $session = $sessionRepo->find($session->getId());
-        $this->assertCount(1, $user->getStudentSessions());
-
-        $sessions = $user->getSessions($studentStatus);
-        $this->assertCount(1, $sessions);
-
-        $hasUser = $session->hasUserInCourse($user, $course, $studentStatus);
-
-        $this->assertTrue($hasUser);
+        $this->assertTrue($session->hasUserInCourse($user, $course, Session::STUDENT));
         $this->assertTrue($session->hasStudentInCourse($user, $course));
         $this->assertTrue($session->hasStudentInCourseList($user));
 
         $this->assertSame(3, $session->getUsers()->count());
 
+        // general coach
         $sessionRelUser1 = $session->getUsers()[0];
         $admin = $this->getUser('admin');
 
-        $this->assertNotNull($sessionRelUser1->getSession());
         $this->assertSame($session, $sessionRelUser1->getSession());
+        $this->assertSame(0, $sessionRelUser1->getCourses()->count());
         $this->assertSame($admin, $sessionRelUser1->getUser());
 
+        // session admin
         $sessionRelUser2 = $session->getUsers()[1];
+        $this->assertSame($session, $sessionRelUser2->getSession());
+        $this->assertSame(0, $sessionRelUser2->getCourses()->count());
+        $this->assertSame($sessionAdmin, $sessionRelUser2->getUser());
 
         // Student is to one course.
-        $this->assertSame(1, $sessionRelUser2->getCourses()->count());
-        $this->assertSame($user, $sessionRelUser2->getUser());
-
-        // Session admin is not connected to any course.
         $sessionRelUser3 = $session->getUsers()[2];
-        $this->assertNotNull($sessionRelUser3->getSession());
-        $this->assertSame(0, $sessionRelUser3->getCourses()->count());
-
-        // 4. Delete student
-        $userRepo->delete($user);
-
-        /** @var Session $session */
-        $session = $sessionRepo->find($session->getId());
-        $this->assertSame(2, $session->getUsers()->count());
-        $this->assertSame(0, $session->getSessionRelCourseRelUsers()->count());
+        $this->assertSame($session, $sessionRelUser3->getSession());
+        $this->assertSame(1, $sessionRelUser3->getCourses()->count());
+        $this->assertSame($user, $sessionRelUser3->getUser());
     }
 
     public function testGeneralCoachesInSession(): void
@@ -508,7 +486,7 @@ class SessionRepositoryTest extends AbstractApiTest
         $coach = $this->createUser('coach');
 
         $category = (new SessionCategory())
-            ->setName('cat')
+            ->setTitle('cat')
             ->setDateStart(new DateTime())
             ->setDateEnd(new DateTime())
             ->setUrl($this->getAccessUrl())
@@ -522,17 +500,19 @@ class SessionRepositoryTest extends AbstractApiTest
         $this->assertNotNull($category->getDateEnd());
         $this->assertNotNull($category->getUrl());
 
-        $session = ($sessionRepo->create())
-            ->setName('session 1')
+        $session = $sessionRepo->create()
+            ->setTitle('session 1')
             ->addGeneralCoach($coach)
             ->addAccessUrl($url)
             ->setCategory($category)
             ->setDuration(100)
             ->setStatus(1)
             ->setAccessStartDate(new DateTime())
-            ->setAccessEndDate(new DateTime())
+            ->setAccessEndDate(new DateTime('+1 month'))
             ->setDisplayStartDate(new DateTime())
-            ->setDisplayEndDate(new DateTime())
+            ->setDisplayEndDate(new DateTime('+1 month'))
+            ->setCoachAccessStartDate(new DateTime())
+            ->setCoachAccessEndDate(new DateTime('+1 month'))
             ->setPosition(1)
             ->setShowDescription(true)
             ->setDescription('desc')
@@ -554,7 +534,7 @@ class SessionRepositoryTest extends AbstractApiTest
         $this->assertTrue($session->isActiveForStudent());
 
         $this->assertTrue($session->isActiveForCoach());
-        $this->assertFalse($session->isCurrentlyAccessible());
+        $this->assertTrue($session->isCurrentlyAccessible());
 
         $user = $this->createUser('test');
         $this->assertFalse($session->hasUserAsGeneralCoach($user));
@@ -565,14 +545,16 @@ class SessionRepositoryTest extends AbstractApiTest
     public function testSessionRelUser(): void
     {
         $em = $this->getEntityManager();
+
+        /** @var SessionRepository $sessionRepo */
         $sessionRepo = self::getContainer()->get(SessionRepository::class);
 
         $url = $this->getAccessUrl();
         $coach = $this->createUser('coach');
         $course = $this->createCourse('new');
 
-        $session = ($sessionRepo->create())
-            ->setName('session 1')
+        $session = $sessionRepo->create()
+            ->setTitle('session 1')
             ->addGeneralCoach($coach)
             ->addAccessUrl($url)
             ->setVisibility(Session::INVISIBLE)
@@ -604,7 +586,7 @@ class SessionRepositoryTest extends AbstractApiTest
         $this->assertSame(2, $session->getAllUsersFromCourse(Session::STUDENT)->count());
 
         $student1 = $this->getUser('student1');
-        $sessions = $sessionRepo->getSessionsByUser($student1, $url);
+        $sessions = $sessionRepo->getSessionsByUser($student1, $url)->getQuery()->getResult();
         $this->assertCount(1, $sessions);
 
         $sessions = $sessionRepo->getSessionCoursesByStatusInUserSubscription($student1, $session, Session::STUDENT);

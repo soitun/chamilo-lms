@@ -42,7 +42,7 @@ final class CLpRepository extends ResourceRepository implements ResourceWithLink
         $this->create($lp);
     }
 
-    public function findForumByCourse(CLp $lp, Course $course, Session $session = null): ?CForum
+    public function findForumByCourse(CLp $lp, Course $course, ?Session $session = null): ?CForum
     {
         $forums = $lp->getForums();
         $result = null;
@@ -62,7 +62,7 @@ final class CLpRepository extends ResourceRepository implements ResourceWithLink
 
     public function findAllByCourse(
         Course $course,
-        Session $session = null,
+        ?Session $session = null,
         ?string $title = null,
         ?int $active = null,
         bool $onlyPublished = true,
@@ -73,9 +73,9 @@ final class CLpRepository extends ResourceRepository implements ResourceWithLink
         /*if ($onlyPublished) {
             $this->addDateFilterQueryBuilder(new DateTime(), $qb);
         }*/
-        //$this->addCategoryQueryBuilder($categoryId, $qb);
-        //$this->addActiveQueryBuilder($active, $qb);
-        //$this->addNotDeletedQueryBuilder($qb);
+        // $this->addCategoryQueryBuilder($categoryId, $qb);
+        // $this->addActiveQueryBuilder($active, $qb);
+        // $this->addNotDeletedQueryBuilder($qb);
         $this->addTitleQueryBuilder($title, $qb);
 
         return $qb;
@@ -95,7 +95,21 @@ final class CLpRepository extends ResourceRepository implements ResourceWithLink
         return $router->generate('legacy_main', $params);
     }
 
-    private function addNotDeletedQueryBuilder(QueryBuilder $qb = null): QueryBuilder
+    public function findAutoLaunchableLPByCourseAndSession(Course $course, ?Session $session = null): ?int
+    {
+        $qb = $this->getResourcesByCourse($course, $session)
+            ->select('resource.iid')
+            ->andWhere('resource.autolaunch = 1')
+        ;
+
+        $qb->setMaxResults(1);
+
+        $result = $qb->getQuery()->getOneOrNullResult();
+
+        return $result ? $result['iid'] : null;
+    }
+
+    protected function addNotDeletedQueryBuilder(?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb);
 

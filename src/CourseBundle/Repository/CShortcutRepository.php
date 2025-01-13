@@ -30,13 +30,13 @@ final class CShortcutRepository extends ResourceRepository
         return $this->findOneBy($criteria);
     }
 
-    public function addShortCut(ResourceInterface $resource, User $user, Course $course, Session $session = null): CShortcut
+    public function addShortCut(ResourceInterface $resource, User $user, Course $course, ?Session $session = null): CShortcut
     {
         $shortcut = $this->getShortcutFromResource($resource);
 
         if (null === $shortcut) {
             $shortcut = (new CShortcut())
-                ->setName($resource->getResourceName())
+                ->setTitle($resource->getResourceName())
                 ->setShortCutNode($resource->getResourceNode())
                 ->setCreator($user)
                 ->setParent($course)
@@ -55,7 +55,7 @@ final class CShortcutRepository extends ResourceRepository
         $shortcut = $this->getShortcutFromResource($resource);
         if (null !== $shortcut) {
             $em->remove($shortcut);
-            $em->flush();
+            // $em->flush();
 
             return true;
         }

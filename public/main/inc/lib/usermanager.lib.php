@@ -15,6 +15,7 @@ use Chamilo\CoreBundle\Repository\GroupRepository;
 use Chamilo\CoreBundle\Repository\Node\UserRepository;
 use ChamiloSession as Session;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Chamilo\CoreBundle\Entity\ExtraFieldValues as EntityExtraFieldValues;
 
 /**
  * This library provides functions for user management.
@@ -56,11 +57,12 @@ class UserManager
 
     /**
      * Validates the password.
-     *
-     * @return bool
      */
-    public static function isPasswordValid(User $user, $plainPassword)
+    public static function isPasswordValid(User $user, string $plainPassword): bool
     {
+        /**
+         * @psalm-suppress PrivateService
+         */
         $hasher = Container::$container->get('security.user_password_hasher');
 
         return $hasher->isPasswordValid($user, $plainPassword);
@@ -181,12 +183,11 @@ class UserManager
             }
         }
 
-        if (isset($_configuration[$access_url_id]) &&
-            is_array($_configuration[$access_url_id]) &&
-            isset($_configuration[$access_url_id]['hosting_limit_users']) &&
-            $_configuration[$access_url_id]['hosting_limit_users'] > 0) {
+        $hostingLimitUsers = get_hosting_limit($access_url_id, 'hosting_limit_users');
+
+        if ($hostingLimitUsers !== null && $hostingLimitUsers > 0) {
             $num = self::get_number_of_users();
-            if ($num >= $_configuration[$access_url_id]['hosting_limit_users']) {
+            if ($num >= $hostingLimitUsers) {
                 api_warn_hosting_contact('hosting_limit_users');
                 Display::addFlash(
                     Display::return_message(
@@ -199,23 +200,22 @@ class UserManager
             }
         }
 
-        if (1 === $status &&
-            isset($_configuration[$access_url_id]) &&
-            is_array($_configuration[$access_url_id]) &&
-            isset($_configuration[$access_url_id]['hosting_limit_teachers']) &&
-            $_configuration[$access_url_id]['hosting_limit_teachers'] > 0
-        ) {
-            $num = self::get_number_of_users(1);
-            if ($num >= $_configuration[$access_url_id]['hosting_limit_teachers']) {
-                Display::addFlash(
-                    Display::return_message(
-                        get_lang('Sorry, this installation has a teachers limit, which has now been reached. To increase the number of teachers allowed on this Chamilo installation, please contact your hosting provider or, if available, upgrade to a superior hosting plan.'),
-                        'warning'
-                    )
-                );
-                api_warn_hosting_contact('hosting_limit_teachers');
+        if (1 === $status) {
+            $hostingLimitTeachers = get_hosting_limit($access_url_id, 'hosting_limit_teachers');
 
-                return false;
+            if ($hostingLimitTeachers !== null && $hostingLimitTeachers > 0) {
+                $num = self::get_number_of_users(1);
+                if ($num >= $hostingLimitTeachers) {
+                    Display::addFlash(
+                        Display::return_message(
+                            get_lang('Sorry, this installation has a teachers limit, which has now been reached. To increase the number of teachers allowed on this Chamilo installation, please contact your hosting provider or, if available, upgrade to a superior hosting plan.'),
+                            'warning'
+                        )
+                    );
+                    api_warn_hosting_contact('hosting_limit_teachers');
+
+                    return false;
+                }
             }
         }
 
@@ -282,7 +282,6 @@ class UserManager
             ->setRegistrationDate($now)
             ->setHrDeptId($hrDeptId)
             ->setActive($active)
-            ->setEnabled($active)
             ->setTimezone(api_get_timezone())
         ;
 
@@ -314,6 +313,7 @@ class UserManager
         $userId = $user->getId();
 
         if (!empty($userId)) {
+            $userLocale = $user->getLocale();
             if ($isAdmin) {
                 self::addUserAsAdmin($user);
             }
@@ -334,9 +334,9 @@ class UserManager
                 $userFieldValue->saveFieldValues(
                     $extra,
                     true,
-                    null,
-                    null,
-                    null,
+                    false,
+                    [],
+                    [],
                     true
                 );
             } else {
@@ -364,7 +364,7 @@ class UserManager
                 'false'
             );
 
-            if (!empty($redirectToURLAfterLogin) && api_get_configuration_value('plugin_redirection_enabled')) {
+            if (!empty($redirectToURLAfterLogin) && ('true' === api_get_setting('admin.plugin_redirection_enabled'))) {
                 RedirectionPlugin::insert($userId, $redirectToURLAfterLogin);
             }
 
@@ -376,7 +376,7 @@ class UserManager
                     PERSON_NAME_EMAIL_ADDRESS
                 );
                 $tpl = Container::getTwig();
-                $emailSubject = $tpl->render('@ChamiloCore/Mailer/Legacy/subject_registration_platform.html.twig');
+                $emailSubject = $tpl->render('@ChamiloCore/Mailer/Legacy/subject_registration_platform.html.twig', ['locale' => $userLocale]);
                 $sender_name = api_get_person_name(
                     api_get_setting('administratorName'),
                     api_get_setting('administratorSurname'),
@@ -404,6 +404,7 @@ class UserManager
                     'mailWebPath' => $url,
                     'new_user' => $user,
                     'search_link' => $url,
+                    'locale' => $userLocale,
                 ];
 
                 // ofaj
@@ -434,7 +435,7 @@ class UserManager
                     }
                 }
 
-                $twoEmail = api_get_configuration_value('send_two_inscription_confirmation_mail');
+                $twoEmail = ('true' === api_get_setting('mail.send_two_inscription_confirmation_mail'));
                 if (true === $twoEmail) {
                     $emailBody = $tpl->render(
                         '@ChamiloCore/Mailer/Legacy/new_user_first_email_confirmation.html.twig'
@@ -456,7 +457,12 @@ class UserManager
                         $emailSubject,
                         $emailBody,
                         $sender_name,
-                        $email_admin
+                        $email_admin,
+                        [],
+                        [],
+                        false,
+                        [],
+                        $creatorEmail
                     );
 
                     $emailBody = $tpl->render('@ChamiloCore/Mailer/Legacy/new_user_second_email_confirmation.html.twig');
@@ -481,13 +487,14 @@ class UserManager
                         null,
                         null,
                         null,
+                        [],
                         $creatorEmail
                     );
                 } else {
                     if (!empty($emailBodyTemplate)) {
                         $emailBody = $emailBodyTemplate;
                     }
-                    $sendToInbox = api_get_configuration_value('send_inscription_msg_to_inbox');
+                    $sendToInbox = ('true' === api_get_setting('registration.send_inscription_msg_to_inbox'));
                     if ($sendToInbox) {
                         $adminList = self::get_all_administrators();
                         $senderId = 1;
@@ -510,15 +517,16 @@ class UserManager
                             $emailBody,
                             $sender_name,
                             $email_admin,
-                            null,
-                            null,
-                            null,
+                            [],
+                            [],
+                            false,
+                            [],
                             $creatorEmail
                         );
                     }
                 }
 
-                $notification = api_get_configuration_value('send_notification_when_user_added');
+                $notification = api_get_setting('profile.send_notification_when_user_added', true);
                 if (!empty($notification) && isset($notification['admins']) && is_array($notification['admins'])) {
                     foreach ($notification['admins'] as $adminId) {
                         $emailSubjectToAdmin = get_lang('The user has been added').': '.
@@ -602,7 +610,7 @@ class UserManager
      */
     public static function canDeleteUser($user_id)
     {
-        $deny = api_get_configuration_value('deny_delete_users');
+        $deny = api_get_env_variable('DENY_DELETE_USERS', false);
 
         if ($deny) {
             return false;
@@ -631,20 +639,15 @@ class UserManager
     }
 
     /**
-     * Delete a user from the platform, and all its belongings. This is a
-     * very dangerous function that should only be accessible by
-     * super-admins. Other roles should only be able to disable a user,
-     * which removes access to the platform but doesn't delete anything.
+     * Deletes a user from the system or marks the user as deleted based on the $destroy flag.
+     * If $destroy is false, the user is only marked as deleted (e.g., active = -1) but not actually removed from the database.
+     * This allows for the possibility of restoring the user at a later time. If $destroy is true, the user and all their relations
+     * are permanently removed from the database.
      *
-     * @param int The ID of th user to be deleted
-     *
-     * @throws Exception
-     *
-     * @return bool true if user is successfully deleted, false otherwise
-     * @assert (null) === false
-     * @assert ('abc') === false
+     * Note: When $destroy is false, the user's relations are not removed, allowing for potential restoration. When $destroy is true,
+     * the function proceeds to remove all the user's relations, effectively cleaning up all references to the user in the system.
      */
-    public static function delete_user($user_id)
+    public static function delete_user(int $user_id, bool $destroy = false): bool
     {
         $user_id = (int) $user_id;
 
@@ -656,196 +659,34 @@ class UserManager
             return false;
         }
 
-        $usergroup_rel_user = Database::get_main_table(TABLE_USERGROUP_REL_USER);
-        $table_course_user = Database::get_main_table(TABLE_MAIN_COURSE_USER);
-        $table_course = Database::get_main_table(TABLE_MAIN_COURSE);
-        $table_session = Database::get_main_table(TABLE_MAIN_SESSION);
-        $table_admin = Database::get_main_table(TABLE_MAIN_ADMIN);
-        $table_session_user = Database::get_main_table(TABLE_MAIN_SESSION_USER);
-        $table_session_course_user = Database::get_main_table(TABLE_MAIN_SESSION_COURSE_USER);
-        $table_group = Database::get_course_table(TABLE_GROUP_USER);
-        $table_work = Database::get_course_table(TABLE_STUDENT_PUBLICATION);
-
-        $userInfo = api_get_user_info($user_id);
         $repository = Container::getUserRepository();
 
         /** @var User $user */
         $user = $repository->find($user_id);
 
-        $repository->deleteUser($user);
-
-        // Unsubscribe the user from all groups in all his courses
-        $sql = "SELECT c.id
-                FROM $table_course c
-                INNER JOIN $table_course_user cu
-                ON (c.id = cu.c_id)
-                WHERE
-                    cu.user_id = '".$user_id."' AND
-                    relation_type<>".COURSE_RELATION_TYPE_RRHH."
-                ";
-
-        $res = Database::query($sql);
-        while ($course = Database::fetch_object($res)) {
-            $sql = "DELETE FROM $table_group
-                    WHERE c_id = {$course->id} AND user_id = $user_id";
-            Database::query($sql);
+        if (!$user) {
+            return false;
         }
 
-        // Unsubscribe user from usergroup_rel_user
-        $sql = "DELETE FROM $usergroup_rel_user WHERE user_id = '".$user_id."'";
-        Database::query($sql);
+        $repository->deleteUser($user, $destroy);
 
-        // Unsubscribe user from all courses
-        $sql = "DELETE FROM $table_course_user WHERE user_id = '".$user_id."'";
-        Database::query($sql);
+        if ($destroy) {
+            Event::addEvent(
+                LOG_USER_DELETE,
+                LOG_USER_ID,
+                $user_id,
+                api_get_utc_datetime(),
+                api_get_user_id()
+            );
 
-        // Unsubscribe user from all courses in sessions
-        $sql = "DELETE FROM $table_session_course_user WHERE user_id = '".$user_id."'";
-        Database::query($sql);
-
-        // If the user was added as a general coach then set the current admin as general coach see BT#
-        $currentUserId = api_get_user_id();
-        $sql = "UPDATE session_rel_user
-            SET user_id = $currentUserId
-            WHERE user_id = $user_id AND relation_type = ".SessionEntity::GENERAL_COACH;
-        Database::query($sql);
-
-        $sql = "UPDATE session_rel_user
-            SET user_id = $currentUserId
-            WHERE user_id = $user_id AND relation_type = ".SessionEntity::SESSION_ADMIN;
-        Database::query($sql);
-
-        // Unsubscribe user from all sessions
-        $sql = "DELETE FROM $table_session_user
-                WHERE user_id = '".$user_id."'";
-        Database::query($sql);
-
-        if (api_get_configuration_value('plugin_redirection_enabled')) {
-            RedirectionPlugin::deleteUserRedirection($user_id);
+            Event::addEvent(
+                LOG_USER_DELETE,
+                LOG_USER_OBJECT,
+                api_get_user_info($user_id),
+                api_get_utc_datetime(),
+                api_get_user_id()
+            );
         }
-
-        // Delete user from the admin table
-        $sql = "DELETE FROM $table_admin WHERE user_id = '".$user_id."'";
-        Database::query($sql);
-
-        // Delete the personal agenda-items from this user
-        $agenda_table = Database::get_main_table(TABLE_PERSONAL_AGENDA);
-        $sql = "DELETE FROM $agenda_table WHERE user = '".$user_id."'";
-        Database::query($sql);
-
-        $gradebook_results_table = Database::get_main_table(TABLE_MAIN_GRADEBOOK_RESULT);
-        $sql = 'DELETE FROM '.$gradebook_results_table.' WHERE user_id = '.$user_id;
-        Database::query($sql);
-
-        $extraFieldValue = new ExtraFieldValue('user');
-        $extraFieldValue->deleteValuesByItem($user_id);
-
-        UrlManager::deleteUserFromAllUrls($user_id);
-        //UrlManager::deleteUserFromAllUrls($user_id);
-
-        if ('true' === api_get_setting('allow_social_tool')) {
-            $userGroup = new UserGroupModel();
-            //Delete user from portal groups
-            $group_list = $userGroup->get_groups_by_user($user_id);
-            if (!empty($group_list)) {
-                foreach ($group_list as $group_id => $data) {
-                    $userGroup->delete_user_rel_group($user_id, $group_id);
-                }
-            }
-
-            // Delete user from friend lists
-            //SocialManager::remove_user_rel_user($user_id, true);
-        }
-
-        // Removing survey invitation
-        SurveyManager::delete_all_survey_invitations_by_user($user_id);
-
-        // Delete students works
-        /*$sql = "DELETE FROM $table_work WHERE user_id = $user_id ";
-        Database::query($sql);*/
-
-        /*$sql = "UPDATE c_item_property SET to_user_id = NULL
-                WHERE to_user_id = '".$user_id."'";
-        Database::query($sql);
-
-        $sql = "UPDATE c_item_property SET insert_user_id = NULL
-                WHERE insert_user_id = '".$user_id."'";
-        Database::query($sql);
-
-        $sql = "UPDATE c_item_property SET lastedit_user_id = NULL
-                WHERE lastedit_user_id = '".$user_id."'";
-        Database::query($sql);*/
-
-        // Skills
-        $em = Database::getManager();
-
-        $criteria = ['user' => $user_id];
-        $skills = $em->getRepository(SkillRelUser::class)->findBy($criteria);
-        if ($skills) {
-            /** @var SkillRelUser $skill */
-            foreach ($skills as $skill) {
-                $comments = $skill->getComments();
-                if ($comments) {
-                    /** @var SkillRelUserComment $comment */
-                    foreach ($comments as $comment) {
-                        $em->remove($comment);
-                    }
-                }
-                $em->remove($skill);
-            }
-        }
-
-        // ExtraFieldSavedSearch
-        $criteria = ['user' => $user_id];
-        $searchList = $em->getRepository(ExtraFieldSavedSearch::class)->findBy($criteria);
-        if ($searchList) {
-            foreach ($searchList as $search) {
-                $em->remove($search);
-            }
-        }
-
-        $connection = Database::getManager()->getConnection();
-        $schemaManager = $connection->createSchemaManager();
-        $tableExists = $schemaManager->tablesExist(['plugin_bbb_room']);
-        if ($tableExists) {
-            // Delete user from database
-            $sql = "DELETE FROM plugin_bbb_room WHERE participant_id = $user_id";
-            Database::query($sql);
-        }
-
-        // Delete user/ticket relationships :(
-        $tableExists = $schemaManager->tablesExist(['ticket_ticket']);
-        if ($tableExists) {
-            TicketManager::deleteUserFromTicketSystem($user_id);
-        }
-
-        $tableExists = $schemaManager->tablesExist(['c_lp_category_user']);
-        if ($tableExists) {
-            $sql = "DELETE FROM c_lp_category_user WHERE user_id = $user_id";
-            Database::query($sql);
-        }
-
-        $app_plugin = new AppPlugin();
-        $app_plugin->performActionsWhenDeletingItem('user', $user_id);
-
-        // Add event to system log
-        $authorId = api_get_user_id();
-
-        Event::addEvent(
-            LOG_USER_DELETE,
-            LOG_USER_ID,
-            $user_id,
-            api_get_utc_datetime(),
-            $authorId
-        );
-
-        Event::addEvent(
-            LOG_USER_DELETE,
-            LOG_USER_OBJECT,
-            $userInfo,
-            api_get_utc_datetime(),
-            $authorId
-        );
 
         return true;
     }
@@ -1046,9 +887,11 @@ class UserManager
         }
 
         $change_active = 0;
-        $isUserActive = $user->getActive();
-        if ($isUserActive != $active) {
-            $change_active = 1;
+        $isUserActive = $user->isActive();
+        if ($active != USER_SOFT_DELETED) {
+            if ($isUserActive != $active) {
+                $change_active = 1;
+            }
         }
 
         $originalUsername = $user->getUsername();
@@ -1066,7 +909,11 @@ class UserManager
             $expiration_date = new \DateTime($expiration_date, new DateTimeZone('UTC'));
         }
 
+        $previousStatus = $user->getStatus();
+        $previousRole = $user->getRoleFromStatus($previousStatus);
+
         $user
+            ->removeRole($previousRole)
             ->setLastname($lastname)
             ->setFirstname($firstname)
             ->setUsername($username)
@@ -1079,7 +926,6 @@ class UserManager
             ->setAddress($address)
             ->setExpirationDate($expiration_date)
             ->setActive($active)
-            ->setEnabled($active)
             ->setHrDeptId((int) $hr_dept_id)
         ;
 
@@ -1249,8 +1095,8 @@ class UserManager
                 ON ufv.field_id = uf.id
                 WHERE
                     variable = '$original_user_id_name' AND
-                    value = '$original_user_id_value' AND
-                    extra_field_type = $extraFieldType
+                    field_value = '$original_user_id_value' AND
+                    item_type = $extraFieldType
                 ";
         $res = Database::query($sql);
         $row = Database::fetch_object($res);
@@ -1386,6 +1232,9 @@ class UserManager
             // 3. Length limitation.
             $return = 'true' === api_get_setting('login_is_email') ? substr(preg_replace(USERNAME_PURIFIER_MAIL, '', $username), 0, User::USERNAME_MAX_LENGTH) : substr(preg_replace(USERNAME_PURIFIER, '', $username), 0, User::USERNAME_MAX_LENGTH);
             $return = URLify::transliterate($return);
+
+            // We want everything transliterate() does except converting @ to '(at)'. This is a hack to avoid this.
+            $return = str_replace(' (at) ', '@', $return);
 
             return $return;
         }
@@ -1596,7 +1445,7 @@ class UserManager
                 $urlId = api_get_current_access_url_id();
             }
             $sql .= " INNER JOIN $userUrlTable url_user
-                      ON (user.user_id = url_user.user_id)
+                      ON (user.id = url_user.user_id)
                       WHERE url_user.access_url_id = $urlId";
         } else {
             $sql .= " WHERE 1=1 ";
@@ -1711,6 +1560,56 @@ class UserManager
         }
 
         return $return_array;
+    }
+
+    /**
+     * Get user path from user ID (returns an array).
+     * The return format is a complete path to a folder ending with "/"
+     * In case the first level of subdirectory of users/ does not exist, the
+     * function will attempt to create it. Probably not the right place to do it
+     * but at least it avoids headaches in many other places.
+     *
+     * @param int    $id   User ID
+     * @param string $type Type of path to return (can be 'system', 'web', 'last')
+     *
+     * @return string User folder path (i.e. /var/www/chamilo/app/upload/users/1/1/)
+     */
+    public static function getUserPathById($id, $type)
+    {
+        $id = (int) $id;
+        if (!$id) {
+            return null;
+        }
+
+        $userPath = "users/$id/";
+        if (api_get_setting('split_users_upload_directory') === 'true') {
+            $userPath = 'users/'.substr((string) $id, 0, 1).'/'.$id.'/';
+            // In exceptional cases, on some portals, the intermediate base user
+            // directory might not have been created. Make sure it is before
+            // going further.
+
+            $rootPath = api_get_path(SYS_PATH).'../app/upload/users/'.substr((string) $id, 0, 1);
+            if (!is_dir($rootPath)) {
+                $perm = api_get_permissions_for_new_directories();
+                try {
+                    mkdir($rootPath, $perm);
+                } catch (Exception $e) {
+                    error_log($e->getMessage());
+                }
+            }
+        }
+        switch ($type) {
+            case 'system': // Base: absolute system path.
+                $userPath = api_get_path(SYS_PATH).'../app/upload/'.$userPath;
+                break;
+            case 'web': // Base: absolute web path.
+                $userPath = api_get_path(WEB_PATH).'../app/upload/'.$userPath;
+                break;
+            case 'last': // Only the last part starting with users/
+                break;
+        }
+
+        return $userPath;
     }
 
     /**
@@ -1901,6 +1800,7 @@ class UserManager
      * productions on the filesystem before the removal request has been carried
      * out because they'll have to be re-read afterwards anyway.
      *
+     * @deprecated This method is being removed from chamilo 2.0
      * @param int  $user_id    User id
      * @param bool $force      Optional parameter to force building after a removal request
      * @param bool $showDelete
@@ -2026,7 +1926,7 @@ class UserManager
         $params = [
             'item_id' => $userId,
             'variable' => $variable,
-            'value' => $value,
+            'field_value' => $value,
         ];
 
         return $extraFieldValue->save($params);
@@ -2058,7 +1958,7 @@ class UserManager
         $columns = [
             'id',
             'variable',
-            'field_type',
+            'value_type',
             'display_text',
             'default_value',
             'field_order',
@@ -2070,7 +1970,7 @@ class UserManager
             $sort_direction = strtoupper($direction);
         }
         $extraFieldType = EntityExtraField::USER_FIELD_TYPE;
-        $sqlf = "SELECT * FROM $t_uf WHERE extra_field_type = $extraFieldType ";
+        $sqlf = "SELECT * FROM $t_uf WHERE item_type = $extraFieldType ";
         if (!$all_visibility) {
             $sqlf .= " AND visible_to_self = 1 ";
         }
@@ -2088,7 +1988,7 @@ class UserManager
                 $fields[$rowf['id']] = [
                     0 => $rowf['id'],
                     1 => $rowf['variable'],
-                    2 => $rowf['field_type'],
+                    2 => $rowf['value_type'],
                     3 => empty($rowf['display_text']) ? '' : $rowf['display_text'],
                     4 => $rowf['default_value'],
                     5 => $rowf['field_order'],
@@ -2131,14 +2031,14 @@ class UserManager
      */
     public static function create_extra_field(
         $variable,
-        $fieldType,
+        $valueType,
         $displayText,
         $default
     ) {
         $extraField = new ExtraField('user');
         $params = [
             'variable' => $variable,
-            'field_type' => $fieldType,
+            'value_type' => $valueType,
             'display_text' => $displayText,
             'default_value' => $default,
         ];
@@ -2187,10 +2087,10 @@ class UserManager
         $extra_data = [];
         $t_uf = Database::get_main_table(TABLE_EXTRA_FIELD);
         $t_ufv = Database::get_main_table(TABLE_EXTRA_FIELD_VALUES);
-        $sql = "SELECT f.id as id, f.variable as fvar, f.field_type as type
+        $sql = "SELECT f.id as id, f.variable as fvar, f.value_type as type
                 FROM $t_uf f
                 WHERE
-                    extra_field_type = ".EntityExtraField::USER_FIELD_TYPE."
+                    item_type = ".EntityExtraField::USER_FIELD_TYPE."
                 ";
         $filter_cond = '';
 
@@ -2216,7 +2116,7 @@ class UserManager
                     $tags = self::get_user_tags_to_string($user_id, $row['id'], false);
                     $extra_data['extra_'.$row['fvar']] = $tags;
                 } else {
-                    $sqlu = "SELECT value as fval
+                    $sqlu = "SELECT field_value as fval
                             FROM $t_ufv
                             WHERE field_id=".$row['id']." AND item_id = ".$user_id;
                     $resu = Database::query($sqlu);
@@ -2280,7 +2180,7 @@ class UserManager
         $t_uf = Database::get_main_table(TABLE_EXTRA_FIELD);
         $t_ufv = Database::get_main_table(TABLE_EXTRA_FIELD_VALUES);
 
-        $sql = "SELECT f.id as id, f.variable as fvar, f.field_type as type
+        $sql = "SELECT f.id as id, f.variable as fvar, f.value_type as type
                 FROM $t_uf f
                 WHERE f.variable = '$field_variable' ";
 
@@ -2288,17 +2188,17 @@ class UserManager
             $sql .= " AND f.visible_to_self = 1 ";
         }
 
-        $sql .= " AND extra_field_type = ".EntityExtraField::USER_FIELD_TYPE;
+        $sql .= " AND item_type = ".EntityExtraField::USER_FIELD_TYPE;
         $sql .= " ORDER BY f.field_order ";
 
         $res = Database::query($sql);
         if (Database::num_rows($res) > 0) {
             while ($row = Database::fetch_array($res)) {
-                $sqlu = "SELECT value as fval FROM $t_ufv v
+                $sqlu = "SELECT field_value as fval FROM $t_ufv v
                          INNER JOIN $t_uf f
                          ON (v.field_id = f.id)
                          WHERE
-                            extra_field_type = ".EntityExtraField::USER_FIELD_TYPE." AND
+                            item_type = ".EntityExtraField::USER_FIELD_TYPE." AND
                             field_id = ".$row['id']." AND
                             item_id = ".$user_id;
                 $resu = Database::query($sqlu);
@@ -2519,12 +2419,12 @@ class UserManager
         if (!$getCount) {
             $dqlSelect = " DISTINCT
                 s.id,
-                s.name,
+                s.title,
                 s.accessStartDate AS access_start_date,
                 s.accessEndDate AS access_end_date,
                 s.duration,
                 sc.id AS session_category_id,
-                sc.name AS session_category_name,
+                sc.title AS session_category_title,
                 sc.dateStart AS session_category_date_start,
                 sc.dateEnd AS session_category_date_end,
                 s.coachAccessStartDate AS coach_access_start_date,
@@ -2553,21 +2453,21 @@ class UserManager
             WHERE (su.user = :user AND su.relationType = ".SessionEntity::GENERAL_COACH.") AND url.url = :url ";
 
         // Default order
-        $order = 'ORDER BY sc.name, s.name';
+        $order = 'ORDER BY sc.title, s.title';
 
         // Order by date if showing all sessions
-        $showAllSessions = true === api_get_configuration_value('show_all_sessions_on_my_course_page');
+        $showAllSessions = ('true' === api_get_setting('course.show_all_sessions_on_my_course_page'));
         if ($showAllSessions) {
             $order = 'ORDER BY s.accessStartDate';
         }
 
         // Order by position
-        if (api_get_configuration_value('session_list_order')) {
+        if ('true' === api_get_setting('session.session_list_order')) {
             $order = 'ORDER BY s.position';
         }
 
         // Order by dates according to settings
-        $orderBySettings = api_get_configuration_value('my_courses_session_order');
+        $orderBySettings = api_get_setting('session.my_courses_session_order', true);
         if (!empty($orderBySettings) && isset($orderBySettings['field']) && isset($orderBySettings['order'])) {
             $field = $orderBySettings['field'];
             $orderSetting = $orderBySettings['order'];
@@ -2584,7 +2484,8 @@ class UserManager
                     }
                     break;
                 case 'name':
-                    $order = " ORDER BY s.name $orderSetting ";
+                case 'title':
+                    $order = " ORDER BY s.title $orderSetting ";
                     break;
             }
         }
@@ -2629,7 +2530,10 @@ class UserManager
             }
         }
 
-        $collapsable = api_get_configuration_value('allow_user_session_collapsable');
+        $collapsable = ('true' === api_get_setting('session.allow_user_session_collapsable'));
+
+
+
         $extraField = new ExtraFieldValue('session');
         $collapsableLink = api_get_path(WEB_PATH).'user_portal.php?action=collapse_session';
 
@@ -2689,7 +2593,7 @@ class UserManager
 
             $categories[$row['session_category_id']]['session_category'] = [
                 'id' => $row['session_category_id'],
-                'name' => $row['session_category_name'],
+                'name' => $row['session_category_title'],
                 'date_start' => $categoryStart,
                 'date_end' => $categoryEnd,
             ];
@@ -2755,7 +2659,7 @@ class UserManager
             }
 
             $categories[$row['session_category_id']]['sessions'][] = [
-                'session_name' => $row['name'],
+                'session_name' => $row['title'],
                 'session_id' => $row['id'],
                 'access_start_date' => $row['access_start_date'] ? $row['access_start_date']->format('Y-m-d H:i:s') : null,
                 'access_end_date' => $row['access_end_date'] ? $row['access_end_date']->format('Y-m-d H:i:s') : null,
@@ -2833,7 +2737,7 @@ class UserManager
         $course_list_sql_result = Database::query($sql);
         $personal_course_list = [];
         if (Database::num_rows($course_list_sql_result) > 0) {
-            while ($result_row = Database::fetch_array($course_list_sql_result, 'ASSOC')) {
+            while ($result_row = Database::fetch_assoc($course_list_sql_result)) {
                 $course_info = api_get_course_info($result_row['code']);
                 $result_row['course_info'] = $course_info;
                 $personal_course_list[] = $result_row;
@@ -2870,7 +2774,7 @@ class UserManager
             $sessionLimitRestriction = "LIMIT $sessionLimit";
         }
 
-        $sql = "SELECT DISTINCT s.id, name, access_start_date, access_end_date
+        $sql = "SELECT DISTINCT s.id, s.title, access_start_date, access_end_date
                 FROM $tbl_session_user su INNER JOIN $tbl_session s
                 ON (s.id = su.session_id)
                 WHERE (
@@ -2878,7 +2782,7 @@ class UserManager
                     su.relation_type = ".SessionEntity::STUDENT."
                 )
                 $coachCourseConditions
-                ORDER BY access_start_date, access_end_date, name
+                ORDER BY access_start_date, access_end_date, s.title
                 $sessionLimitRestriction
         ";
 
@@ -2890,14 +2794,14 @@ class UserManager
         }
 
         $sql = "SELECT DISTINCT
-                s.id, s.name, s.access_start_date, s.access_end_date
+                s.id, s.title, s.access_start_date, s.access_end_date
                 FROM $tbl_session s
                 INNER JOIN $tbl_session_user sru ON sru.session_id = s.id
                 WHERE (
                     sru.user_id = $user_id AND sru.relation_type = ".SessionEntity::GENERAL_COACH."
                 )
                 $coachCourseConditions
-                ORDER BY s.access_start_date, s.access_end_date, s.name";
+                ORDER BY s.access_start_date, s.access_end_date, s.title";
 
         $result = Database::query($sql);
         if (Database::num_rows($result) > 0) {
@@ -2953,7 +2857,7 @@ class UserManager
                     $result_row['access_start_date'] = $session->getAccessStartDate()?->format('Y-m-d H:i:s');
                     $result_row['access_end_date'] = $session->getAccessEndDate()?->format('Y-m-d H:i:s');
                     $result_row['session_id'] = $session->getId();
-                    $result_row['session_name'] = $session->getName();
+                    $result_row['session_name'] = $session->getTitle();
                     $result_row['course_info'] = api_get_course_info($result_row['code']);
                     $key = $result_row['session_id'].' - '.$result_row['code'];
                     $personal_course_list[$key] = $result_row;
@@ -2979,7 +2883,7 @@ class UserManager
                 access_start_date,
                 access_end_date,
                 session.id as session_id,
-                session.name as session_name,
+                session.title as session_name,
                 IF((session_course_user.user_id = 3 AND session_course_user.status = ".SessionEntity::COURSE_COACH."),'2', '5')
             FROM $tbl_session_course_user as session_course_user
             INNER JOIN $tbl_course AS course
@@ -2991,7 +2895,7 @@ class UserManager
             ORDER BY i";
 
             $course_list_sql_result = Database::query($sql);
-            while ($result_row = Database::fetch_array($course_list_sql_result, 'ASSOC')) {
+            while ($result_row = Database::fetch_assoc($course_list_sql_result)) {
                 $result_row['course_info'] = api_get_course_info($result_row['code']);
                 $key = $result_row['session_id'].' - '.$result_row['code'];
                 if (!isset($personal_course_list[$key])) {
@@ -3065,7 +2969,7 @@ class UserManager
         $courses = [];
         $result = Database::query($sql);
         if (Database::num_rows($result) > 0) {
-            while ($result_row = Database::fetch_array($result, 'ASSOC')) {
+            while ($result_row = Database::fetch_assoc($result)) {
                 $result_row['status'] = 5;
                 if (!in_array($result_row['real_id'], $courses)) {
                     $position = $result_row['position'];
@@ -3271,7 +3175,7 @@ class UserManager
      *
      * @return mixed Non-indexed array containing the list of API keys for this user, or FALSE on error
      */
-    public static function get_api_keys($user_id = null, $api_service = 'dokeos')
+    public static function get_api_keys($user_id = null, $api_service = 'default')
     {
         if ($user_id != strval(intval($user_id))) {
             return false;
@@ -3312,7 +3216,7 @@ class UserManager
      *
      * @return bool True on success, false on failure
      */
-    public static function add_api_key($user_id = null, $api_service = 'dokeos')
+    public static function add_api_key($user_id = null, $api_service = 'default')
     {
         if ($user_id != strval(intval($user_id))) {
             return false;
@@ -3399,7 +3303,7 @@ class UserManager
         $res = Database::query($sql);
         $num = Database::num_rows($res);
         if (1 == $num) {
-            $id_key = Database::fetch_array($res, 'ASSOC');
+            $id_key = Database::fetch_assoc($res);
             self::delete_api_key($id_key['id']);
             $num = self::add_api_key($user_id, $api_service);
         } elseif (0 == $num) {
@@ -3434,7 +3338,7 @@ class UserManager
         if (Database::num_rows($res) < 1) {
             return false;
         }
-        $row = Database::fetch_array($res, 'ASSOC');
+        $row = Database::fetch_assoc($res);
 
         return $row['id'];
     }
@@ -3540,7 +3444,7 @@ class UserManager
         $result = Database::query($sql);
         $return = [];
         if (Database::num_rows($result) > 0) {
-            while ($row = Database::fetch_array($result, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($result)) {
                 $return[] = ['id' => $row['tag'], 'text' => $row['tag']];
             }
         }
@@ -3575,7 +3479,7 @@ class UserManager
         $result = Database::query($sql);
         $return = [];
         if (Database::num_rows($result) > 0) {
-            while ($row = Database::fetch_array($result, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($result)) {
                 $return[] = $row;
             }
         }
@@ -3609,7 +3513,7 @@ class UserManager
         $result = Database::query($sql);
         $return = [];
         if (Database::num_rows($result) > 0) {
-            while ($row = Database::fetch_array($result, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($result)) {
                 $return[$row['id']] = ['tag' => $row['tag'], 'count' => $row['count']];
             }
         }
@@ -3644,7 +3548,7 @@ class UserManager
         $result = Database::query($sql);
         $return = [];
         if (Database::num_rows($result) > 0) {
-            while ($row = Database::fetch_array($result, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($result)) {
                 $return[$row['id']] = ['tag' => $row['tag'], 'count' => $row['count']];
             }
         }
@@ -3685,7 +3589,7 @@ class UserManager
                 WHERE tag LIKE '$tag' AND field_id = $field_id";
         $result = Database::query($sql);
         if (Database::num_rows($result) > 0) {
-            $row = Database::fetch_array($result, 'ASSOC');
+            $row = Database::fetch_assoc($result);
 
             return $row['id'];
         } else {
@@ -3710,7 +3614,7 @@ class UserManager
                 WHERE id = '$tag_id' AND field_id = $field_id";
         $result = Database::query($sql);
         if (Database::num_rows($result) > 0) {
-            $row = Database::fetch_array($result, 'ASSOC');
+            $row = Database::fetch_assoc($result);
 
             return $row['id'];
         } else {
@@ -3850,10 +3754,11 @@ class UserManager
                     INNER JOIN $table_user u
                     ON (u.id=admin.user_id)";
         }
+        $sql .= !str_contains($sql, 'WHERE') ? ' WHERE u.active <> '.USER_SOFT_DELETED : ' AND u.active <> '.USER_SOFT_DELETED;
         $result = Database::query($sql);
         $return = [];
         if (Database::num_rows($result) > 0) {
-            while ($row = Database::fetch_array($result, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($result)) {
                 $return[$row['user_id']] = $row;
             }
         }
@@ -3935,11 +3840,11 @@ class UserManager
 
         if (Database::num_rows($result) > 0) {
             if ($getCount) {
-                $row = Database::fetch_array($result, 'ASSOC');
+                $row = Database::fetch_assoc($result);
 
                 return $row['count'];
             }
-            while ($row = Database::fetch_array($result, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($result)) {
                 $return[$row['id']] = $row;
             }
         }
@@ -4600,18 +4505,18 @@ class UserManager
     }
 
     /**
-     * This function check if an user is followed by human resources manager.
+     * This function checks if a user is followed by provided human resources managers.
      *
      * @param int $user_id
      * @param int $hr_dept_id Human resources manager
      *
      * @return bool
+     * @throws Exception
+     * @throws \Doctrine\DBAL\Exception
      */
-    public static function is_user_followed_by_drh($user_id, $hr_dept_id)
+    public static function is_user_followed_by_drh(int $user_id, int $hr_dept_id): bool
     {
         $tbl_user_rel_user = Database::get_main_table(TABLE_MAIN_USER_REL_USER);
-        $user_id = (int) $user_id;
-        $hr_dept_id = (int) $hr_dept_id;
         $result = false;
 
         $sql = "SELECT user_id FROM $tbl_user_rel_user
@@ -4632,9 +4537,11 @@ class UserManager
      *
      * @param array $courseInfo
      *
-     * @return mixed The user id, or false if the session ID was negative
+     * @return int The user id, or 0 if the session ID was negative
+     * @throws Exception
+     * @throws \Doctrine\DBAL\Exception
      */
-    public static function get_user_id_of_course_admin_or_session_admin($courseInfo)
+    public static function get_user_id_of_course_admin_or_session_admin(array $courseInfo): int
     {
         $session = api_get_session_id();
         $table_user = Database::get_main_table(TABLE_MAIN_USER);
@@ -4642,12 +4549,12 @@ class UserManager
         $table_session_course_user = Database::get_main_table(TABLE_MAIN_SESSION_COURSE_USER);
 
         if (empty($courseInfo)) {
-            return false;
+            return 0;
         }
 
         $courseId = $courseInfo['real_id'];
 
-        if (0 == $session || is_null($session)) {
+        if (0 == $session) {
             $sql = 'SELECT u.id uid FROM '.$table_user.' u
                     INNER JOIN '.$table_course_user.' ru
                     ON ru.user_id = u.id
@@ -4659,27 +4566,28 @@ class UserManager
             if (1 == $num_rows) {
                 $row = Database::fetch_array($rs);
 
-                return $row['uid'];
+                return (int) $row['uid'];
             } else {
                 $my_num_rows = $num_rows;
-                $my_user_id = Database::result($rs, $my_num_rows - 1, 'uid');
 
-                return $my_user_id;
+                return (int) Database::result($rs, $my_num_rows - 1, 'uid');
             }
         } elseif ($session > 0) {
-            $sql = 'SELECT u.id uid FROM '.$table_user.' u
+            $sql = 'SELECT u.id as uid FROM '.$table_user.' u
                     INNER JOIN '.$table_session_course_user.' sru
-                    ON sru.user_id=u.id
+                    ON sru.user_id = u.id
                     WHERE
-                        sru.c_id="'.$courseId.'" AND
+                        sru.c_id = '.$courseId.' AND
                         sru.status = '.SessionEntity::COURSE_COACH;
             $rs = Database::query($sql);
-            $row = Database::fetch_array($rs);
+            if (Database::num_rows($rs) > 0) {
+                $row = Database::fetch_assoc($rs);
 
-            return $row['uid'];
+                return (int) $row['uid'];
+            }
         }
 
-        return false;
+        return 0;
     }
 
     /**
@@ -4704,7 +4612,7 @@ class UserManager
         $rs = Database::query($sql);
         $row = Database::fetch_array($rs);
 
-        if ('' == $row['path_certificate'] || is_null($row['path_certificate'])) {
+        if (!isset($row['path_certificate']) || '' == $row['path_certificate'] || is_null($row['path_certificate'])) {
             return false;
         }
 
@@ -4744,7 +4652,7 @@ class UserManager
 
         $rs = Database::query($sql);
         if (Database::num_rows($rs) > 0) {
-            $row = Database::fetch_array($rs, 'ASSOC');
+            $row = Database::fetch_assoc($rs);
             $score = $row['score_certificate'];
             $category_id = $row['cat_id'];
             $cat = Category::load($category_id);
@@ -4954,7 +4862,7 @@ class UserManager
                     continue;
                 }
 
-                $bossLanguage = $bossInfo['language'];
+                $bossLanguage = $bossInfo['locale'];
                 $sql = "INSERT IGNORE INTO $userRelUserTable (user_id, friend_user_id, relation_type)
                         VALUES ($studentId, $bossId, ".UserRelUser::USER_RELATION_TYPE_BOSS.")";
                 $insertId = Database::query($sql);
@@ -4962,10 +4870,10 @@ class UserManager
                 if ($insertId) {
                     if ($sendNotification) {
                         $name = $studentInfo['complete_name'];
-                        $url = api_get_path(WEB_CODE_PATH).'mySpace/myStudents.php?student='.$studentId;
+                        $url = api_get_path(WEB_CODE_PATH).'my_space/myStudents.php?student='.$studentId;
                         $url = Display::url($url, $url);
-                        $subject = sprintf(get_lang('You have been assigned the learner %s'), $name);
-                        $message = sprintf(get_lang('You have been assigned the learner %sWithUrlX'), $name, $url);
+                        $subject = sprintf(get_lang('You have been assigned the learner %s', $bossLanguage), $name);
+                        $message = sprintf(get_lang('You have been assigned the learner %s with url %s', $bossLanguage), $name, $url);
                         MessageManager::send_message_simple(
                             $bossId,
                             $subject,
@@ -5616,6 +5524,25 @@ SQL;
                 error_log("Could not anonymize IP address for user $userId ($sql)");
             }
         }
+
+        $extraFieldRepository = $em->getRepository(EntityExtraField::class);
+        $autoRemoveFields = $extraFieldRepository->findBy([
+            'autoRemove' => 1,
+            'itemType' => EntityExtraField::USER_FIELD_TYPE
+        ]);
+
+        foreach ($autoRemoveFields as $field) {
+            $extraFieldValueRepository = $em->getRepository(EntityExtraFieldValues::class);
+            $extraFieldValue = $extraFieldValueRepository->findOneBy([
+                'field' => $field,
+                'itemId' => $userId
+            ]);
+
+            if ($extraFieldValue) {
+                $em->remove($extraFieldValue);
+            }
+        }
+
         $em->persist($user);
         $em->flush();
         Event::addEvent(LOG_USER_ANONYMIZE, LOG_USER_ID, $userId);
@@ -5632,7 +5559,7 @@ SQL;
      */
     public static function anonymizeUserWithVerification($userId)
     {
-        $allowDelete = api_get_configuration_value('allow_delete_user_for_session_admin');
+        $allowDelete = ('true' === api_get_setting('session.allow_delete_user_for_session_admin'));
 
         $message = '';
         if (api_is_platform_admin() ||
@@ -5675,9 +5602,9 @@ SQL;
      *
      * @return string
      */
-    public static function deleteUserWithVerification($userId)
+    public static function deleteUserWithVerification($userId, bool $destroy = false)
     {
-        $allowDelete = api_get_configuration_value('allow_delete_user_for_session_admin');
+        $allowDelete = ('true' === api_get_setting('session.allow_delete_user_for_session_admin'));
         $message = Display::return_message(get_lang('You cannot delete this user'), 'error');
         $userToUpdateInfo = api_get_user_info($userId);
 
@@ -5697,7 +5624,7 @@ SQL;
             ($allowDelete && api_is_session_admin())
         ) {
             if (api_global_admin_can_edit_admin($userId, null, $allowDelete)) {
-                if (self::delete_user($userId)) {
+                if (self::delete_user($userId, $destroy)) {
                     $message = Display::return_message(
                         get_lang('The user has been deleted').': '.$userToUpdateInfo['complete_name_with_username'],
                         'confirmation'
@@ -5979,7 +5906,7 @@ SQL;
         $tableCareer = Database::get_main_table(TABLE_CAREER);
         $userId = (int) $userId;
 
-        $sql = "SELECT c.id, c.name
+        $sql = "SELECT c.id, c.title
                 FROM $table uc
                 INNER JOIN $tableCareer c
                 ON uc.career_id = c.id
@@ -5997,7 +5924,7 @@ SQL;
      */
     public static function addUserCareer($userId, $careerId)
     {
-        if (!api_get_configuration_value('allow_career_users')) {
+        if ('true' !== api_get_setting('profile.allow_career_users')) {
             return false;
         }
 
@@ -6018,7 +5945,7 @@ SQL;
      */
     public static function updateUserCareer($userCareerId, $data)
     {
-        if (!api_get_configuration_value('allow_career_users')) {
+        if ('true' !== api_get_setting('profile.allow_career_users')) {
             return false;
         }
 
@@ -6048,7 +5975,7 @@ SQL;
         $sql = "SELECT * FROM $table WHERE user_id = $userId AND career_id = $careerId";
         $result = Database::query($sql);
 
-        return Database::fetch_array($result, 'ASSOC');
+        return Database::fetch_assoc($result);
     }
 
     /**
@@ -6079,7 +6006,7 @@ SQL;
      * @assert (-1,0) === false
      * @assert (1,1) === true
      */
-    private static function change_active_state($user_id, $active)
+    public static function change_active_state($user_id, $active)
     {
         $user_id = (int) $user_id;
         $active = (int) $active;

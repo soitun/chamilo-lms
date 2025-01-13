@@ -1,7 +1,5 @@
 <html>
-<head>
 {% include "@ChamiloCore/Layout/head.html.twig" %}
-</head>
 <body>
 {% autoescape false %}
 <script>
@@ -36,7 +34,7 @@
     {% endif %}
 {% else %}
     <div id="toolbar-document" class="actions">
-        <a class="btn btn-default"
+        <a class="btn btn--plain"
            href = "{{ url('resources_filemanager', {'parentId' : parent_id, 'tool' : tool, 'type' : type}) }}">
             {{'Back' | trans}}
         </a>
@@ -58,5 +56,6 @@
 {% endif %}
 {% endautoescape %}
 
+{% include "@ChamiloCore/Layout/foot.html.twig" %}
 </body>
 </html>

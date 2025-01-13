@@ -12,7 +12,6 @@ use Chamilo\CoreBundle\Migrations\AbstractMigrationChamilo;
 use Chamilo\CoreBundle\Repository\Node\AccessUrlRepository;
 use Chamilo\CoreBundle\Repository\Node\IllustrationRepository;
 use Chamilo\CoreBundle\Repository\Node\UsergroupRepository;
-use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Schema;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
@@ -25,23 +24,18 @@ final class Version20210205082253 extends AbstractMigrationChamilo
 
     public function up(Schema $schema): void
     {
-        $container = $this->getContainer();
-        $em = $this->getEntityManager();
-        /** @var Connection $connection */
-        $connection = $em->getConnection();
-
-        $kernel = $container->get('kernel');
+        $kernel = $this->container->get('kernel');
         $rootPath = $kernel->getProjectDir();
 
-        $illustrationRepo = $container->get(IllustrationRepository::class);
+        $illustrationRepo = $this->container->get(IllustrationRepository::class);
 
         // Adding users to the resource node tree.
         $batchSize = self::BATCH_SIZE;
         $counter = 1;
-        $q = $em->createQuery('SELECT u FROM Chamilo\CoreBundle\Entity\User u');
+        $q = $this->entityManager->createQuery('SELECT u FROM Chamilo\CoreBundle\Entity\User u');
 
-        $sql = "SELECT * FROM settings_current WHERE variable = 'split_users_upload_directory' AND access_url = 1";
-        $result = $connection->executeQuery($sql);
+        $sql = "SELECT * FROM settings WHERE variable = 'split_users_upload_directory' AND access_url = 1";
+        $result = $this->connection->executeQuery($sql);
         $setting = $result->fetchAssociative();
 
         /** @var User $userEntity */
@@ -58,7 +52,8 @@ final class Version20210205082253 extends AbstractMigrationChamilo
             if (!empty($setting) && 'true' === $setting['selected_value']) {
                 $path = 'users/'.substr((string) $id, 0, 1).'/'.$id.'/';
             }
-            $picturePath = $rootPath.'/app/upload/'.$path.'/'.$picture;
+            $picturePath = $this->getUpdateRootPath().'/app/upload/'.$path.'/'.$picture;
+            error_log('MIGRATIONS :: $filePath -- '.$picturePath.' ...');
             if ($this->fileExists($picturePath)) {
                 $mimeType = mime_content_type($picturePath);
                 $file = new UploadedFile($picturePath, $picture, $mimeType, null, true);
@@ -66,23 +61,25 @@ final class Version20210205082253 extends AbstractMigrationChamilo
             }
 
             if (($counter % $batchSize) === 0) {
-                $em->flush();
-                $em->clear(); // Detaches all objects from Doctrine!
+                $this->entityManager->flush();
+                $this->entityManager->clear(); // Detaches all objects from Doctrine!
             }
             $counter++;
         }
 
-        $em->flush();
-        $em->clear();
+        $this->entityManager->flush();
+        $this->entityManager->clear();
 
         // Migrate Usergroup.
         $counter = 1;
-        $q = $em->createQuery('SELECT u FROM Chamilo\CoreBundle\Entity\Usergroup u');
+        $q = $this->entityManager->createQuery('SELECT u FROM Chamilo\CoreBundle\Entity\Usergroup u');
         $admin = $this->getAdmin();
 
-        $userGroupRepo = $container->get(UsergroupRepository::class);
-        $urlRepo = $container->get(AccessUrlRepository::class);
+        $userGroupRepo = $this->container->get(UsergroupRepository::class);
+        $urlRepo = $this->container->get(AccessUrlRepository::class);
+
         $urlList = $urlRepo->findAll();
+
         /** @var AccessUrl $url */
         $url = $urlList[0];
 
@@ -102,13 +99,14 @@ final class Version20210205082253 extends AbstractMigrationChamilo
                 $userGroup->getUrls()->add($accessUrlRelUserGroup);
             }
             $userGroupRepo->addResourceNode($userGroup, $admin, $url);
-            $em->persist($userGroup);
-            $em->flush();
+            $this->entityManager->persist($userGroup);
+            $this->entityManager->flush();
         }
-        $em->clear();
+        $this->entityManager->clear();
 
         // Migrate Usergroup images.
-        $q = $em->createQuery('SELECT u FROM Chamilo\CoreBundle\Entity\Usergroup u');
+        $q = $this->entityManager->createQuery('SELECT u FROM Chamilo\CoreBundle\Entity\Usergroup u');
+
         /** @var Usergroup $userGroup */
         foreach ($q->toIterable() as $userGroup) {
             if (!$userGroup->hasResourceNode()) {
@@ -124,7 +122,8 @@ final class Version20210205082253 extends AbstractMigrationChamilo
             if (!empty($setting) && 'true' === $setting['selected_value']) {
                 $path = 'groups/'.substr((string) $id, 0, 1).'/'.$id.'/';
             }
-            $picturePath = $rootPath.'/app/upload/'.$path.'/'.$picture;
+            $picturePath = $this->getUpdateRootPath().'/app/upload/'.$path.'/'.$picture;
+            error_log('MIGRATIONS :: $filePath -- '.$picturePath.' ...');
             if ($this->fileExists($picturePath)) {
                 $mimeType = mime_content_type($picturePath);
                 $file = new UploadedFile($picturePath, $picture, $mimeType, null, true);
@@ -132,13 +131,13 @@ final class Version20210205082253 extends AbstractMigrationChamilo
             }
 
             if (($counter % $batchSize) === 0) {
-                $em->flush();
-                $em->clear(); // Detaches all objects from Doctrine!
+                $this->entityManager->flush();
+                $this->entityManager->clear(); // Detaches all objects from Doctrine!
             }
             $counter++;
         }
 
-        $em->flush();
-        $em->clear();
+        $this->entityManager->flush();
+        $this->entityManager->clear();
     }
 }

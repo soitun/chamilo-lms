@@ -26,7 +26,7 @@ final class CQuizRepository extends ResourceRepository implements ResourceWithLi
 
     public function findAllByCourse(
         Course $course,
-        Session $session = null,
+        ?Session $session = null,
         ?string $title = null,
         ?int $active = null,
         bool $onlyPublished = true,
@@ -40,7 +40,9 @@ final class CQuizRepository extends ResourceRepository implements ResourceWithLi
         $this->addCategoryQueryBuilder($categoryId, $qb);
         $this->addActiveQueryBuilder($active, $qb);
         $this->addNotDeletedQueryBuilder($qb);
-        $this->addTitleQueryBuilder($title, $qb);
+        if (!empty($title)) {
+            $this->addTitleQueryBuilder($title, $qb);
+        }
 
         return $qb;
     }
@@ -58,7 +60,7 @@ final class CQuizRepository extends ResourceRepository implements ResourceWithLi
         return $router->generate('legacy_main', $params);
     }
 
-    private function addDateFilterQueryBuilder(DateTime $dateTime, QueryBuilder $qb = null): QueryBuilder
+    private function addDateFilterQueryBuilder(DateTime $dateTime, ?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb);
         $qb
@@ -80,7 +82,7 @@ final class CQuizRepository extends ResourceRepository implements ResourceWithLi
         return $qb;
     }
 
-    private function addNotDeletedQueryBuilder(QueryBuilder $qb = null): QueryBuilder
+    private function addNotDeletedQueryBuilder(?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb);
 
@@ -89,13 +91,13 @@ final class CQuizRepository extends ResourceRepository implements ResourceWithLi
         return $qb;
     }
 
-    private function addCategoryQueryBuilder(?int $categoryId = null, QueryBuilder $qb = null): QueryBuilder
+    private function addCategoryQueryBuilder(?int $categoryId = null, ?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb);
 
         if (null !== $categoryId) {
             $qb
-                ->andWhere('resource.exerciseCategory = :category_id')
+                ->andWhere('resource.quizCategory = :category_id')
                 ->setParameter('category_id', $categoryId)
             ;
         }
@@ -104,14 +106,17 @@ final class CQuizRepository extends ResourceRepository implements ResourceWithLi
     }
 
     /**
-     * @param int|null $active
-     *                         null = no filter
-     *                         -1 = deleted exercises
-     *                         0 = inactive exercises
-     *                         1 = active exercises
-     *                         2 = all exercises (active and inactive)
+     * Adds resource.active filter.
+     *
+     * The active parameter can be one of the following values.
+     *
+     * - null = no filter
+     * - -1 = deleted exercises
+     * - 0 = inactive exercises
+     * - 1 = active exercises
+     * - 2 = all exercises (active and inactive)
      */
-    private function addActiveQueryBuilder(?int $active = null, QueryBuilder $qb = null): QueryBuilder
+    private function addActiveQueryBuilder(?int $active = null, ?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb);
 
@@ -129,5 +134,22 @@ final class CQuizRepository extends ResourceRepository implements ResourceWithLi
         }
 
         return $qb;
+    }
+
+    /**
+     * Finds the auto-launchable quiz for the given course and session.
+     */
+    public function findAutoLaunchableQuizByCourseAndSession(Course $course, ?Session $session = null): ?int
+    {
+        $qb = $this->getResourcesByCourse($course, $session)
+            ->select('resource.iid')
+            ->andWhere('resource.autoLaunch = 1')
+        ;
+
+        $qb->setMaxResults(1);
+
+        $result = $qb->getQuery()->getOneOrNullResult();
+
+        return $result ? $result['iid'] : null;
     }
 }

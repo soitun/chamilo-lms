@@ -9,8 +9,6 @@ namespace Chamilo\CoreBundle\Migrations\Schema\V200;
 use Chamilo\CoreBundle\Entity\Asset;
 use Chamilo\CoreBundle\Entity\CourseCategory;
 use Chamilo\CoreBundle\Migrations\AbstractMigrationChamilo;
-use Chamilo\CoreBundle\Repository\CourseCategoryRepository;
-use Chamilo\Kernel;
 use Doctrine\DBAL\Schema\Schema;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
@@ -38,8 +36,12 @@ class Version20191101132000 extends AbstractMigrationChamilo
             $this->addSql('ALTER TABLE course ADD sticky TINYINT(1) NOT NULL');
         }
 
+        if (!$table->hasIndex('idx_course_sticky')) {
+            $this->addSql('CREATE INDEX idx_course_sticky ON course (sticky)');
+        }
+
         if (!$table->hasColumn('resource_node_id')) {
-            $this->addSql('ALTER TABLE course ADD COLUMN resource_node_id BIGINT DEFAULT NULL;');
+            $this->addSql('ALTER TABLE course ADD COLUMN resource_node_id INT DEFAULT NULL;');
             $this->addSql(
                 'ALTER TABLE course ADD CONSTRAINT FK_169E6FB91BAD783F FOREIGN KEY (resource_node_id) REFERENCES resource_node (id) ON DELETE CASCADE;'
             );
@@ -81,7 +83,7 @@ class Version20191101132000 extends AbstractMigrationChamilo
         }
 
         if ($schema->getTable('course')->hasColumn('category_id')) {
-            //$this->addSql('ALTER TABLE course DROP category_id');
+            // $this->addSql('ALTER TABLE course DROP category_id');
         }
 
         $table = $schema->getTable('course_rel_user');
@@ -99,11 +101,10 @@ class Version20191101132000 extends AbstractMigrationChamilo
 
         $table = $schema->getTable('course_category');
 
-        //$this->addSql('ALTER TABLE course DROP category_code');
-        $em = $this->getEntityManager();
-        $connection = $em->getConnection();
+        // $this->addSql('ALTER TABLE course DROP category_code');
+        $em = $this->entityManager;
         $sql = 'SELECT * FROM course_category';
-        $result = $connection->executeQuery($sql);
+        $result = $this->connection->executeQuery($sql);
         $all = $result->fetchAllAssociative();
 
         $categories = array_column($all, 'parent_id', 'id');
@@ -133,13 +134,10 @@ class Version20191101132000 extends AbstractMigrationChamilo
             $this->addSql('CREATE INDEX IDX_AFF874975DA1941 ON course_category (asset_id);');
         }
 
-        $container = $this->getContainer();
-
-        /** @var Kernel $kernel */
-        $kernel = $container->get('kernel');
+        $kernel = $this->container->get('kernel');
         $rootPath = $kernel->getProjectDir();
 
-        $repo = $container->get(CourseCategoryRepository::class);
+        $repo = $this->entityManager->getRepository(CourseCategory::class);
 
         if ($table->hasColumn('image')) {
             foreach ($all as $category) {
@@ -151,7 +149,8 @@ class Version20191101132000 extends AbstractMigrationChamilo
                         continue;
                     }
 
-                    $filePath = $rootPath.'/app/upload/course_category/'.$category['image'];
+                    $filePath = $this->getUpdateRootPath().'/app/upload/course_category/'.$category['image'];
+                    error_log('MIGRATIONS :: $filePath -- '.$filePath.' ...');
                     if ($this->fileExists($filePath)) {
                         $fileName = basename($filePath);
                         $mimeType = mime_content_type($filePath);
@@ -183,7 +182,7 @@ class Version20191101132000 extends AbstractMigrationChamilo
         $table = $schema->getTable('c_tool');
 
         if ($table->hasIndex('course')) {
-            //$this->addSql('DROP INDEX course ON c_tool');
+            // $this->addSql('DROP INDEX course ON c_tool');
         }
 
         $table = $schema->getTable('c_tool_intro');
@@ -196,7 +195,7 @@ class Version20191101132000 extends AbstractMigrationChamilo
         $this->addSql('ALTER TABLE c_tool_intro CHANGE id id VARCHAR(255) DEFAULT NULL');
 
         if (!$table->hasColumn('resource_node_id')) {
-            $this->addSql('ALTER TABLE c_tool_intro ADD resource_node_id BIGINT DEFAULT NULL');
+            $this->addSql('ALTER TABLE c_tool_intro ADD resource_node_id INT DEFAULT NULL');
             $this->addSql('ALTER TABLE c_tool_intro ADD CONSTRAINT FK_D705267B1BAD783F FOREIGN KEY (resource_node_id) REFERENCES resource_node (id) ON DELETE CASCADE;');
             $this->addSql('CREATE UNIQUE INDEX UNIQ_D705267B1BAD783F ON c_tool_intro (resource_node_id);');
         }
@@ -206,7 +205,5 @@ class Version20191101132000 extends AbstractMigrationChamilo
         }
     }
 
-    public function down(Schema $schema): void
-    {
-    }
+    public function down(Schema $schema): void {}
 }

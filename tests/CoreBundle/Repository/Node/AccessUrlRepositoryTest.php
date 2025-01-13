@@ -7,12 +7,10 @@ declare(strict_types=1);
 namespace Chamilo\Tests\CoreBundle\Repository\Node;
 
 use Chamilo\CoreBundle\Entity\AccessUrl;
-use Chamilo\CoreBundle\Entity\AccessUrlRelCourse;
 use Chamilo\CoreBundle\Entity\ResourceType;
 use Chamilo\CoreBundle\Repository\Node\AccessUrlRepository;
 use Chamilo\Tests\ChamiloTestTrait;
 use DateTime;
-use Doctrine\Common\Collections\ArrayCollection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 class AccessUrlRepositoryTest extends KernelTestCase
@@ -124,18 +122,10 @@ class AccessUrlRepositoryTest extends KernelTestCase
         $accessUrl = $repo->find($accessUrl->getId());
 
         $course = $this->createCourse('test');
-        $accessUrlCourse = (new AccessUrlRelCourse())
-            ->setCourse($course)
-            ->setUrl($accessUrl)
-        ;
+        $accessUrl->addCourse($course);
 
-        $collection = new ArrayCollection();
-        $collection->add($accessUrlCourse);
+        $this->getEntityManager()->flush();
 
-        $accessUrl->setCourses($collection);
-
-        /** @var AccessUrl $accessUrl */
-        $accessUrl = $repo->find($accessUrl->getId());
         $this->assertSame(1, $accessUrl->getCourses()->count());
     }
 }

@@ -38,7 +38,7 @@ $table_survey_question_option = Database::get_course_table(TABLE_SURVEY_QUESTION
 $table_survey_invitation = Database::get_course_table(TABLE_SURVEY_INVITATION);
 $table_user = Database::get_main_table(TABLE_MAIN_USER);
 
-$allowRequiredSurveyQuestions = api_get_configuration_value('allow_required_survey_questions');
+$allowRequiredSurveyQuestions = true;
 
 // Check if user is anonymous or not
 $isAnonymous = false;
@@ -76,6 +76,10 @@ if ((!isset($_GET['course']) || !isset($_GET['invitationcode'])) && !isset($_GET
 $repo = Container::getSurveyRepository();
 $surveyId = isset($_GET['iid']) ? (int) $_GET['iid'] : 0;
 
+if (empty($surveyId) && (isset($_POST['language']) && is_numeric($_POST['language']))) {
+    $surveyId = (int) $_POST['language'];
+}
+
 /** @var CSurvey $survey */
 $survey = $repo->find($surveyId);
 if (null === $survey) {
@@ -91,7 +95,7 @@ if ('' != $surveyCode) {
     $sql = "SELECT anonymous FROM $table_survey
             WHERE c_id = $courseId AND code ='".$surveyCode."'";
     $resultAnonymous = Database::query($sql);
-    $rowAnonymous = Database::fetch_array($resultAnonymous, 'ASSOC');
+    $rowAnonymous = Database::fetch_assoc($resultAnonymous);
     // If is anonymous and is not allowed to take the survey to anonymous users, forbid access:
     if (!isset($rowAnonymous['anonymous']) ||
         (0 == $rowAnonymous['anonymous'] && api_is_anonymous()) ||
@@ -148,6 +152,8 @@ if ('auto' === $invitationCode) {
             'user_id' => $userid,
             'invitation_code' => $autoInvitationCode,
             'invitation_date' => $now,
+            'answered' => 0,
+            'c_lp_item_id' => 0,
         ];
         Database::insert($table_survey_invitation, $params);
     }
@@ -167,7 +173,7 @@ if (Database::num_rows($result) < 1) {
     api_not_allowed(true, get_lang('Wrong invitation code'));
 }
 
-$survey_invitation = Database::fetch_array($result, 'ASSOC');
+$survey_invitation = Database::fetch_assoc($result);
 $surveyUserFromSession = Session::read('surveyuser');
 // Now we check if the user already filled the survey
 if (!isset($_POST['finish_survey']) &&
@@ -189,36 +195,7 @@ $logInfo = [
 ];
 Event::registerLog($logInfo);
 
-// Checking if there is another survey with this code.
-// If this is the case there will be a language choice
-$sql = "SELECT * FROM $table_survey
-        WHERE
-            code = '".Database::escape_string($survey->getCode())."'";
-$result = Database::query($sql);
-
-if (Database::num_rows($result) > 1) {
-    if ($_POST['language']) {
-        $survey_invitation['survey_id'] = $_POST['language'];
-    } else {
-        Display::display_header(get_lang('Surveys'));
-        $frmLangUrl = api_get_self().'?'.api_get_cidreq().'&'
-            .http_build_query([
-                'course' => Security::remove_XSS($_GET['course']),
-                'invitationcode' => Security::remove_XSS($_GET['invitationcode']),
-            ]);
-
-        echo '<form id="language" name="language" method="POST" action="'.$frmLangUrl.'">';
-        echo '<select name="language">';
-        while ($row = Database::fetch_array($result, 'ASSOC')) {
-            echo '<option value="'.$row['survey_id'].'">'.$row['lang'].'</option>';
-        }
-        echo '</select>';
-        echo '<button type="submit" name="Submit" class="next">'.get_lang('Validate').'</button>';
-        echo '</form>';
-        Display::display_footer();
-        exit();
-    }
-}
+$survey_invitation['survey_id'] = $surveyId;
 
 // Checking time availability
 SurveyManager::checkTimeAvailability($survey);
@@ -307,7 +284,7 @@ if (count($_POST) > 0) {
                                 WHERE
                                     iid='".intval($value)."'";
                         $result = Database::query($sql);
-                        $row = Database::fetch_array($result, 'ASSOC');
+                        $row = Database::fetch_assoc($result);
                         if ($row) {
                             $option_value = $row['option_text'];
                         }
@@ -350,7 +327,7 @@ if (count($_POST) > 0) {
         $result = Database::query($sql);*/
         // There is only one question type for conditional surveys
         $types = [];
-        //while ($row = Database::fetch_array($result, 'ASSOC')) {
+        //while ($row = Database::fetch_assoc($result)) {
         $questions = $survey->getQuestions();
         $questionList = [];
         foreach ($questions as $question) {
@@ -373,7 +350,7 @@ if (count($_POST) > 0) {
                 $sql = "SELECT value FROM $table_survey_question_option
                         WHERE iid='".intval($value)."'";
                 $result = Database::query($sql);
-                $row = Database::fetch_array($result, 'ASSOC');
+                $row = Database::fetch_assoc($result);
                 $option_value = $row['value'];
                 $survey_question_answer = $value;
 
@@ -670,9 +647,7 @@ if ((isset($_GET['show']) && '' != $_GET['show']) ||
     $paged_questions = [];
     // If non-conditional survey
     $select = '';
-    if (true === api_get_configuration_value('survey_question_dependency')) {
-        $select = ' survey_question.parent_id, survey_question.parent_option_id, ';
-    }
+    $select = ' survey_question.parent_id, survey_question.parent_option_id, ';
 
     // If non-conditional survey
     if (0 === $survey->getSurveyType()) {
@@ -683,7 +658,7 @@ if ((isset($_GET['show']) && '' != $_GET['show']) ||
                         survey_id = '".$surveyId."'
                     ORDER BY sort ASC";
             $result = Database::query($sql);
-            while ($row = Database::fetch_array($result, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($result)) {
                 if (1 == $survey->getOneQuestionPerPage()) {
                     if ('pagebreak' !== $row['type']) {
                         $paged_questions[$counter][] = $row['iid'];
@@ -773,7 +748,7 @@ if ((isset($_GET['show']) && '' != $_GET['show']) ||
             $counter = 0;
             $limit = 0;
             $questions = [];
-            while ($row = Database :: fetch_array($result, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($result)) {
                 // If the type is not a pagebreak we store it in the $questions array
                 if ('pagebreak' !== $row['type']) {
                     $sort = $row['sort'];
@@ -981,7 +956,7 @@ if ((isset($_GET['show']) && '' != $_GET['show']) ||
                                  ORDER BY sort ASC";
                         $result = Database::query($sql);
                         $counter = 0;
-                        while ($row = Database::fetch_array($result, 'ASSOC')) {
+                        while ($row = Database::fetch_assoc($result)) {
                             if (1 == $survey->getOneQuestionPerPage()) {
                                 $paged_questions_sec[$counter][] = $row['question_id'];
                                 $counter++;
@@ -1031,7 +1006,7 @@ if ((isset($_GET['show']) && '' != $_GET['show']) ||
                         $counter = 0;
                         $limit = 0;
                         $questions = [];
-                        while ($row = Database::fetch_array($result, 'ASSOC')) {
+                        while ($row = Database::fetch_assoc($result)) {
                             // If the type is not a pagebreak we store it in the $questions array
                             if ('pagebreak' !== $row['type']) {
                                 $questions[$row['sort']]['question_id'] = $row['question_id'];
@@ -1082,7 +1057,7 @@ if ((isset($_GET['show']) && '' != $_GET['show']) ||
                         ORDER ".$order_sql." ";
                 $result = Database::query($sql);
                 $counter = 0;
-                while ($row = Database::fetch_array($result, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($result)) {
                     if (1 == $survey->getOneQuestionPerPage()) {
                         $paged_questions[$counter][] = $row['question_id'];
                         $counter++;
@@ -1145,7 +1120,7 @@ if ((isset($_GET['show']) && '' != $_GET['show']) ||
                 $counter = 0;
                 $limit = 0;
                 $questions = [];
-                while ($row = Database :: fetch_array($result, 'ASSOC')) {
+                while ($row = Database::fetch_assoc($result)) {
                     // If the type is not a pagebreak we store it in the $questions array
                     if ('pagebreak' !== $row['type']) {
                         $questions[$row['sort']]['question_id'] = $row['question_id'];
@@ -1276,7 +1251,7 @@ if (isset($questions) && is_array($questions)) {
 
         // @todo move this in a function.
         $form->addHtml('<div class="survey_question '.$ch_type.' '.$parentClass.'">');
-        if ($showNumber) {
+        if ($showNumber && $survey->isDisplayQuestionNumber()) {
             $form->addHtml('<div style="float:left; font-weight: bold; margin-right: 5px;"> '.$questionNumber.'. </div>');
         }
         $form->addHtml('<div>'.Security::remove_XSS($question['survey_question']).'</div> ');
@@ -1325,11 +1300,11 @@ if ('0' == $survey->getSurveyType()) {
                 );
             } else {
                 if (
-                api_get_configuration_value('survey_backwards_enable')
+                'true' === api_get_setting('survey.survey_backwards_enable')
                 ) {
                     if ($lastQuestion >= 0) {
                         $form->addHtml(
-                            "<a class=\" btn btn-warning \" href=\"$url&show=$lastQuestion\">".
+                            "<a class=\" btn btn--warning \" href=\"$url&show=$lastQuestion\">".
                             "<em class=\"fa fa-arrow-left\"></em> "
                             .get_lang('Back')." </a>"
                         );
@@ -1396,7 +1371,7 @@ if ('0' == $survey->getSurveyType()) {
             $paged_questions_sec = [];
         }
 
-        if (0 == $personality) {
+        if (0 === $personality) {
             if (($show <= $numberOfPages) || !$_GET['show']) {
                 $form->addButton('next_survey_page', get_lang('Next'), 'arrow-right', 'success');
                 if (0 == $survey->getOneQuestionPerPage()) {
@@ -1415,7 +1390,7 @@ if ('0' == $survey->getSurveyType()) {
             }
         }
 
-        if ($show > $numberOfPages && $_GET['show'] && 0 == $personality) {
+        if ($show > $numberOfPages && $_GET['show'] && 0 === $personality) {
             $form->addHidden('personality', $personality);
         } elseif ($personality > 0) {
             if (1 == $survey->getOneQuestionPerPage()) {

@@ -2,6 +2,7 @@
 /* For licensing terms, see /license.txt */
 
 use Symfony\Component\Finder\Finder;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
 
 /**
  * Class MailTemplateManager.
@@ -10,7 +11,7 @@ class MailTemplateManager extends Model
 {
     public $columns = [
         'id',
-        'name',
+        'title',
         'template',
         'type',
         'system',
@@ -53,20 +54,10 @@ class MailTemplateManager extends Model
         // Action links
         $html = '<div class="actions" style="margin-bottom:20px">';
         $html .= '<a href="'.api_get_path(WEB_CODE_PATH).'admin">'.
-            Display::return_icon(
-                'back.png',
-                get_lang('Back'),
-                '',
-                '32'
-            )
+            Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back'))
             .'</a>';
         $html .= '<a href="'.api_get_self().'?action=add">'.
-            Display::return_icon(
-                'add.png',
-                get_lang('Add'),
-                '',
-                '32'
-            ).'</a>';
+            Display::getMdiIcon(ActionIcon::ADD, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Add')).'</a>';
         $html .= '</div>';
         $html .= Display::grid_html('mail_template');
 
@@ -92,12 +83,15 @@ class MailTemplateManager extends Model
         $id = isset($_GET['id']) ? (int) $_GET['id'] : '';
 
         $form->addElement('header', '', $header);
-        $form->addElement('hidden', 'id', $id);
+        if (!empty($id)) {
+            $form->addElement('hidden', 'id', $id);
+        }
+        $form->addElement('hidden', 'default_template', 0);
         $form->addElement(
             'text',
-            'name',
-            get_lang('Name'),
-            ['size' => '70', 'id' => 'name']
+            'title',
+            get_lang('Title'),
+            ['size' => '70', 'id' => 'title']
         );
 
         /*$form->addHtmlEditor(
@@ -155,7 +149,7 @@ class MailTemplateManager extends Model
         $form->setDefaults($defaults);
 
         // Setting the rules
-        $form->addRule('name', get_lang('Required field'), 'required');
+        $form->addRule('title', get_lang('Required field'), 'required');
 
         return $form;
     }

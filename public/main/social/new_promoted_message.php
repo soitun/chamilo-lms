@@ -1,6 +1,8 @@
 <?php
 /* For licensing terms, see /license.txt */
 
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+
 $cidReset = true;
 require_once __DIR__.'/../inc/global.inc.php';
 
@@ -67,7 +69,7 @@ function show_compose_reply_to_message($message_id, $receiver_id, $tpl)
               FROM $table
               WHERE user_receiver_id = ".$receiver_id." AND id = ".$message_id;
     $result = Database::query($query);
-    $row = Database::fetch_array($result, 'ASSOC');
+    $row = Database::fetch_assoc($result);
     $userInfo = api_get_user_info($row['user_sender_id']);
     if (empty($row['user_sender_id']) || empty($userInfo)) {
         $html = get_lang('The id of the message to reply to is not valid.');
@@ -140,7 +142,7 @@ function manageForm($default, $select_from_user_list = null, $sent_to = '', $tpl
 
     $form->addLabel(
         '',
-        '<span id="link-more-attach"><a class="btn btn-default" href="javascript://" onclick="return add_image_form()">'.
+        '<span id="link-more-attach"><a class="btn btn--plain" href="javascript://" onclick="return add_image_form()">'.
         get_lang('Add one more file').'</a></span>&nbsp;('.
         sprintf(
             get_lang('Maximun file size: %s'),
@@ -224,7 +226,7 @@ $social_right_content .= '<div class="row">';
 $social_right_content .= '<div class="col-md-12">';
 $social_right_content .= '<div class="actions">';
 $social_right_content .= '<a href="'.api_get_path(WEB_PATH).'main/messages/inbox.php">'.
-    Display::return_icon('back.png', get_lang('Back'), [], 32).'</a>';
+    Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back')).'</a>';
 $social_right_content .= '</div>';
 $social_right_content .= '</div>';
 $social_right_content .= '<div class="col-md-12">';

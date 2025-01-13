@@ -2,6 +2,8 @@
 
 /* For licensing terms, see /license.txt */
 
+use Chamilo\CoreBundle\Component\Utils\StateIcon;
+
 /**
  *  Class FillBlanks.
  *
@@ -69,13 +71,34 @@ class FillBlanks extends Question
             var blankSeparatorEndRegexp = getBlankSeparatorRegexp(blankSeparatorEnd);
             var blanksRegexp = "/"+blankSeparatorStartRegexp+"[^"+blankSeparatorStartRegexp+"]*"+blankSeparatorEndRegexp+"/g";
 
-            CKEDITOR.on("instanceCreated", function(e) {
-                if (e.editor.name === "answer") {
-                    //e.editor.on("change", updateBlanks);
-                    e.editor.on("change", function(){
+            function attachEventsToEditor() {
+                var editor = tinymce.get("answer");
+                if (editor) {
+                    console.log("Editor found, attaching events.");
+
+                    editor.on("keyup", function() {
                         updateBlanks();
                     });
+
+                    editor.on("SetContent", function() {
+                        updateBlanks();
+                    });
+
+                    editor.on("ExecCommand", function() {
+                        updateBlanks();
+                    });
+
+                    editor.on("Paste", function() {
+                        updateBlanks();
+                    });
+                } else {
+                    console.log("Editor not yet available, retrying...");
+                    setTimeout(attachEventsToEditor, 100); // Retry after 100 ms
                 }
+            }
+
+            document.addEventListener("DOMContentLoaded", function() {
+                attachEventsToEditor();
             });
 
             function updateBlanks()
@@ -85,7 +108,7 @@ class FillBlanks extends Question
                     var field = document.getElementById("answer");
                     answer = field.value;
                 } else {
-                    answer = getContentFromEditor("answer");
+                    answer = tinymce.get("answer").getContent();
                 }
 
                 // disable the save button, if not blanks have been created
@@ -136,8 +159,8 @@ class FillBlanks extends Question
                         fields += "<td>"+blanksWithColor+"</td>";
                         fields += "<td><input class=\"form-control\" style=\"width:60px\" value=\""+value+"\" type=\"text\" id=\"weighting["+i+"]\" name=\"weighting["+i+"]\" /></td>";
                         fields += "<td>";
-                        fields += "<input class=\"btn btn-default\" type=\"button\" value=\"-\" onclick=\"changeInputSize(-1, "+i+")\">&nbsp;";
-                        fields += "<input class=\"btn btn-default\" type=\"button\" value=\"+\" onclick=\"changeInputSize(1, "+i+")\">&nbsp;";
+                        fields += "<input class=\"btn btn--plain\" type=\"button\" value=\"-\" onclick=\"changeInputSize(-1, "+i+")\">&nbsp;";
+                        fields += "<input class=\"btn btn--plain\" type=\"button\" value=\"+\" onclick=\"changeInputSize(1, "+i+")\">&nbsp;";
                         fields += "&nbsp;&nbsp;<input class=\"sample\" id=\"samplesize["+i+"]\" data-btoa=\""+btoaValue+"\"   type=\"text\" value=\""+textValue+"\" style=\"width:"+inputSize+"px\" disabled=disabled />";
                         fields += "<input id=\"sizeofinput["+i+"]\" type=\"hidden\" value=\""+inputSize+"\" name=\"sizeofinput["+i+"]\"  />";
                         fields += "</td>";
@@ -216,20 +239,30 @@ class FillBlanks extends Question
 
             function changeInputSize(coef, inIdNum)
             {
+                var sampleSizeSelector = "#samplesize\\\[" + inIdNum + "\\\]";
+                var sizeOfInputSelector = "#sizeofinput\\\[" + inIdNum + "\\\]";
+
+                var currentWidth = $(sampleSizeSelector).outerWidth();
+
+                if (currentWidth === undefined) {
+                    return;
+                }
+
+                var newWidth = currentWidth + coef * 20;
+                newWidth = Math.max(20, newWidth);
+                newWidth = Math.min(newWidth, 600);
+
+                $(sampleSizeSelector).outerWidth(newWidth);
+                $(sizeOfInputSelector).attr("value", newWidth);
+
+                var answer;
                 if (firstTime) {
                     var field = document.getElementById("answer");
                     answer = field.value;
                 } else {
-                    answer = getContentFromEditor("answer");
+                    answer = tinymce.get("answer").getContent();
                 }
-
                 var blanks = answer.match(eval(blanksRegexp));
-                var currentWidth = $("#samplesize\\\["+inIdNum+"\\\]").width();
-                var newWidth = currentWidth + coef * 20;
-                newWidth = Math.max(20, newWidth);
-                newWidth = Math.min(newWidth, 600);
-                $("#samplesize\\\["+inIdNum+"\\\]").outerWidth(newWidth);
-                $("#sizeofinput\\\["+inIdNum+"\\\]").attr("value", newWidth);
 
                 updateOrder(blanks);
             }
@@ -352,7 +385,7 @@ class FillBlanks extends Question
         );
         $form->addLabel(
             null,
-            '<input type="button" onclick="updateBlanks()" value="'.get_lang('Refresh terms').'" class="btn btn-default" />'
+            '<input type="button" onclick="updateBlanks()" value="'.get_lang('Refresh terms').'" class="btn btn--plain" />'
         );
 
         $form->addHtml('<div id="blanks_weighting"></div>');
@@ -665,7 +698,7 @@ class FillBlanks extends Question
                     $item = $listMenu[0];
                     if (!$fromDatabase) {
                         $item = sha1($item);
-                        $studentAnswer = sha1($studentAnswer);
+                        //$studentAnswer = sha1($studentAnswer);
                     }
                     if ($item === $studentAnswer) {
                         $result = true;
@@ -1223,10 +1256,10 @@ class FillBlanks extends Question
         }
 
         $style = 'feedback-green';
-        $iconAnswer = Display::return_icon('attempt-check.png', get_lang('Correct'), null, ICON_SIZE_SMALL);
+        $iconAnswer = Display::getMdiIcon(StateIcon::COMPLETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Correct'));
         if (!$right) {
             $style = 'feedback-red';
-            $iconAnswer = Display::return_icon('attempt-nocheck.png', get_lang('Incorrect'), null, ICON_SIZE_SMALL);
+            $iconAnswer = Display::getMdiIcon(StateIcon::INCOMPLETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Incorrect'));
         }
 
         $correctAnswerHtml = '';

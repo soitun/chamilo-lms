@@ -6,79 +6,61 @@ declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\Entity;
 
-use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Metadata\ApiResource;
+use Chamilo\CoreBundle\Repository\Node\IllustrationRepository;
 use Chamilo\CoreBundle\Traits\PersonalResourceTrait;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Timestampable\Traits\TimestampableEntity;
+use Stringable;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
 
-/**
- * @ORM\Table(name="illustration")
- * @ORM\Entity(repositoryClass="Chamilo\CoreBundle\Repository\Node\IllustrationRepository")
- */
-#[ApiResource(
-    normalizationContext: [
-        'groups' => ['illustration:read'],
-    ],
-)]
-class Illustration extends AbstractResource implements ResourceInterface
+#[ApiResource(normalizationContext: ['groups' => ['illustration:read']])]
+#[ORM\Table(name: 'illustration')]
+#[ORM\Entity(repositoryClass: IllustrationRepository::class)]
+class Illustration extends AbstractResource implements ResourceInterface, Stringable
 {
     use PersonalResourceTrait;
     use TimestampableEntity;
-
-    /**
-     * @ORM\Column(name="id", type="uuid")
-     * @ORM\Id
-     */
+    #[ORM\Column(name: 'id', type: 'uuid')]
+    #[ORM\Id]
     protected Uuid $id;
-
-    /**
-     * @ORM\Column(name="name", type="string", length=255, nullable=false)
-     */
     #[Assert\NotBlank]
-    protected string $name;
-
+    #[ORM\Column(name: 'title', type: 'string', length: 255, nullable: false)]
+    protected string $title;
     public function __construct()
     {
         $this->id = Uuid::v4();
-        $this->name = 'illustration';
+        $this->title = 'illustration';
     }
-
     public function __toString(): string
     {
-        return $this->getName();
+        return $this->getTitle();
     }
-
     public function getId(): Uuid
     {
         return $this->id;
     }
-
-    public function getName(): string
+    public function getTitle(): string
     {
-        return $this->name;
+        return $this->title;
     }
-
-    public function setName(string $name): self
+    public function setTitle(string $title): self
     {
-        $this->name = $name;
+        $this->title = $title;
 
         return $this;
     }
-
     public function getResourceIdentifier(): Uuid
     {
         return $this->getId();
     }
-
     public function getResourceName(): string
     {
-        return $this->getName();
+        return $this->getTitle();
     }
-
     public function setResourceName(string $name): self
     {
-        return $this->setName($name);
+        return $this->setTitle($name);
     }
 }

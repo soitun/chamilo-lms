@@ -6,6 +6,9 @@
  *
  * @todo implement pagination
  */
+
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+
 require_once __DIR__.'/../inc/global.inc.php';
 
 $this_section = SECTION_TRACKING;
@@ -85,18 +88,18 @@ if (!$export_to_csv) {
     echo '<div class="actions" style ="font-size:10pt;">';
     if ($global) {
         echo '<div style="float:right"> <a href="'.api_get_self().'?export=1&score='.$filter_score.'&exercise_id='.$exercise_id.'">
-                '.Display::return_icon('csv.gif').'
+                '.Display::getMdiIcon(ActionIcon::EXPORT_CSV, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('CSV export')).'
                 &nbsp;'.get_lang('CSV export').'</a>'.
                 '<a href="javascript: void(0);" onclick="javascript: window.print()">
-                '.Display::return_icon('printmgr.gif').'
+                '.Display::getMdiIcon(ActionIcon::PRINT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Print')).'
                 &nbsp;'.get_lang('Print').'</a>
                     </div>';
 
-        $menu_items[] = '<a href="'.api_get_path(WEB_CODE_PATH).'mySpace/index.php?view=teacher">'.get_lang('Trainer View').'</a>';
+        $menu_items[] = '<a href="'.api_get_path(WEB_CODE_PATH).'my_space/index.php?view=teacher">'.get_lang('Trainer View').'</a>';
         if (api_is_platform_admin()) {
-            $menu_items[] = '<a href="'.api_get_path(WEB_CODE_PATH).'mySpace/index.php?view=admin">'.get_lang('Admin view').'</a>';
+            $menu_items[] = '<a href="'.api_get_path(WEB_CODE_PATH).'my_space/index.php?view=admin">'.get_lang('Admin view').'</a>';
         } else {
-            $menu_items[] = '<a href="'.api_get_path(WEB_CODE_PATH).'mySpace/index.php?view=coach">'.get_lang('Admin view').'</a>';
+            $menu_items[] = '<a href="'.api_get_path(WEB_CODE_PATH).'my_space/index.php?view=coach">'.get_lang('Admin view').'</a>';
         }
         $menu_items[] = get_lang('Exam tracking');
         $nb_menu_items = count($menu_items);
@@ -115,7 +118,7 @@ if (!$export_to_csv) {
         echo '<a href="courseLog.php?'.api_get_cidreq().'&studentlist=resources">'.get_lang('Report on resource').'</a>';
         echo ' | '.get_lang('Exam tracking').'';
         echo '<a href="'.api_get_self().'?export=1&score='.$filter_score.'&exercise_id='.$exercise_id.'">
-            '.Display::return_icon('excel.gif').'
+            '.Display::getMdiIcon(ActionIcon::EXPORT_SPREADSHEET, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Excel export')).'
             &nbsp;'.get_lang('Excel export').'</a><br /><br />';
     }
     echo '</div>';
@@ -137,7 +140,7 @@ foreach ($course_list as $current_course) {
     // Looping LPs
     $lps = [];
     foreach ($lp_list as $lp_id => $lp) {
-        $exercise_list = Event::get_all_exercises_from_lp($lp_id, $course_info['real_id']);
+        $exercise_list = Event::get_all_exercises_from_lp($lp_id);
         $attempt_result = [];
         // Looping Chamilo Exercises in LP
         foreach ($exercise_list as $exercise) {

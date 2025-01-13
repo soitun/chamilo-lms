@@ -8,16 +8,17 @@ namespace Chamilo\CoreBundle\Tool;
 
 use Chamilo\CoreBundle\Entity\MessageAttachment;
 use Chamilo\CoreBundle\Entity\PersonalFile;
+use Chamilo\CoreBundle\Entity\SocialPostAttachment;
 use Chamilo\CoreBundle\Entity\TicketMessageAttachment;
 
 class User extends AbstractTool implements ToolInterface
 {
-    public function getName(): string
+    public function getTitle(): string
     {
         return 'user';
     }
 
-    public function getNameToShow(): string
+    public function getTitleToShow(): string
     {
         return 'Users';
     }
@@ -43,6 +44,7 @@ class User extends AbstractTool implements ToolInterface
             'files' => PersonalFile::class,
             'message_attachments' => MessageAttachment::class,
             'ticket_message_attachments' => TicketMessageAttachment::class,
+            'social_post_attachments' => SocialPostAttachment::class,
         ];
     }
 }

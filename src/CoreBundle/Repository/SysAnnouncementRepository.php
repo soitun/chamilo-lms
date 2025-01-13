@@ -17,8 +17,8 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
-use Symfony\Component\Security\Core\Security;
 
 class SysAnnouncementRepository extends ServiceEntityRepository
 {
@@ -97,17 +97,17 @@ class SysAnnouncementRepository extends ServiceEntityRepository
                             ;
 
                             // Check student
-                            if ($this->security->isGranted('ROLE_STUDENT') &&
-                                $session->hasUser($subscription)
-                                //\SessionManager::isUserSubscribedAsStudent($sessionId, $userId)
+                            if ($this->security->isGranted('ROLE_STUDENT')
+                                && $session->hasUser($subscription)
+                                // \SessionManager::isUserSubscribedAsStudent($sessionId, $userId)
                             ) {
                                 $show = true;
 
                                 break 2;
                             }
 
-                            if ($this->security->isGranted('ROLE_TEACHER') &&
-                                $session->hasUserAsGeneralCoach($user)
+                            if ($this->security->isGranted('ROLE_TEACHER')
+                                && $session->hasUserAsGeneralCoach($user)
                             ) {
                                 $show = true;
 
@@ -115,9 +115,9 @@ class SysAnnouncementRepository extends ServiceEntityRepository
                             }
 
                             // Check course coach
-                            //$coaches = \SessionManager::getCoachesBySession($sessionId);
-                            if ($this->security->isGranted('ROLE_TEACHER') &&
-                                $session->getSessionRelCourseByUser($user, Session::COURSE_COACH)->count() > 0
+                            // $coaches = \SessionManager::getCoachesBySession($sessionId);
+                            if ($this->security->isGranted('ROLE_TEACHER')
+                                && $session->getSessionRelCourseByUser($user, Session::COURSE_COACH)->count() > 0
                             ) {
                                 $show = true;
 
@@ -153,7 +153,7 @@ class SysAnnouncementRepository extends ServiceEntityRepository
         return $list;
     }
 
-    public function addRoleListQueryBuilder(array $roles, QueryBuilder $qb = null): QueryBuilder
+    public function addRoleListQueryBuilder(array $roles, ?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb);
 
@@ -172,7 +172,7 @@ class SysAnnouncementRepository extends ServiceEntityRepository
         return $qb;
     }
 
-    public function addDateQueryBuilder(QueryBuilder $qb = null): QueryBuilder
+    public function addDateQueryBuilder(?QueryBuilder $qb = null): QueryBuilder
     {
         $qb = $this->getOrCreateQueryBuilder($qb);
         $qb

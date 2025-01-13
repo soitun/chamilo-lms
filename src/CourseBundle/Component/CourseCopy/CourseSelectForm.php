@@ -300,7 +300,7 @@ class CourseSelectForm
                 } else {
                     echo '<br />
                           <button
-                                class="save btn btn-primary"
+                                class="save btn btn--primary"
                                 type="submit"
                                 onclick="checkLearnPath(\''.addslashes(get_lang('Documents will be added too')).'\')">'.
                     get_lang('Validate').'</button>';
@@ -408,10 +408,10 @@ class CourseSelectForm
                         if ($showItems) {
                             echo '<div class="well">';
                             echo '<div class="btn-group">';
-                            echo "<a class=\"btn btn-default\"
+                            echo "<a class=\"btn btn--plain\"
                                         href=\"javascript: void(0);\"
                                         onclick=\"javascript: setCheckbox('$type',true);\" >".get_lang('All').'</a>';
-                            echo "<a class=\"btn btn-default\"
+                            echo "<a class=\"btn btn--plain\"
                                         href=\"javascript: void(0);\"
                                         onclick=\"javascript:setCheckbox('$type',false);\" >".get_lang('none').'</a>';
                             echo '</div>';
@@ -572,7 +572,7 @@ class CourseSelectForm
                                         ref = $resource_item ";
                             $res = Database::query($sql);
                             $all_properties = [];
-                            while ($item_property = Database::fetch_array($res, 'ASSOC')) {
+                            while ($item_property = Database::fetch_assoc($res)) {
                                 $all_properties[] = $item_property;
                             }
                             $course->resources[RESOURCE_DOCUMENT][$resource_item]->item_properties = $all_properties;
@@ -598,7 +598,7 @@ class CourseSelectForm
                         break;
                     case RESOURCE_FORUMTOPIC:
                     case RESOURCE_FORUMPOST:
-                       //Add post from topic
+                        //Add post from topic
                         if (RESOURCE_FORUMTOPIC == $type) {
                             $posts_to_save = [];
                             $posts = $course->resources[RESOURCE_FORUMPOST];
@@ -609,7 +609,7 @@ class CourseSelectForm
                                     continue;
                                 }
                                 $forum_id = $obj->obj->forum_id;
-                                $title = $obj->obj->thread_title;
+                                $title = $obj->obj->title;
                                 foreach ($posts as $post_id => $post) {
                                     if ($post->obj->thread_id == $thread_id &&
                                         $forum_id == $post->obj->forum_id &&

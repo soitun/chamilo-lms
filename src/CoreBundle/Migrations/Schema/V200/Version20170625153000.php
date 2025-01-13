@@ -22,7 +22,7 @@ class Version20170625153000 extends AbstractMigrationChamilo
         $this->addSql('ALTER TABLE c_forum_attachment CHANGE post_id post_id INT DEFAULT NULL');
 
         if (false === $table->hasColumn('resource_node_id')) {
-            $this->addSql('ALTER TABLE c_forum_attachment ADD resource_node_id BIGINT DEFAULT NULL');
+            $this->addSql('ALTER TABLE c_forum_attachment ADD resource_node_id INT DEFAULT NULL');
             $this->addSql(
                 'ALTER TABLE c_forum_attachment ADD CONSTRAINT FK_F1113A884B89032C FOREIGN KEY (post_id) REFERENCES c_forum_post (iid) ON DELETE CASCADE'
             );
@@ -36,7 +36,7 @@ class Version20170625153000 extends AbstractMigrationChamilo
         $table = $schema->getTable('c_forum_category');
 
         if (false === $table->hasColumn('resource_node_id')) {
-            $this->addSql('ALTER TABLE c_forum_category ADD resource_node_id BIGINT DEFAULT NULL');
+            $this->addSql('ALTER TABLE c_forum_category ADD resource_node_id INT DEFAULT NULL');
             $this->addSql(
                 'ALTER TABLE c_forum_category ADD CONSTRAINT FK_D627B86E1BAD783F FOREIGN KEY (resource_node_id) REFERENCES resource_node (id) ON DELETE CASCADE'
             );
@@ -53,7 +53,7 @@ class Version20170625153000 extends AbstractMigrationChamilo
 
         $table = $schema->getTable('c_forum_forum');
         if (!$table->hasColumn('resource_node_id')) {
-            $this->addSql('ALTER TABLE c_forum_forum ADD resource_node_id BIGINT DEFAULT NULL, DROP forum_id');
+            $this->addSql('ALTER TABLE c_forum_forum ADD resource_node_id INT DEFAULT NULL, DROP forum_id');
             $this->addSql(
                 'ALTER TABLE c_forum_forum ADD CONSTRAINT FK_47A9C991BAD783F FOREIGN KEY (resource_node_id) REFERENCES resource_node (id) ON DELETE CASCADE'
             );
@@ -94,7 +94,7 @@ class Version20170625153000 extends AbstractMigrationChamilo
         $this->addSql('ALTER TABLE c_forum_thread CHANGE lp_item_id lp_item_id INT DEFAULT NULL');
 
         $this->addSql('UPDATE c_forum_thread SET lp_item_id = NULL WHERE lp_item_id = 0');
-        $this->addSql('UPDATE c_forum_thread SET lp_item_id = NULL WHERE lp_item_id IS NOT NULL AND lp_item_id NOT IN (select iid from c_lp_item ) ');
+        $this->addSql('UPDATE c_forum_thread SET lp_item_id = NULL WHERE lp_item_id IS NOT NULL AND lp_item_id NOT IN (SELECT iid FROM c_lp_item) ');
 
         if (!$table->hasForeignKey('FK_5DA7884CDBF72317')) {
             $this->addSql(
@@ -107,10 +107,11 @@ class Version20170625153000 extends AbstractMigrationChamilo
         }
 
         $this->addSql('UPDATE c_forum_thread SET thread_date = NOW() WHERE thread_date is NULL OR thread_date = 0');
+        $this->addSql('UPDATE c_forum_thread SET forum_id = NULL WHERE forum_id IS NOT NULL AND forum_id NOT IN (SELECT iid FROM c_forum_forum) ');
         $this->addSql('ALTER TABLE c_forum_thread CHANGE thread_date thread_date DATETIME NOT NULL');
 
         if (false === $table->hasColumn('resource_node_id')) {
-            $this->addSql('ALTER TABLE c_forum_thread ADD resource_node_id BIGINT DEFAULT NULL, DROP thread_id');
+            $this->addSql('ALTER TABLE c_forum_thread ADD resource_node_id INT DEFAULT NULL, DROP thread_id');
             $this->addSql(
                 'ALTER TABLE c_forum_thread ADD CONSTRAINT FK_5DA7884C1BAD783F FOREIGN KEY (resource_node_id) REFERENCES resource_node (id) ON DELETE CASCADE'
             );
@@ -119,12 +120,13 @@ class Version20170625153000 extends AbstractMigrationChamilo
             );
             $this->addSql('CREATE UNIQUE INDEX UNIQ_5DA7884C1BAD783F ON c_forum_thread (resource_node_id)');
         }
-        //$this->addSql('ALTER TABLE c_forum_thread_qualify DROP id');
-        //$this->addSql('ALTER TABLE c_forum_thread_qualify_log DROP id');
+        // $this->addSql('ALTER TABLE c_forum_thread_qualify DROP id');
+        // $this->addSql('ALTER TABLE c_forum_thread_qualify_log DROP id');
         $table = $schema->getTable('c_forum_thread_qualify');
 
-        $this->addSql('DELETE FROM c_forum_thread_qualify WHERE user_id = 0');
-        $this->addSql('DELETE FROM c_forum_thread_qualify WHERE thread_id = 0');
+        $this->addSql('DELETE FROM c_forum_thread_qualify WHERE user_id = 0 OR user_id NOT IN (SELECT id FROM user)');
+        $this->addSql('UPDATE c_forum_thread_qualify SET qualify_user_id = NULL WHERE qualify_user_id NOT IN (SELECT id FROM user)');
+        $this->addSql('DELETE FROM c_forum_thread_qualify WHERE thread_id = 0 OR thread_id NOT IN (SELECT iid FROM c_forum_thread)');
 
         $this->addSql('ALTER TABLE c_forum_thread_qualify CHANGE user_id user_id INT DEFAULT NULL');
         $this->addSql('ALTER TABLE c_forum_thread_qualify CHANGE thread_id thread_id INT DEFAULT NULL');
@@ -139,7 +141,7 @@ class Version20170625153000 extends AbstractMigrationChamilo
         }
         if (!$table->hasForeignKey('FK_715FC3A5E5E1B95C')) {
             $this->addSql(
-                'ALTER TABLE c_forum_thread_qualify ADD CONSTRAINT FK_715FC3A5E5E1B95C FOREIGN KEY (qualify_user_id) REFERENCES user (id) ON DELETE CASCADE'
+                'ALTER TABLE c_forum_thread_qualify ADD CONSTRAINT FK_715FC3A5E5E1B95C FOREIGN KEY (qualify_user_id) REFERENCES user (id) ON DELETE SET NULL'
             );
         }
 
@@ -158,7 +160,7 @@ class Version20170625153000 extends AbstractMigrationChamilo
             $this->addSql('ALTER TABLE c_forum_post DROP FOREIGN KEY FK_B5BEF559E2904019');
         }
 
-        $this->addSql('UPDATE c_forum_post SET post_parent_id = NULL WHERE post_parent_id = 0');
+        $this->addSql('UPDATE c_forum_post SET post_parent_id = NULL WHERE post_parent_id = 0 OR post_parent_id NOT IN (SELECT iid FROM c_forum_post)');
 
         if (!$table->hasForeignKey('FK_B5BEF559D314B487')) {
             $this->addSql('ALTER TABLE c_forum_post ADD CONSTRAINT FK_B5BEF559D314B487 FOREIGN KEY (post_parent_id) REFERENCES c_forum_post (iid) ON DELETE SET NULL');
@@ -176,8 +178,11 @@ class Version20170625153000 extends AbstractMigrationChamilo
             $this->addSql('DROP INDEX course ON c_forum_post');
         }
 
+        $this->addSql('UPDATE c_forum_post SET forum_id = NULL WHERE forum_id NOT IN (SELECT iid FROM c_forum_forum)');
+        $this->addSql('UPDATE c_forum_post SET thread_id = NULL WHERE thread_id NOT IN (SELECT iid FROM c_forum_thread)');
+
         if (false === $table->hasColumn('resource_node_id')) {
-            $this->addSql('ALTER TABLE c_forum_post ADD resource_node_id BIGINT DEFAULT NULL');
+            $this->addSql('ALTER TABLE c_forum_post ADD resource_node_id INT DEFAULT NULL');
             $this->addSql(
                 'ALTER TABLE c_forum_post ADD CONSTRAINT FK_B5BEF55929CCBAD0 FOREIGN KEY (forum_id) REFERENCES c_forum_forum (iid) ON DELETE SET NULL'
             );

@@ -7,6 +7,7 @@ declare(strict_types=1);
 namespace Chamilo\CoreBundle\Tool;
 
 use Chamilo\CoreBundle\Entity\Course;
+use Chamilo\CoreBundle\Entity\ResourceLink;
 use Chamilo\CoreBundle\Entity\ResourceType;
 use Chamilo\CoreBundle\Entity\Tool;
 use Chamilo\CoreBundle\Entity\ToolResourceRight;
@@ -14,7 +15,7 @@ use Chamilo\CoreBundle\Security\Authorization\Voter\ResourceNodeVoter;
 use Chamilo\CoreBundle\Settings\SettingsManager;
 use Chamilo\CourseBundle\Entity\CTool;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Security\Core\Security;
+use Symfony\Bundle\SecurityBundle\Security;
 
 /**
  * Class ToolChain.
@@ -76,16 +77,16 @@ class ToolChain
         $toolRepo = $manager->getRepository(Tool::class);
 
         foreach ($tools as $tool) {
-            $name = $tool->getName();
+            $title = $tool->getTitle();
             $toolFromDatabase = $toolRepo->findOneBy([
-                'name' => $name,
+                'title' => $title,
             ]);
 
             if (null !== $toolFromDatabase) {
                 $toolEntity = $toolFromDatabase;
             } else {
                 $toolEntity = (new Tool())
-                    ->setName($name)
+                    ->setTitle($title)
                 ;
                 if ($tool->isCourseTool()) {
                     $this->setToolPermissions($toolEntity);
@@ -96,9 +97,9 @@ class ToolChain
             $types = $tool->getResourceTypes();
 
             if (!empty($types)) {
-                foreach ($types as $key => $typeName) {
+                foreach ($types as $key => $typeTitle) {
                     $resourceType = (new ResourceType())
-                        ->setName($key)
+                        ->setTitle($key)
                     ;
 
                     if ($toolEntity->hasResourceType($resourceType)) {
@@ -107,8 +108,9 @@ class ToolChain
                     $resourceType->setTool($toolEntity);
                     $manager->persist($resourceType);
                 }
-                $manager->flush();
             }
+
+            $manager->flush();
         }
     }
 
@@ -124,14 +126,14 @@ class ToolChain
             ->setMask(ResourceNodeVoter::getReaderMask())
         ;
 
-        //$tool->addToolResourceRight($toolResourceRight);
-        //$tool->addToolResourceRight($toolResourceRightReader);
+        // $tool->addToolResourceRight($toolResourceRight);
+        // $tool->addToolResourceRight($toolResourceRightReader);
     }
 
     public function addToolsInCourse(Course $course): Course
     {
         $manager = $this->entityManager;
-        $toolVisibility = $this->settingsManager->getSetting('course.active_tools_on_create');
+        $activeToolsOnCreate = $this->settingsManager->getSetting('course.active_tools_on_create') ?? [];
 
         // Hardcoded tool list order
         $toolList = [
@@ -153,16 +155,13 @@ class ToolChain
             'chat',
             'student_publication',
             'survey',
-            //'wiki',
+            'wiki',
             'notebook',
-            //'blog',
             'course_tool',
             'course_homepage',
             'tracking',
             'course_setting',
             'course_maintenance',
-            'bbb',
-            'mobidico',
         ];
         $toolList = array_flip($toolList);
 
@@ -171,41 +170,46 @@ class ToolChain
         $tools = $this->handlerCollection->getCollection();
 
         foreach ($tools as $tool) {
-            $visibility = \in_array($tool->getName(), $toolVisibility, true);
             $criteria = [
-                'name' => $tool->getName(),
+                'title' => $tool->getTitle(),
             ];
-            if (!isset($toolList[$tool->getName()])) {
+            if (!isset($toolList[$tool->getTitle()])) {
                 continue;
+            }
+
+            $visibility = \in_array($tool->getTitle(), $activeToolsOnCreate, true);
+            $linkVisibility = $visibility ? ResourceLink::VISIBILITY_PUBLISHED : ResourceLink::VISIBILITY_DRAFT;
+
+            if (\in_array($tool->getTitle(), ['course_setting', 'course_maintenance'])) {
+                $linkVisibility = ResourceLink::VISIBILITY_DRAFT;
             }
 
             /** @var Tool $toolEntity */
             $toolEntity = $toolRepo->findOneBy($criteria);
-            $position = $toolList[$tool->getName()] + 1;
-
-            $courseTool = (new CTool())
-                ->setTool($toolEntity)
-                ->setName($tool->getName())
-                ->setPosition($position)
-                ->setVisibility($visibility)
-                ->setParent($course)
-                ->setCreator($course->getCreator())
-                ->addCourseLink($course)
-            ;
-            $course->addTool($courseTool);
+            if ($toolEntity) {
+                $courseTool = (new CTool())
+                    ->setTool($toolEntity)
+                    ->setTitle($tool->getTitle())
+                    ->setVisibility($visibility)
+                    ->setParent($course)
+                    ->setCreator($course->getCreator())
+                    ->addCourseLink($course, null, null, $linkVisibility)
+                ;
+                $course->addTool($courseTool);
+            }
         }
 
         return $course;
     }
 
-    public function getTools()
+    public function getTools(): iterable
     {
         return $this->handlerCollection->getCollection();
     }
 
-    public function getToolFromName(string $name): AbstractTool
+    public function getToolFromName(string $title): AbstractTool
     {
-        return $this->handlerCollection->getHandler($name);
+        return $this->handlerCollection->getHandler($title);
     }
 
     /*public function getToolFromEntity(string $entityClass): AbstractTool
@@ -215,15 +219,15 @@ class ToolChain
 
     public function getResourceTypeNameByEntity(string $entityClass): ?string
     {
-        $name = $this->getResourceTypeList()[$entityClass] ?? null;
+        $title = $this->getResourceTypeList()[$entityClass] ?? null;
 
-        if (null === $name) {
+        if (null === $title) {
             return null;
         }
 
-        $name = explode('::', $name);
+        $title = explode('::', $title);
 
-        return $name[1];
+        return $title[1];
     }
 
     public function getResourceTypeList(): array
@@ -231,11 +235,11 @@ class ToolChain
         $tools = $this->handlerCollection->getCollection();
 
         foreach ($tools as $tool) {
-            $toolName = $tool->getName();
+            $toolTitle = $tool->getTitle();
             $typeList = $tool->getResourceTypes();
             if (!empty($typeList)) {
-                foreach ($typeList as $name => $entityClass) {
-                    $this->resourceTypeList[$entityClass] = $toolName.'::'.$name;
+                foreach ($typeList as $title => $entityClass) {
+                    $this->resourceTypeList[$entityClass] = $toolTitle.'::'.$title;
                 }
             }
         }

@@ -1,207 +1,190 @@
 <template>
-  <component :is="layout" :show-breadcrumb="showBreadcrumb">
+  <component
+    :is="layout"
+    v-if="!platformConfigurationStore.isLoading"
+    :show-breadcrumb="route.meta.showBreadcrumb"
+  >
     <slot />
     <div
-        id="legacy_content"
-        v-html="legacyContent"
+      id="legacy_content"
+      ref="legacyContainer"
     />
+    <ConfirmDialog />
   </component>
+  <Toast position="top-center">
+    <template #message="slotProps">
+      <span
+        :class="{
+          'mdi-close-outline': 'error' === slotProps.message.severity,
+          'mdi-information-outline': 'info' === slotProps.message.severity,
+          'mdi-check-outline': 'success' === slotProps.message.severity,
+          'mdi-alert-outline': 'warn' === slotProps.message.severity,
+        }"
+        class="p-toast-message-icon mdi"
+      />
+      <div class="p-toast-message-text">
+        <span
+          v-if="slotProps.message.summary"
+          class="p-toast-summary"
+          v-text="slotProps.message.summary"
+        />
+        <div
+          class="p-toast-detail"
+          v-html="slotProps.message.detail"
+        />
+      </div>
+    </template>
+  </Toast>
 </template>
 
-<script>
-import {mapGetters} from 'vuex';
-import NotificationMixin from './mixins/NotificationMixin';
-import axios from "axios";
-import { computed, watch, provide, ref } from 'vue';
-import isEmpty from 'lodash/isEmpty';
-import { useRouter, useRoute } from 'vue-router';
+<script setup>
+import { computed, onMounted, onUpdated, provide, ref, watch, watchEffect } from "vue"
+import { useRoute, useRouter } from "vue-router"
+import { DefaultApolloClient } from "@vue/apollo-composable"
+import axios from "axios"
+import { capitalize, isEmpty } from "lodash"
+import ConfirmDialog from "primevue/confirmdialog"
+import { useSecurityStore } from "./store/securityStore"
+import { usePlatformConfig } from "./store/platformConfig"
+import Toast from "primevue/toast"
+import { useNotification } from "./composables/notification"
+import { useLocale } from "./composables/locale"
+import { useI18n } from "vue-i18n"
+import { customVueTemplateEnabled } from "./config/env"
+import CustomDashboardLayout from "../../var/vue_templates/components/layout/DashboardLayout.vue"
+import EmptyLayout from "./components/layout/EmptyLayout.vue"
+import { useMediaElementLoader } from "./composables/mediaElementLoader"
 
-import useState from './hooks/useState'
-/*import Sidebar from './components/sidebar/Sidebar.vue'
-import Navbar from './components/navbar/Navbar.vue'
-import SettingsPanel from './components/panels/SettingsPanel.vue'
-import SearchPanel from './components/panels/SearchPanel.vue'
-import NotificationsPanel from './components/panels/NotificationsPanel.vue'
-import Button from './components/global/Button.vue'*/
+import apolloClient from "./config/apolloClient"
 
-const defaultLayout = 'Dashboard';
-import { DefaultApolloClient } from '@vue/apollo-composable';
-import { ApolloClient, createHttpLink, InMemoryCache } from '@apollo/client/core';
+provide(DefaultApolloClient, apolloClient)
 
-// HTTP connection to the API
-const httpLink = createHttpLink({
-  // You should use an absolute URL here
-  uri: '/api/graphql',
+const route = useRoute()
+const router = useRouter()
+const i18n = useI18n()
+
+const { loader: mejsLoader } = useMediaElementLoader()
+
+const layout = computed(() => {
+  if (route.meta.emptyLayout) {
+    return EmptyLayout
+  }
+
+  const queryParams = new URLSearchParams(window.location.search)
+
+  if (
+    (queryParams.has("lp_id") && "view" === queryParams.get("action")) ||
+    (queryParams.has("origin") && "learnpath" === queryParams.get("origin"))
+  ) {
+    return "EmptyLayout"
+  }
+
+  if (customVueTemplateEnabled) {
+    return CustomDashboardLayout
+  }
+
+  return `${router.currentRoute.value.meta.layout ?? "Dashboard"}Layout`
 })
 
-// Cache implementation
-const cache = new InMemoryCache();
+const legacyContainer = ref(null)
 
-// Create the apollo client
-const apolloClient = new ApolloClient({
-  link: httpLink,
-  cache,
-});
-
-export default {
-  name: "App",
-  setup () {
-    const { currentRoute } = useRouter();
-    const route = useRoute();
-    const showBreadcrumb = ref(true);
-    const layout = computed(
-        () => {
-            let queryParams = new URLSearchParams(window.location.href);
-
-            if (queryParams.has('lp')
-                || (queryParams.has('origin') && queryParams.get('origin') === 'learnpath')
-            ) {
-                return 'EmptyLayout';
-            } else {
-                return `${currentRoute.value.meta.layout || defaultLayout}Layout`
-            }
-        }
-    );
-
-    provide(DefaultApolloClient, apolloClient);
-
-    watch(
-        () => route.meta,
-        async meta => {
-          try {
-            const component = `${meta.layout}.vue`;
-            layout.value = component?.default || defaultLayout;
-            showBreadcrumb.value = meta.showBreadcrumb;
-          } catch (e) {
-            layout.value = defaultLayout
-          }
-        },
-        {immediate: true}
-    );
-
-    return {
-      showBreadcrumb,
-      layout
+watch(
+  () => route.name,
+  () => {
+    if (legacyContainer.value) {
+      legacyContainer.value.innerHTML = ""
     }
   },
-  data: () => ({
-    user: {},
-    firstTime: false,
-    legacyContent: '',
-  }),
-  watch: {
-    $route() {
-      //console.log('watch.$route');
-      this.legacyContent = '';
+)
 
-      // This code below will handle the legacy content to be loaded.
-      let url = window.location.href;
-      var n = url.indexOf("main/");
-      if (n > 0) {
-        if (this.firstTime) {
-          //console.log('App.vue: firstTime: 1.');
-          let content = document.querySelector("#sectionMainContent");
-          if (content) {
-            //console.log('legacyContent updated');
-            content.style.display = 'block';
-            document.querySelector("#sectionMainContent").remove();
-            this.legacyContent = content.outerHTML;
-          }
-        } else {
-          if (document.querySelector("#sectionMainContent")) {
-            document.querySelector("#sectionMainContent").remove();
-            //console.log('remove');
-          }
-
-          //console.log('Replace URL', url);
-          window.location.replace(url);
-        }
-      } else {
-        if (this.firstTime) {
-          //console.log('App.vue: firstTime 2');
-          let content = document.querySelector("#sectionMainContent");
-          if (content) {
-            //console.log('legacyContent updated');
-            content.style.display = 'block';
-            document.querySelector("#sectionMainContent").remove();
-            this.legacyContent = content.outerHTML;
-          }
-        } else {
-          //console.log('legacyContent cleaned');
-          let content = document.querySelector("#sectionMainContent");
-          if (content) {
-            document.querySelector("#sectionMainContent").remove();
-          }
-          this.legacyContent = '';
-        }
-      }
-      this.firstTime = false;
-    },
-    legacyContent: {
-      handler: function () {
-      },
-      immediate: true
-    },
-  },
-
-  created() {
-    //console.log('App.vue created');
-    this.legacyContent = '';
-    let app = document.getElementById('app');
-
-    let isAuthenticated = false;
-    if (!isEmpty(window.user)) {
-      console.log('APP.vue: is logged in as ' + window.user.username);
-      this.user = window.user;
-      isAuthenticated = true;
-    }
-
-    let payload = {isAuthenticated: isAuthenticated, user: this.user};
-    this.$store.dispatch("security/onRefresh", payload);
-
-    if (app && app.attributes["data-flashes"]) {
-      let flashes = JSON.parse(app.attributes["data-flashes"].value);
-      if (flashes) {
-        for (const key in flashes) {
-          for (const text in flashes[key]) {
-            this.showMessage(flashes[key][text], key);
-          }
-        }
-      }
-    }
-
-    axios.interceptors.response.use(undefined, (err) => {
-      //console.log('interceptor');console.log(err.response.status);
-
-      return new Promise(() => {
-        // Unauthorized.
-        if (401 === err.response.status) {
-          // Redirect to the login if status 401.
-          //this.$router.replace({path: "/login"}).catch(()=>{});
-          // Real redirect to avoid loops with Login.vue page.
-          //window.location.href = '/login';
-            this.showMessage(err.response.data.error, 'warning');
-        } else if (500 === err.response.status) {
-          if (err.response) {
-            // Request made and server responded
-            this.showMessage(err.response.data.detail, 'warning');
-          }
-        }
-        throw err;
-      });
-    });
-  },
-  mounted() {
-    //console.log('App.vue mounted');
-    this.firstTime = true;
-  },
-  mixins: [NotificationMixin],
-  computed: {
-    ...mapGetters({
-      'isAuthenticated': 'security/isAuthenticated',
-      'isAdmin': 'security/isAdmin',
-      'currentUser': 'security/getUser',
-    }),
+watchEffect(() => {
+  if (!legacyContainer.value) {
+    return
   }
+
+  const content = document.querySelector("#sectionMainContent")
+
+  if (content) {
+    legacyContainer.value.appendChild(content)
+
+    const chEditors = window.chEditors || []
+    chEditors.forEach((editorConfig) => tinymce.init(editorConfig))
+
+    content.style.display = "block"
+  }
+})
+
+watchEffect(async () => {
+  try {
+    const component = `${route.meta.layout}.vue`
+    layout.value = component?.default || "Dashboard"
+  } catch (e) {
+    layout.value = "Dashboard"
+  }
+})
+
+const securityStore = useSecurityStore()
+const notification = useNotification()
+
+if (!isEmpty(window.user)) {
+  securityStore.user = window.user
 }
+
+onUpdated(() => {
+  const app = document.getElementById("app")
+
+  if (!(app && app.dataset.flashes)) {
+    return
+  }
+
+  const flashes = JSON.parse(app.dataset.flashes)
+
+  if (!Array.isArray(flashes)) {
+    for (const key in flashes) {
+      const notificationType = key === "danger" ? "Error" : capitalize(key)
+
+      for (const flashText of flashes[key]) {
+        notification[`show${notificationType}Notification`](flashText)
+      }
+    }
+  }
+
+  app.dataset.flashes = ""
+})
+
+axios.interceptors.response.use(
+  undefined,
+  (error) =>
+    new Promise(() => {
+      if (401 === error.response.status) {
+        notification.showWarningNotification(error.response.data.error)
+      } else if (500 === error.response.status) {
+        notification.showWarningNotification(error.response.data.detail)
+      }
+
+      throw error
+    }),
+)
+
+const platformConfigurationStore = usePlatformConfig()
+platformConfigurationStore.initialize()
+
+watch(
+  () => route.params,
+  () => {
+    const { appLocale } = useLocale()
+
+    if (i18n.locale.value !== appLocale.value) {
+      i18n.locale.value = appLocale.value
+    }
+  },
+  {
+    inmediate: true,
+  },
+)
+
+onMounted(async () => {
+  mejsLoader()
+  await securityStore.checkSession()
+})
 </script>

@@ -4,6 +4,8 @@
 
 use Chamilo\CoreBundle\Framework\Container;
 use Chamilo\CourseBundle\Entity\CSurvey;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\StateIcon;
 
 require_once __DIR__.'/../inc/global.inc.php';
 
@@ -34,7 +36,7 @@ if (!empty($invitationcode) || !api_is_allowed_to_edit()) {
         api_not_allowed(true, get_lang('Wrong invitation code'));
     }
 
-    $survey_invitation = Database::fetch_array($result, 'ASSOC');
+    $survey_invitation = Database::fetch_assoc($result);
     if ($survey_invitation) {
         $surveyId = (int) $survey_invitation['survey_id'];
     }
@@ -48,8 +50,6 @@ if (null === $survey) {
 }
 
 $surveyId = $survey->getIid();
-
-SurveyManager::checkTimeAvailability($survey);
 $invitations = SurveyUtil::get_invited_users($survey);
 $students = $invitations['course_users'] ?? [];
 
@@ -62,6 +62,10 @@ $interbreadcrumb[] = [
 
 $url = api_get_self().'?survey_id='.$surveyId.'&invitationcode='.$invitationcode.'&'.api_get_cidreq();
 $urlEdit = $url.'&action=edit';
+
+if (!api_is_allowed_to_edit()) {
+    SurveyManager::checkTimeAvailability($survey);
+}
 
 $questions = $survey->getQuestions();
 
@@ -108,10 +112,13 @@ if (isset($_POST) && !empty($_POST)) {
 
 $template = new Template();
 
-$table = new HTML_Table(['class' => 'table']);
+$table = new HTML_Table(['class' => 'table table-hover table-striped data_table mt-5']);
 $row = 0;
-$column = 1;
+$column = 0;
 $answerList = [];
+
+$table->setHeaderContents($row, $column, "");
+$column++;
 foreach ($questions as $item) {
     $questionId = $item->getIid();
     $answers = SurveyUtil::get_answers_of_question_by_user($surveyId, $questionId);
@@ -140,23 +147,23 @@ foreach ($questions as $item) {
     }
 
     $mainDate = api_format_date($mainDate, DATE_FORMAT_SHORT);
-    $table->setHeaderContents($row, $column, "<h4>$mainDate</h4> $startTime <br >$endTime");
+    $table->setHeaderContents($row, $column, "<h4>$mainDate</h4> <span class='text-lg'>$startTime <br >$endTime</span>");
     $column++;
 }
 
-$row = 1;
+$row = 0;
 $column = 0;
 
 // Total counter
-$table->setHeaderContents(
+$table->setCellContents(
     $row,
     0,
-    get_lang('Number of users').': '.count($students)
+    '<span class="text-bold font-extrabold text-xl">'.get_lang('Number of users').': '.count($students).'</span>'
 );
 
 foreach ($questions as $item) {
     $questionId = $item->getIid();
-    $count = 0;
+    $count = '';
     $questionsWithAnswer = 0;
     if (isset($answerList[$questionId])) {
         foreach ($answerList[$questionId] as $userAnswer) {
@@ -164,20 +171,20 @@ foreach ($questions as $item) {
                 $questionsWithAnswer++;
             }
         }
-        $count = '<p style="color:cornflowerblue" >
-                  <span class="fa fa-check fa-2x"></span>'.$questionsWithAnswer.'</p>';
+        $count = '<p class="text-info text-center p-2 text-bold font-extrabold text-2xl">
+                  <span class="mdi mdi-check text-3xl"></span>'.$questionsWithAnswer.'</p>';
     }
-    $table->setHeaderContents(
+    $table->setCellContents(
         $row,
         ++$column,
         $count
     );
 }
 
-$row = 2;
+$row = 1;
 $column = 0;
-$availableIcon = Display::return_icon('bullet_green.png', get_lang('Available'));
-$notAvailableIcon = Display::return_icon('bullet_red.png', get_lang('Not available'));
+$availableIcon = Display::getMdiIcon(StateIcon::ACTIVE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Available'));
+$notAvailableIcon = Display::getMdiIcon(StateIcon::INACTIVE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Not available'));
 
 foreach ($students as $studentId) {
     $userInfo = api_get_user_info($studentId);
@@ -185,7 +192,7 @@ foreach ($students as $studentId) {
     if ($userId == $studentId) {
         if ('edit' !== $action) {
             $name .= Display::url(
-                Display::return_icon('edit.png', get_lang('Edit')),
+                Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Edit')),
                 $urlEdit
             );
         }
@@ -208,7 +215,7 @@ foreach ($students as $studentId) {
             }
 
             if ('edit' === $action) {
-                $html = '<div class="alert alert-info"><input
+                $html = '<div class="alert alert-info text-center"><input
                     id="'.$questionId.'"
                     name="options['.$questionId.']"
                     class="question" '.$checked.'
@@ -218,7 +225,7 @@ foreach ($students as $studentId) {
                 $html = $checked;
             }
 
-            $table->setHeaderContents(
+            $table->setCellContents(
                 $row,
                 $rowColumn,
                 $html
@@ -236,7 +243,7 @@ foreach ($students as $studentId) {
                     $checked = $notAvailableIcon;
                 }
             }
-            $table->setHeaderContents(
+            $table->setCellContents(
                 $row,
                 $rowColumn,
                 $checked
@@ -245,7 +252,7 @@ foreach ($students as $studentId) {
         }
     }
     $column = 0;
-    $table->setCellContents($row, $column, $name);
+    $table->setCellContents($row, $column, '<span class="text-bold font-extrabold text-lg">'.$name.'</span>');
     $row++;
 }
 if ('edit' === $action) {
@@ -256,23 +263,23 @@ $content .= $table->toHtml();
 
 if ('edit' === $action) {
     $content .= '<div class="pull-right">
-        <button name="submit" type="submit" class="btn btn-primary btn-lg">'.get_lang('Save').'</button></div>';
+        <button name="submit" type="submit" class="btn btn--primary btn-lg">'.get_lang('Save').'</button></div>';
     $content .= '</form>';
 }
 
 $actions = '';
 if (api_is_allowed_to_edit()) {
     $actions .= Display::url(
-        Display::return_icon('edit.png', get_lang('Edit survey'), '', ICON_SIZE_MEDIUM),
+        Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Edit survey')),
         api_get_path(WEB_CODE_PATH).'survey/edit_meeting.php?'.api_get_cidreq().'&action=edit&survey_id='.$surveyId
     );
     $actions .= Display::url(
-        Display::return_icon('delete.png', get_lang('Delete survey'), '', ICON_SIZE_MEDIUM),
+        Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Delete survey')),
         api_get_path(WEB_CODE_PATH).'survey/survey_list.php?'.api_get_cidreq().'&action=delete&survey_id='.$surveyId,
         ['onclick' => 'javascript:if(!confirm(\''.addslashes(api_htmlentities(get_lang('Delete survey').'?', ENT_QUOTES)).'\')) return false;']
     );
     $actions .= Display::url(
-        Display::return_icon('mail_send.png', get_lang('Publish'), '', ICON_SIZE_MEDIUM),
+        Display::getMdiIcon(StateIcon::MAIL_NOTIFICATION, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Publish')),
         api_get_path(WEB_CODE_PATH).'survey/survey_invite.php?'.api_get_cidreq().'&survey_id='.$surveyId
     );
 }

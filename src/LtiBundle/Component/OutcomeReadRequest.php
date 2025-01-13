@@ -40,6 +40,7 @@ class OutcomeReadRequest extends OutcomeRequest
 
         /** @var GradebookEvaluation $evaluation */
         $evaluation = $this->entityManager->find(GradebookEvaluation::class, $sourcedParts['e']);
+
         /** @var User $user */
         $user = $this->entityManager->find(User::class, $sourcedParts['u']);
 
@@ -66,7 +67,7 @@ class OutcomeReadRequest extends OutcomeRequest
                 $ltiScore = $result->get_score() / $evaluation->getMax();
             }
 
-            $responseDescription = sprintf(
+            $responseDescription = \sprintf(
                 $this->translator->trans('Score for user %d is %s'),
                 $user->getId(),
                 $ltiScore

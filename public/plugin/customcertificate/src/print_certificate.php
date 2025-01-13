@@ -179,7 +179,7 @@ foreach ($userList as $userInfo) {
 
     $allUserInfo = DocumentManager::get_all_info_to_certificate(
         $studentId,
-        $courseCode,
+        $courseId,
         $sessionId,
         false
     );
@@ -371,8 +371,7 @@ foreach ($userList as $userInfo) {
             $categoriesTempList = learnpath::getCategories($courseId);
             $categoryTest = new CLpCategory();
             $categoryTest->setId(0);
-            $categoryTest->setName($plugin->get_lang('WithOutCategory'));
-            $categoryTest->setPosition(0);
+            $categoryTest->setTitle($plugin->get_lang('WithOutCategory'));
             $categories = [$categoryTest];
 
             if (!empty($categoriesTempList)) {
@@ -413,8 +412,8 @@ foreach ($userList as $userInfo) {
                 }
 
                 if (count($categories) > 1 && count($flat_list) > 0) {
-                    if ($item->getName() != $plugin->get_lang('WithOutCategory')) {
-                        $items[] = '<h4 style="margin:0">'.$item->getName().'</h4>';
+                    if ($item->getTitle() != $plugin->get_lang('WithOutCategory')) {
+                        $items[] = '<h4 style="margin:0">'.$item->getTitle().'</h4>';
                     }
                 }
 
@@ -517,7 +516,7 @@ if ($exportAllInOne) {
 
         $pdf->content_to_pdf(
             $certificateContent,
-            '',
+            null,
             'certificate'.date("Y_m_d_His"),
             null,
             'D',
@@ -544,10 +543,10 @@ if ($exportAllInOne) {
         $pdf = new PDF($params['format'], $params['orientation'], $params);
         if ($exportZip) {
             $filePath = $archivePath.$fileName.'.pdf';
-            $pdf->content_to_pdf($content, '', $fileName, null, 'F', true, $filePath, false, false, false);
+            $pdf->content_to_pdf($content, null, $fileName, null, 'F', true, $filePath, false, false, false);
             $fileList[] = $filePath;
         } else {
-            $pdf->content_to_pdf($content, '', $fileName, null, 'D', false, null, false, false, false);
+            $pdf->content_to_pdf($content, null, $fileName, null, 'D', false, null, false, false, false);
         }
     }
 

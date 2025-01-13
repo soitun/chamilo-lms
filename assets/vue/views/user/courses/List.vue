@@ -1,71 +1,152 @@
 <template>
-  <StickyCourses/>
-  <!--  {{ loading }}-->
+  <StickyCourses />
+
+  <hr />
+
   <div
-      v-if="courses.length"
-      class="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-2">
-    <CourseCardList
-        :courses="courses"
+    v-if="isLoading && courses.length === 0"
+    class="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+  >
+    <Skeleton height="16rem" />
+    <Skeleton
+      class="hidden md:block"
+      height="16rem"
+    />
+    <Skeleton
+      class="hidden lg:block"
+      height="16rem"
+    />
+    <Skeleton
+      class="hidden xl:block"
+      height="16rem"
     />
   </div>
-  <div v-else>
-    <div class="bg-gradient-to-r from-gray-100 to-gray-50 flex flex-col rounded-md text-center p-2">
-      <div class="p-10 text-center">
-        <div>
-          <v-icon
-              icon="mdi-book-open-page-variant"
-              size="72px"
-              class="font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-ch-primary to-ch-primary-light"
-          />
-        </div>
 
-        <div class="mt-2 font-bold">
-          {{ $t("You don't have any course yet.") }}
-        </div>
-        <div>
-          {{ $t('Go to "Explore" to find a topic of interest, or wait for someone to subscribe you.') }}
-        </div>
-      </div>
-    </div>
+  <div
+    v-if="courses.length > 0"
+    class="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+  >
+    <CourseCardList :courses="courses" />
+    <div ref="lastCourseRef"></div>
   </div>
+  <EmptyState
+    v-else-if="!isLoading && 0 === courses.length"
+    :detail="t('Go to Explore to find a topic of interest, or wait for someone to subscribe you')"
+    :summary="t('You don\'t have any course yet.')"
+    icon="courses"
+  />
 </template>
 
-<script>
-import CourseCardList from '../../../components/course/CourseCardList.vue';
-import {computed} from "vue";
-import {useStore} from 'vuex';
-import {useQuery, useResult} from '@vue/apollo-composable'
-import {GET_COURSE_REL_USER} from "../../../graphql/queries/CourseRelUser.js";
-import StickyCourses from '../../../views/user/courses/StickyCourses.vue';
+<script setup>
+import { nextTick, onMounted, ref, watch } from "vue"
+import { useQuery } from "@vue/apollo-composable"
+import { useI18n } from "vue-i18n"
+import { GET_COURSE_REL_USER } from "../../../graphql/queries/CourseRelUser.js"
+import Skeleton from "primevue/skeleton"
+import StickyCourses from "../../../views/user/courses/StickyCourses.vue"
+import CourseCardList from "../../../components/course/CourseCardList.vue"
+import EmptyState from "../../../components/EmptyState"
+import { useSecurityStore } from "../../../store/securityStore"
 
-export default {
-  name: 'CourseList',
-  components: {
-    StickyCourses,
-    CourseCardList,
-  },
-  setup() {
-    const store = useStore();
-    let user = computed(() => store.getters['security/getUser']);
+const securityStore = useSecurityStore()
+const { t } = useI18n()
 
-    if (user.value) {
-      let userId = user.value.id;
+const courses = ref([])
+const isLoading = ref(false)
+const endCursor = ref(null)
+const hasMore = ref(true)
+const lastCourseRef = ref(null)
 
-      const {result, loading, error} = useQuery(GET_COURSE_REL_USER, {
-        user: "/api/users/" + userId
-      });
+const { result, fetchMore } = useQuery(GET_COURSE_REL_USER, {
+  user: securityStore.user["@id"],
+  first: 30,
+  after: null,
+})
 
-      const courses = useResult(result, [], (data) => {
-        return data.courseRelUsers.edges.map(function (edge) {
-          return edge.node.course;
-        });
-      });
+watch(result, (newResult) => {
+  if (newResult?.courseRelUsers) {
+    const newCourses = newResult.courseRelUsers.edges.map(({ node }) => node.course)
+
+    const filteredCourses = newCourses.filter(
+      (newCourse) => !courses.value.some((existingCourse) => existingCourse._id === newCourse._id),
+    )
+
+    courses.value.push(...filteredCourses)
+    endCursor.value = newResult.courseRelUsers.pageInfo.endCursor
+    hasMore.value = newResult.courseRelUsers.pageInfo.hasNextPage
+
+    nextTick(() => {
+      if (lastCourseRef.value) {
+        observer.observe(lastCourseRef.value)
+      }
+    })
+  }
+  isLoading.value = false
+})
+
+const loadMoreCourses = () => {
+  if (!hasMore.value || isLoading.value) return
+  isLoading.value = true
+
+  fetchMore({
+    variables: {
+      user: securityStore.user["@id"],
+      first: 10,
+      after: endCursor.value,
+    },
+    updateQuery: (previousResult, { fetchMoreResult }) => {
+      if (!fetchMoreResult) return previousResult
+
+      const newCourses = fetchMoreResult.courseRelUsers.edges.map(({ node }) => node.course)
+      const filteredCourses = newCourses.filter(
+        (newCourse) => !courses.value.some((existingCourse) => existingCourse._id === newCourse._id),
+      )
+      courses.value.push(...filteredCourses)
+      endCursor.value = fetchMoreResult.courseRelUsers.pageInfo.endCursor
+      hasMore.value = fetchMoreResult.courseRelUsers.pageInfo.hasNextPage
 
       return {
-        courses,
-        loading
+        ...previousResult,
+        courseRelUsers: {
+          ...fetchMoreResult.courseRelUsers,
+          edges: [...previousResult.courseRelUsers.edges, ...fetchMoreResult.courseRelUsers.edges],
+        },
       }
+    },
+  }).finally(() => {
+    isLoading.value = false
+  })
+}
+
+let observer = new IntersectionObserver(
+  (entries) => {
+    if (entries[0].isIntersecting) {
+      loadMoreCourses()
     }
-  }
-};
+  },
+  {
+    rootMargin: "300px",
+  },
+)
+
+onMounted(() => {
+  courses.value = []
+  endCursor.value = null
+  hasMore.value = true
+  isLoading.value = false
+
+  if (observer) observer.disconnect()
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting) {
+        loadMoreCourses()
+      }
+    },
+    {
+      rootMargin: "300px",
+    },
+  )
+
+  loadMoreCourses()
+})
 </script>

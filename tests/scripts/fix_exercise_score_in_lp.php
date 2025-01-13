@@ -6,10 +6,8 @@
  * with the LP score result (lp_item_view.score).
  * This script works only if 1 there's one attempt
  */
-
-exit;
-
-require_once '../../main/inc/global.inc.php';
+die('Remove the "die()" statement on line '.__LINE__.' to execute this script'.PHP_EOL);
+require_once __DIR__.'/../../public/main/inc/global.inc.php';
 
 api_protect_admin_script();
 
@@ -45,7 +43,7 @@ if (!empty($items)) {
         $courseCode = $item['code'];
         $sessionId = $item['session_id'];
 
-        $url = api_get_path(WEB_CODE_PATH)."mySpace/myStudents.php?student=$userId&details=true&course=$courseCode&origin=&id_session=$sessionId";
+        $url = api_get_path(WEB_CODE_PATH)."my_space/myStudents.php?student=$userId&details=true&course=$courseCode&origin=&id_session=$sessionId";
         echo "Check user page: ". Display::url($url, $url);
         echo '<br />';
 

@@ -11,7 +11,6 @@ use Chamilo\CoreBundle\Entity\ExtraFieldSavedSearch;
 use Chamilo\CoreBundle\Repository\ExtraFieldRepository;
 use Chamilo\Tests\AbstractApiTest;
 use Chamilo\Tests\ChamiloTestTrait;
-use Gedmo\Translatable\Entity\Translation;
 
 class ExtraFieldRepositoryTest extends AbstractApiTest
 {
@@ -29,8 +28,8 @@ class ExtraFieldRepositoryTest extends AbstractApiTest
             ->setVariable('test')
             ->setDescription('desc')
             ->setHelperText('help')
-            ->setExtraFieldType(ExtraField::USER_FIELD_TYPE)
-            ->setFieldType(\ExtraField::FIELD_TYPE_TEXT)
+            ->setItemType(ExtraField::USER_FIELD_TYPE)
+            ->setValueType(\ExtraField::FIELD_TYPE_TEXT)
             ->setDefaultValue('')
             ->setFieldOrder(1)
         ;
@@ -39,7 +38,7 @@ class ExtraFieldRepositoryTest extends AbstractApiTest
         $em->flush();
 
         $this->assertSame($defaultCount + 1, $repo->count([]));
-        $this->assertSame(ExtraField::USER_FIELD_TYPE, $extraField->getExtraFieldType());
+        $this->assertSame(ExtraField::USER_FIELD_TYPE, $extraField->getItemType());
         $this->assertSame('', $extraField->getDefaultValue());
         $this->assertSame('desc', $extraField->getDescription());
         $this->assertSame('text', $extraField->getTypeToString());
@@ -55,75 +54,6 @@ class ExtraFieldRepositoryTest extends AbstractApiTest
         $this->assertNotNull($extraField->getId());
 
         $this->assertSame($defaultCount + 1, $repo->count([]));
-    }
-
-    public function testCreateWithTranslation(): void
-    {
-        $em = $this->getEntityManager();
-        //$extraFieldRepo = static::getContainer()->get(ExtraFieldRepository::class);
-        $extraFieldRepo = $em->getRepository(ExtraField::class);
-        $translator = static::getContainer()->get('translator');
-
-        $defaultLocale = $translator->getLocale();
-        $this->assertSame('en_US', $defaultLocale);
-
-        $defaultCount = $extraFieldRepo->count([]);
-
-        $extraField = (new ExtraField())
-            ->setDisplayText('test in ENGLISH')
-            ->setVariable('test in en')
-            ->setExtraFieldType(ExtraField::USER_FIELD_TYPE)
-            ->setFieldType(\ExtraField::FIELD_TYPE_TEXT)
-        ;
-        $this->assertHasNoEntityViolations($extraField);
-        $em->persist($extraField);
-        $em->flush();
-
-        $this->assertSame($defaultCount + 1, $extraFieldRepo->count([]));
-
-        /** @var ExtraField $extraField */
-        $extraField = $extraFieldRepo->find($extraField->getId());
-
-        $extraField
-            ->setTranslatableLocale('fr_FR')
-            ->setDisplayText('test in FRENCH')
-        ;
-        $em->persist($extraField);
-        $em->flush();
-
-        /** @var ExtraField $extraField */
-        $extraField = $extraFieldRepo->find($extraField->getId());
-
-        $extraField
-            ->setTranslatableLocale('it')
-            ->setDisplayText('test in ITALIAN')
-        ;
-        $em->persist($extraField);
-        $em->flush();
-        $em->clear();
-
-        $this->assertSame($defaultCount + 1, $extraFieldRepo->count([]));
-
-        /** @var ExtraField $extraField */
-        $extraField = $extraFieldRepo->find($extraField->getId());
-        $repository = $em->getRepository(Translation::class);
-
-        $translations = $repository->findTranslations($extraField);
-
-        $this->assertCount(2, $translations);
-        $expected = [
-            'fr_FR' => [
-                'displayText' => 'test in FRENCH',
-            ],
-            'it' => [
-                'displayText' => 'test in ITALIAN',
-            ],
-        ];
-        $this->assertSame($expected, $translations);
-
-        /** @var ExtraField $extraField */
-        $extraField = $extraFieldRepo->find($extraField->getId());
-        $this->assertSame('test in ENGLISH', $extraField->getDisplayText());
     }
 
     public function testGetExtraFields(): void
@@ -142,8 +72,8 @@ class ExtraFieldRepositoryTest extends AbstractApiTest
         $item = (new ExtraField())
             ->setDisplayText('test')
             ->setVariable('test')
-            ->setExtraFieldType(ExtraField::USER_FIELD_TYPE)
-            ->setFieldType(\ExtraField::FIELD_TYPE_TEXT)
+            ->setItemType(ExtraField::USER_FIELD_TYPE)
+            ->setValueType(\ExtraField::FIELD_TYPE_TEXT)
         ;
         $em->persist($item);
 

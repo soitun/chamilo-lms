@@ -60,7 +60,7 @@ if (empty($objQuestion)) {
 $answer_type = $objQuestion->getType(); //very important
 $TBL_ANSWERS = Database::get_course_table(TABLE_QUIZ_ANSWER);
 
-$resourceFile = $objQuestion->getResourceNode()->getResourceFile();
+$resourceFile = $objQuestion->getResourceNode()->getResourceFiles()->first();
 $pictureWidth = $resourceFile->getWidth();
 $pictureHeight = $resourceFile->getHeight();
 $imagePath = $questionRepo->getHotSpotImageUrl($objQuestion).'?'.api_get_cidreq();
@@ -167,17 +167,16 @@ if (!$hideExpectedAnswer) {
     $qb = $em->createQueryBuilder();
     $qb
         ->select('a')
-        ->from(CQuizAnswer::class, 'a')
-        ->where($qb->expr()->eq('a.cId', $courseId));
+        ->from(CQuizAnswer::class, 'a');
 
     if (HOT_SPOT_DELINEATION == $objQuestion->getType()) {
         $qb
-            ->andWhere($qb->expr()->eq('a.question', $questionId))
+            ->where($qb->expr()->eq('a.question', $questionId))
             ->andWhere($qb->expr()->neq('a.hotspotType', 'noerror'))
-            ->orderBy('a.id', 'ASC');
+            ->orderBy('a.iid', 'ASC');
     } else {
         $qb
-            ->andWhere($qb->expr()->eq('a.question', $questionId))
+            ->where($qb->expr()->eq('a.question', $questionId))
             ->orderBy('a.position', 'ASC');
     }
 

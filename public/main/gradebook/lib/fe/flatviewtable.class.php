@@ -6,6 +6,7 @@ set_time_limit(0);
 use CpChart\Cache as pCache;
 use CpChart\Data as pData;
 use CpChart\Image as pImage;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
 
 /**
  * Class FlatViewTable
@@ -23,25 +24,15 @@ class FlatViewTable extends SortableTable
     private $offset;
     private $mainCourseCategory;
 
-    /**
-     * @param Category $selectcat
-     * @param array    $users
-     * @param array    $evals
-     * @param array    $links
-     * @param bool     $limit_enabled
-     * @param int      $offset
-     * @param null     $addparams
-     * @param Category $mainCourseCategory
-     */
     public function __construct(
-        $selectcat,
-        $users = [],
-        $evals = [],
-        $links = [],
-        $limit_enabled = false,
-        $offset = 0,
-        $addparams = null,
-        $mainCourseCategory = null
+        Category $selectcat,
+        array $users = [],
+        array $evals = [],
+        array $links = [],
+        bool $limit_enabled = false,
+        int $offset = 0,
+        array $addparams = [],
+        ?Category $mainCourseCategory = null
     ) {
         parent:: __construct(
             'flatviewlist',
@@ -61,7 +52,7 @@ class FlatViewTable extends SortableTable
 
         $this->limit_enabled = $limit_enabled;
         $this->offset = $offset;
-        if (isset($addparams)) {
+        if (!empty($addparams)) {
             $this->set_additional_parameters($addparams);
         }
 
@@ -174,7 +165,15 @@ class FlatViewTable extends SortableTable
         $resource_list = $new_list;
         $i = 1;
         // Cache definition
-        $cachePath = api_get_path(SYS_ARCHIVE_PATH);
+        $cachePath = api_get_path(SYS_ARCHIVE_PATH) . 'chart/';
+        if (!file_exists($cachePath)) {
+            mkdir($cachePath, 0755, true);
+        }
+
+        if (!is_writable($cachePath)) {
+            chmod($cachePath, 0755);
+        }
+
         foreach ($resource_list as $key => $resource) {
             // Reverse array, otherwise we get highest values first
             $resource = array_reverse($resource, true);
@@ -205,9 +204,8 @@ class FlatViewTable extends SortableTable
             $myCache = new pCache(['CacheFolder' => substr($cachePath, 0, strlen($cachePath) - 1)]);
             $chartHash = $myCache->getHash($dataSet);
             if ($myCache->isInCache($chartHash)) {
-                $imgPath = api_get_path(SYS_ARCHIVE_PATH).$chartHash;
+                $imgPath = $cachePath.$chartHash;
                 $myCache->saveFromCache($chartHash, $imgPath);
-                $imgPath = api_get_path(WEB_ARCHIVE_PATH).$chartHash;
             } else {
                 /* Create the pChart object */
                 $widthSize = 480;
@@ -303,11 +301,10 @@ class FlatViewTable extends SortableTable
                 /* Render the picture (choose the best way) */
 
                 $myCache->writeToCache($chartHash, $myPicture);
-                $imgPath = api_get_path(SYS_ARCHIVE_PATH).$chartHash;
+                $imgPath = $cachePath.$chartHash;
                 $myCache->saveFromCache($chartHash, $imgPath);
-                $imgPath = api_get_path(WEB_ARCHIVE_PATH).$chartHash;
             }
-            echo '<img src="'.$imgPath.'" >';
+            echo '<img src="data:image/png;base64,' . base64_encode(file_get_contents($imgPath)) . '" >';
             if (0 == $i % 2 && 0 != $i) {
                 echo '<br /><br />';
             } else {
@@ -359,19 +356,21 @@ class FlatViewTable extends SortableTable
                     .'?selectcat='.Security::remove_XSS($_GET['selectcat'])
                     .'&offset='.(($this->offset) - GRADEBOOK_ITEM_LIMIT)
                     .(isset($_GET['search']) ? '&search='.Security::remove_XSS($_GET['search']) : '').'">'
-                    .Display::return_icon(
-                        'action_prev.png',
-                        get_lang('Previous page'),
-                        [],
-                        ICON_SIZE_MEDIUM
+                    .Display::getMdiIcon(
+                        ActionIcon::PREVIOUS,
+                        'ch-tool-icon',
+                        null,
+                        ICON_SIZE_MEDIUM,
+                        get_lang('Previous page')
                     )
                     .'</a>';
             } else {
-                $header .= Display::return_icon(
-                    'action_prev_na.png',
-                    get_lang('Previous page'),
-                    [],
-                    ICON_SIZE_MEDIUM
+                $header .= Display::getMdiIcon(
+                    ActionIcon::PREVIOUS,
+                    'ch-tool-icon-disabled',
+                    null,
+                    ICON_SIZE_MEDIUM,
+                    get_lang('Previous page')
                 );
             }
             $header .= ' ';
@@ -384,14 +383,15 @@ class FlatViewTable extends SortableTable
                     .'?selectcat='.Security::remove_XSS($_GET['selectcat'])
                     .'&offset='.($this->offset + GRADEBOOK_ITEM_LIMIT)
                     .(isset($_GET['search']) ? '&search='.Security::remove_XSS($_GET['search']) : '').'">'
-                    .Display::return_icon('action_next.png', get_lang('Next page'), [], ICON_SIZE_MEDIUM)
+                    .Display::getMdiIcon(ActionIcon::NEXT, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Next page'))
                     .'</a>';
             } else {
-                $header .= Display::return_icon(
-                    'action_next_na.png',
-                    get_lang('Next page'),
-                    [],
-                    ICON_SIZE_MEDIUM
+                $header .= Display::getMdiIcon(
+                    ActionIcon::NEXT,
+                    'ch-tool-icon-disabled',
+                    null,
+                    ICON_SIZE_MEDIUM,
+                    get_lang('Next page')
                 );
             }
             $header .= '</td>';

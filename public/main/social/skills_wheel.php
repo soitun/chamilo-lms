@@ -21,7 +21,7 @@ $htmlHeadXtra[] = api_get_js('skills.js');
 $tpl = new Template(null, false, false);
 
 $userId = api_get_user_id();
-$userInfo = api_get_user_info();
+$userInfo = api_get_user_info($userId);
 
 $skill = new SkillModel();
 $ranking = $skill->getUserSkillRanking($userId);
@@ -72,7 +72,10 @@ $tpl->assign('user_info', $userInfo);
 $tpl->assign('ranking', $ranking);
 $tpl->assign('skills', $skills);
 
-$template = $tpl->get_template('skill/skill_wheel_student.tpl');
+$skillId = isset($_GET['skill_id']) ? (int) $_GET['skill_id'] : 0;
+$tpl->assign('skill_id_to_load', $skillId);
+
+$template = $tpl->get_template('skill/skill_wheel_student.html.twig');
 $content = $tpl->fetch($template);
 $tpl->assign('content', $content);
 $tpl->display_no_layout_template();

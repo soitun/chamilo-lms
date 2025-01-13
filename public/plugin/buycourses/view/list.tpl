@@ -84,7 +84,7 @@
                         {% endif %}
                         <td class="text-right">
                             <a href="{{ _p.web_plugin ~ 'buycourses/src/configure_course.php?' ~ {'id': item.id, 'type':product_type_course}|url_encode() }}"
-                               class="btn btn-info btn-sm">
+                               class="btn btn--info btn-sm">
                                 <em class="fa fa-wrench fa-fw"></em> {{ 'Configure'|get_lang }}
                             </a>
                         </td>
@@ -117,7 +117,7 @@
                     {% for item in sessions %}
                         <tr data-item="{{ item.id }}" data-type="session">
                             <td>
-                                <a href="{{ _p.web_main ~ 'session/index.php?' ~ {'session_id': item.id}|url_encode() }}">{{ item.name }}</a>
+                                <a href="{{ _p.web_main ~ 'session/index.php?' ~ {'session_id': item.id}|url_encode() }}">{{ item.title }}</a>
                             </td>
                             <td class="text-center">
                                 {{ item.displayStartDate | api_convert_and_format_date(6)}}
@@ -142,7 +142,7 @@
                             {% endif %}
                             <td class="text-right">
                                 <a href="{{ _p.web_plugin ~ 'buycourses/src/configure_course.php?' ~ {'id': item.id, 'type': product_type_session}|url_encode() }}"
-                                   class="btn btn-info btn-sm">
+                                   class="btn btn--info btn-sm">
                                     <em class="fa fa-wrench fa-fw"></em>
                                     {{ 'Configure'|get_lang }}
                                 </a>
@@ -158,7 +158,7 @@
     {% if services_are_included %}
         <div role="tabpanel" class="tab-pane {{ services ? 'fade in active' : '' }} " id="services">
             <div class="table-responsive">
-                <a href="{{ _p.web_plugin ~ 'buycourses/src/services_add.php' }}" class="btn btn-primary">
+                <a href="{{ _p.web_plugin ~ 'buycourses/src/services_add.php' }}" class="btn btn--primary">
                     <em class="fa fa-cart-plus fa-fw"></em> {{ 'NewService'| get_plugin_lang('BuyCoursesPlugin') }}
                 </a>
                 </br>
@@ -182,7 +182,7 @@
                     {% for item in services %}
                         <tr data-item="{{ item.id }}" data-type="service">
                             <td>
-                                {{ item.name }}
+                                {{ item.title }}
                             </td>
                             <td>
                                 {{ item.description }}
@@ -218,7 +218,7 @@
                             {% endif %}
                             <td class="text-right">
                                 <a href="{{ _p.web_plugin ~ 'buycourses/src/services_edit.php?' ~ {'id': item.id}|url_encode() }}"
-                                   class="btn btn-info btn-sm">
+                                   class="btn btn--info btn-sm">
                                     <em class="fa fa-wrench fa-fw"></em> {{ 'Edit'|get_lang }}
                                 </a>
                             </td>

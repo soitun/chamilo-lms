@@ -8,7 +8,7 @@ namespace Chamilo\LtiBundle\Component;
 
 use Doctrine\ORM\EntityManager;
 use SimpleXMLElement;
-use Symfony\Bundle\FrameworkBundle\Translation\Translator;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 abstract class OutcomeRequest
 {
@@ -23,7 +23,7 @@ abstract class OutcomeRequest
     protected array $responseBodyParam;
 
     protected EntityManager $entityManager;
-    protected Translator $translator;
+    protected TranslatorInterface $translator;
 
     public function __construct(SimpleXMLElement $xml)
     {
@@ -38,7 +38,7 @@ abstract class OutcomeRequest
         $this->entityManager = $entityManager;
     }
 
-    public function setTranslator(Translator $translator): void
+    public function setTranslator(TranslatorInterface $translator): void
     {
         $this->translator = $translator;
     }
@@ -54,10 +54,13 @@ abstract class OutcomeRequest
         switch ($this->responseType) {
             case OutcomeResponse::TYPE_REPLACE:
                 return new OutcomeReplaceResponse($this->statusInfo, $this->responseBodyParam);
+
             case OutcomeResponse::TYPE_READ:
                 return new OutcomeReadResponse($this->statusInfo, $this->responseBodyParam);
+
             case OutcomeResponse::TYPE_DELETE:
                 return new OutcomeDeleteResponse($this->statusInfo, $this->responseBodyParam);
+
             default:
                 return new OutcomeUnsupportedResponse($this->statusInfo, $this->responseBodyParam);
         }

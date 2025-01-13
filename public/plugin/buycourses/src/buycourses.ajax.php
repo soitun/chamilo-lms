@@ -386,7 +386,7 @@ switch ($action) {
                 "moneda" => $serviceSale['currency'],
                 "monto" => intval(floatval($serviceSale['price']) * 100),
                 "usuario" => $user['username'],
-                "descripcion" => $serviceSale['service']['name'],
+                "descripcion" => $serviceSale['service']['title'],
                 "pedido" => $serviceSale['reference'],
                 "codigo_pais" => "PE",
                 "direccion" => get_lang('None'),
@@ -405,7 +405,7 @@ switch ($action) {
                         Display::return_message(
                             sprintf(
                                 $plugin->get_lang('SubscriptionToCourseXSuccessful'),
-                                $serviceSale['service']['name']
+                                $serviceSale['service']['title']
                             ),
                             'success'
                         )
@@ -453,7 +453,7 @@ switch ($action) {
         $html .= "<br />";
         $html .= "<legend>{$plugin->get_lang('ServiceInformation')}</legend>";
         $html .= "<ul>";
-        $html .= "<li><b>{$plugin->get_lang('ServiceName')}:</b> {$serviceSale['service']['name']}</li> ";
+        $html .= "<li><b>{$plugin->get_lang('ServiceName')}:</b> {$serviceSale['service']['title']}</li> ";
         $html .= "<li><b>{$plugin->get_lang('Description')}:</b> {$serviceSale['service']['description']}</li> ";
         $nodeType = $serviceSale['node_type'];
         $nodeName = '';
@@ -471,13 +471,13 @@ switch ($action) {
                 if (BuyCoursesPlugin::SERVICE_TYPE_SESSION == $nodeType) {
                     $nodeType = get_lang('Session');
                     $session = api_get_session_entity($serviceSale['node_id']);
-                    $nodeName = $session ? $session->getName() : null;
+                    $nodeName = $session ? $session->getTitle() : null;
                 } else {
                     if (BuyCoursesPlugin::SERVICE_TYPE_LP_FINAL_ITEM == $nodeType) {
                         $nodeType = get_lang('TemplateTitleCertificate');
                         /** @var CLp $lp */
                         $lp = $em->find('ChamiloCourseBundle:CLp', $serviceSale['node_id']);
-                        $nodeName = $lp ? $lp->getName() : null;
+                        $nodeName = $lp ? $lp->getTitle() : null;
                     }
                 }
             }
@@ -512,8 +512,8 @@ switch ($action) {
             if (BuyCoursesPlugin::SERVICE_STATUS_PENDING == $status) {
                 $status = $plugin->get_lang('Pending');
                 if ($isAdmin) {
-                    $buttons .= "<a id='{$serviceSale['id']}' tag='service_sale_confirm' class='btn btn-success pull-left'>{$plugin->get_lang('ConfirmOrder')}</a>";
-                    $buttons .= "<a id='{$serviceSale['id']}' tag='service_sale_cancel' class='btn btn-danger pull-right'>{$plugin->get_lang('CancelOrder')}</a>";
+                    $buttons .= "<a id='{$serviceSale['id']}' tag='service_sale_confirm' class='btn btn--success pull-left'>{$plugin->get_lang('ConfirmOrder')}</a>";
+                    $buttons .= "<a id='{$serviceSale['id']}' tag='service_sale_cancel' class='btn btn--danger pull-right'>{$plugin->get_lang('CancelOrder')}</a>";
                 }
             } else {
                 if (BuyCoursesPlugin::SERVICE_STATUS_CANCELLED == $status) {
@@ -543,7 +543,7 @@ switch ($action) {
         $html .= "beforeSend: function() {";
         $processingLoaderText = $plugin->get_lang('ProcessingDontCloseThisWindow');
         $html .= "$('.bootbox-close-button').remove();";
-        $html .= "$('.btn-default').attr('disabled', true);";
+        $html .= "$('.btn--plain').attr('disabled', true);";
         $html .= "$('.bc-action-buttons').html('<div class=\"wobblebar-loader\"></div><p> $processingLoaderText</p>');";
         $html .= "},";
         $html .= "success: function(response) {";
@@ -563,14 +563,14 @@ switch ($action) {
 
         if ($response) {
             $html .= Display::return_message(
-                sprintf($plugin->get_lang('SubscriptionToServiceXSuccessful'), $serviceSale['service']['name']),
+                sprintf($plugin->get_lang('SubscriptionToServiceXSuccessful'), $serviceSale['service']['title']),
                 'success'
             );
         } else {
             $html .= Display::return_message('Error - '.$plugin->get_lang('ErrorContactPlatformAdmin'), 'error');
         }
 
-        $html .= "<a id='finish-button' class='btn btn-primary'>".$plugin->get_lang('ClickHereToFinish')."</a>";
+        $html .= "<a id='finish-button' class='btn btn--primary'>".$plugin->get_lang('ClickHereToFinish')."</a>";
         $html .= "</div>";
         $html .= "<script>";
         $html .= "$('#finish-button').click(function() {";
@@ -594,7 +594,7 @@ switch ($action) {
             $html .= Display::return_message('Error - '.$plugin->get_lang('ErrorContactPlatformAdmin'), 'error');
         }
 
-        $html .= "<a id='finish-button' class='btn btn-primary'>".$plugin->get_lang('ClickHereToFinish')."</a>";
+        $html .= "<a id='finish-button' class='btn btn--primary'>".$plugin->get_lang('ClickHereToFinish')."</a>";
         $html .= "</div>";
         $html .= "<script>";
         $html .= "$('#finish-button').click(function() {";

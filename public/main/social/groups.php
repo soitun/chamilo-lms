@@ -5,6 +5,8 @@
 /**
  * @author Julio Montoya <gugli100@gmail.com>
  */
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
+
 $cidReset = true;
 require_once __DIR__.'/../inc/global.inc.php';
 
@@ -64,16 +66,20 @@ if (is_array($results) && count($results) > 0) {
         $name = cut($result['name'], GROUP_TITLE_LENGTH, true);
 
         if (GROUP_USER_PERMISSION_ADMIN == $result['relation_type']) {
-            $name .= ' '.Display::return_icon(
-                'social_group_admin.png',
-                get_lang('Admin'),
-                ['style' => 'vertical-align:middle']
+            $name .= ' '.Display::getMdiIcon(
+                ObjectIcon::ADMIN_USER,
+                'ch-tool-icon',
+                'vertical-align:middle;',
+                ICON_SIZE_SMALL,
+                get_lang('Admin')
             );
         } elseif (GROUP_USER_PERMISSION_MODERATOR == $result['relation_type']) {
-            $name .= ' '.Display::return_icon(
-                'social_group_moderator.png',
-                get_lang('Moderator'),
-                ['style' => 'vertical-align:middle']
+            $name .= ' '.Display::getMdiIcon(
+                ObjectIcon::MODERATOR_USER,
+                'ch-tool-icon',
+                'vertical-align:middle;',
+                ICON_SIZE_SMALL,
+                get_lang('Moderator')
             );
         }
         $url = '<a href="group_view.php?id='.$id.'">'.$name.'</a>';
@@ -172,7 +178,7 @@ foreach ($results as $result) {
     }
     // Avoiding my groups
     if (!in_array($id, $my_group_list)) {
-        $html .= '<a class="btn btn-primary" href="group_view.php?id='.$id.'&action=join&u='.api_get_user_id().'">'.
+        $html .= '<a class="btn btn--primary" href="group_view.php?id='.$id.'&action=join&u='.api_get_user_id().'">'.
             get_lang('Join group').'</a> ';
     }
 
@@ -234,7 +240,7 @@ if (is_array($results) && count($results) > 0) {
         }
         // Avoiding my groups
         if (!in_array($id, $my_group_list)) {
-            $html .= '<a class="btn btn-primary" href="group_view.php?id='.$id.'&action=join&u='.api_get_user_id().'">'.
+            $html .= '<a class="btn btn--primary" href="group_view.php?id='.$id.'&action=join&u='.api_get_user_id().'">'.
                 get_lang('Join group').'</a> ';
         }
 
@@ -267,12 +273,12 @@ if (isset($_GET['view']) && in_array($_GET['view'], $allowed_views)) {
             }
             if ('true' == api_get_setting('allow_students_to_create_groups_in_social')) {
                 $create_group_item =
-                    '<a class="btn btn-default" href="'.api_get_path(WEB_PATH).'main/social/group_add.php">'.
+                    '<a class="btn btn--plain" href="'.api_get_path(WEB_PATH).'main/social/group_add.php">'.
                     get_lang('Create a social group').'</a>';
             } else {
                 if (api_is_allowed_to_edit(null, true)) {
                     $create_group_item =
-                        '<a class="btn btn-default" href="'.api_get_path(WEB_PATH).'main/social/group_add.php">'.
+                        '<a class="btn btn--plain" href="'.api_get_path(WEB_PATH).'main/social/group_add.php">'.
                         get_lang('Create a social group').'</a>';
                 }
             }
@@ -321,12 +327,12 @@ if (isset($_GET['view']) && in_array($_GET['view'], $allowed_views)) {
     }
     if ('true' === api_get_setting('allow_students_to_create_groups_in_social')) {
         $create_group_item =
-            '<a class="btn btn-default" href="'.api_get_path(WEB_PATH).'main/social/group_add.php">'.
+            '<a class="btn btn--plain" href="'.api_get_path(WEB_PATH).'main/social/group_add.php">'.
             get_lang('Create a social group').'</a>';
     } else {
         if (api_is_allowed_to_edit(null, true)) {
             $create_group_item =
-                '<a class="btn btn-default" href="'.api_get_path(WEB_PATH).'main/social/group_add.php">'.
+                '<a class="btn btn--plain" href="'.api_get_path(WEB_PATH).'main/social/group_add.php">'.
                 get_lang('Create a social group').'</a>';
         }
     }

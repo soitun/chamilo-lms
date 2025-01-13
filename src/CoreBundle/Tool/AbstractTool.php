@@ -6,76 +6,44 @@ declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\Tool;
 
-use Sylius\Bundle\SettingsBundle\Schema\SchemaInterface;
 use Symfony\Component\Serializer\Annotation\Groups;
 
 abstract class AbstractTool
 {
-    /**
-     * @Groups({"ctool:read"})
-     */
-    protected string $name;
+    #[Groups(['ctool:read'])]
+    protected string $title;
 
-    /**
-     * @Groups({"ctool:read"})
-     */
-    protected string $nameToShow = '';
+    #[Groups(['ctool:read'])]
+    protected string $titleToShow;
 
-    /**
-     * @Groups({"ctool:read"})
-     */
+    #[Groups(['ctool:read'])]
     protected string $icon = '';
+
+    #[Groups(['ctool:read'])]
     protected string $category = '';
-    protected string $link;
+
     protected string $image;
-    protected string $admin;
-    protected ?SchemaInterface $settings = null;
+
     protected array $resourceTypes = [];
 
     /**
-     * @var string
+     * Tool scope.
      *
-     *  00 disabled tool
-     *  01 course tool
-     *  10 global tool
-     *  11 global or course or both
+     * Values can be the following.
+     *
+     * - 00 disabled tool
+     * - 01 course tool
+     * - 10 global tool
+     * - 11 global or course or both
      */
     protected string $scope;
-
-    abstract public function getCategory(): string;
-    abstract public function getLink(): string;
-
-    /*public function __construct(
-        string $name,
-        string $category,
-        string $link,
-        ?SchemaInterface $settings = null,
-        ?array $resourceTypes = []
-    ) {
-        $this->name = $name;
-        $this->nameToShow = $name;
-        $this->category = $category;
-        $this->link = $link;
-        $this->image = $name.'.png';
-        $this->settings = $settings;
-        $this->resourceTypes = $resourceTypes;
-        $this->icon = 'mdi-crop-square';
-    }*/
 
     public function isCourseTool(): bool
     {
         return false;
     }
 
-    public function isGlobal(): bool
-    {
-        return true;
-    }
-
-    public function getName(): string
-    {
-        return $this->name;
-    }
+    abstract public function getTitle(): string;
 
     public function getTarget(): string
     {
@@ -112,23 +80,32 @@ abstract class AbstractTool
         return $this->resourceTypes;
     }
 
-    public function setResourceTypes(?array $resourceTypes): self
+    public function getTitleToShow(): string
     {
-        $this->resourceTypes = $resourceTypes;
+        $title = $this->getTitle();
 
-        return $this;
-    }
+        // Exception for singular terms that need a plural (with an 's')
+        switch ($title) {
+            case 'course_setting':
+                return 'Course settings';
 
-    public function getNameToShow(): string
-    {
-        //return $this->getName();
-        return ucfirst(str_replace('_', ' ', $this->getName()));
-    }
+            case 'member':
+                return 'Users';
 
-    public function setNameToShow(string $nameToShow): self
-    {
-        $this->nameToShow = $nameToShow;
+            case 'announcement':
+                return 'Announcements';
 
-        return $this;
+            case 'attendance':
+                return 'Attendances';
+
+            case 'link':
+                return 'Links';
+
+            case 'survey':
+                return 'Surveys';
+
+            default:
+                return ucfirst(str_replace('_', ' ', $title));
+        }
     }
 }

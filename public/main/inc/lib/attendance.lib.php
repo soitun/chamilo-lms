@@ -10,6 +10,9 @@ use Chamilo\CourseBundle\Entity\CAttendance;
 use Chamilo\CourseBundle\Entity\CAttendanceCalendar;
 use Chamilo\CourseBundle\Entity\CAttendanceSheetLog;
 use Doctrine\Common\Collections\Criteria;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
+use Chamilo\CoreBundle\Component\Utils\StateIcon;
 
 class Attendance
 {
@@ -20,13 +23,13 @@ class Attendance
     private $session_id;
     private $course_id;
     private $date_time;
-    private $name;
+    private $title;
     private $description;
     private $attendance_qualify_title;
     private $attendance_weight;
 
     /**
-     * Get attendance list only the id, name and attendance_qualify_max fields.
+     * Get attendance list only the id, title and attendance_qualify_max fields.
      *
      * @return CAttendance[]
      */
@@ -49,13 +52,13 @@ class Attendance
         $condition_session = api_get_session_condition($session_id);
 
         // Get attendance data
-        $sql = "SELECT iid, name, attendance_qualify_max
+        $sql = "SELECT iid, title, attendance_qualify_max
                 FROM $table
                 WHERE active = 1 $condition_session ";
         $result = Database::query($sql);
         $data = [];
         if (Database::num_rows($result) > 0) {
-            while ($row = Database::fetch_array($result, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($result)) {
                 $data[$row['iid']] = $row;
             }
         }
@@ -178,7 +181,7 @@ class Attendance
         foreach ($attendances as $attendance) {
             $row = [];
             $id = $attendance->getIid();
-            $name = $attendance->getName();
+            $title = $attendance->getTitle();
             $active = $attendance->getActive();
             $session_star = '';
             /*if ($session_id == $attendance[6]) {
@@ -191,13 +194,13 @@ class Attendance
                 ) || api_is_drh();
                 if ($isDrhOfCourse || api_is_allowed_to_edit(null, true)) {
                     // Link to edit
-                    $row[1] = '<a href="index.php?'.api_get_cidreq().'&action=attendance_sheet_list&attendance_id='.$id.$student_param.'">'.$name.'</a>'.$session_star;
+                    $row[1] = '<a href="index.php?'.api_get_cidreq().'&action=attendance_sheet_list&attendance_id='.$id.$student_param.'">'.$title.'</a>'.$session_star;
                 } else {
                     // Link to view
-                    $row[1] = '<a href="index.php?'.api_get_cidreq().'&action=attendance_sheet_list_no_edit&attendance_id='.$id.$student_param.'">'.$name.'</a>'.$session_star;
+                    $row[1] = '<a href="index.php?'.api_get_cidreq().'&action=attendance_sheet_list_no_edit&attendance_id='.$id.$student_param.'">'.$title.'</a>'.$session_star;
                 }
             } else {
-                $row[1] = '<a class="muted" href="index.php?'.api_get_cidreq().'&action=attendance_sheet_list&attendance_id='.$id.$student_param.'">'.$name.'</a>'.$session_star;
+                $row[1] = '<a class="muted" href="index.php?'.api_get_cidreq().'&action=attendance_sheet_list&attendance_id='.$id.$student_param.'">'.$title.'</a>'.$session_star;
             }
 
             if (1 == $active) {
@@ -212,40 +215,40 @@ class Attendance
                 $actions .= '<center>';
                 if (api_is_platform_admin()) {
                     $actions .= '<a href="index.php?'.api_get_cidreq().'&action=attendance_edit&attendance_id='.$id.'">'.
-                        Display::return_icon('edit.png', get_lang('Edit'), [], ICON_SIZE_SMALL).'</a>&nbsp;';
+                        Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Edit')).'</a>&nbsp;';
                     // Visible
                     if (1 == $active) {
                         $actions .= '<a href="index.php?'.api_get_cidreq().'&action=attendance_set_invisible&attendance_id='.$id.'">'.
-                            Display::return_icon('visible.png', get_lang('Hide'), [], ICON_SIZE_SMALL).'</a>';
+                            Display::getMdiIcon(StateIcon::ACTIVE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Hide')).'</a>';
                     } else {
                         $actions .= '<a href="index.php?'.api_get_cidreq().'&action=attendance_set_visible&attendance_id='.$id.'">'.
-                            Display::return_icon('invisible.png', get_lang('Show'), [], ICON_SIZE_SMALL).'</a>';
+                            Display::getMdiIcon(StateIcon::INACTIVE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Show')).'</a>';
                         $row[2] = '<span class="muted">'.$attendance->getDescription().'</span>';
                     }
                     if ('true' === $allowDelete) {
                         $actions .= '<a href="index.php?'.api_get_cidreq().'&action=attendance_delete&attendance_id='.$id.'">'.
-                            Display::return_icon('delete.png', get_lang('Delete'), [], ICON_SIZE_SMALL).'</a>';
+                            Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Delete')).'</a>';
                     }
                 } else {
                     $is_locked_attendance = self::is_locked_attendance($id);
                     if ($is_locked_attendance) {
-                        $actions .= Display::return_icon('edit_na.png', get_lang('Edit')).'&nbsp;';
-                        $actions .= Display::return_icon('visible.png', get_lang('Hide'));
+                        $actions .= Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon-disabled', null, ICON_SIZE_SMALL, get_lang('Edit')).'&nbsp;';
+                        $actions .= Display::getMdiIcon(StateIcon::ACTIVE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Hide'));
                     } else {
                         $actions .= '<a href="index.php?'.api_get_cidreq().'&action=attendance_edit&attendance_id='.$id.'">'.
-                            Display::return_icon('edit.png', get_lang('Edit'), [], ICON_SIZE_SMALL).'</a>&nbsp;';
+                            Display::getMdiIcon(ActionIcon::EDIT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Edit')).'</a>&nbsp;';
 
                         if (1 == $active) {
                             $actions .= ' <a href="index.php?'.api_get_cidreq().'&action=attendance_set_invisible&attendance_id='.$id.'">'.
-                                Display::return_icon('visible.png', get_lang('Hide'), [], ICON_SIZE_SMALL).'</a>';
+                                Display::getMdiIcon(StateIcon::ACTIVE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Hide')).'</a>';
                         } else {
                             $actions .= ' <a href="index.php?'.api_get_cidreq().'&action=attendance_set_visible&attendance_id='.$id.'">'.
-                                Display::return_icon('invisible.png', get_lang('Show'), [], ICON_SIZE_SMALL).'</a>';
+                                Display::getMdiIcon(StateIcon::INACTIVE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Show')).'</a>';
                             $row[2] = '<span class="muted">'.$attendance->getDescription().'</span>';
                         }
                         if ('true' === $allowDelete) {
                             $actions .= ' <a href="index.php?'.api_get_cidreq().'&action=attendance_delete&attendance_id='.$id.'">'.
-                                Display::return_icon('delete.png', get_lang('Delete'), [], ICON_SIZE_SMALL).'</a>';
+                                Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Delete')).'</a>';
                         }
                     }
                 }
@@ -264,15 +267,15 @@ class Attendance
                         $actions .= '&nbsp;<a
                             onclick="javascript:if(!confirm(\''.$message_alert.'\')) return false;"
                             href="index.php?'.api_get_cidreq().'&action=lock_attendance&attendance_id='.$id.'">'.
-                            Display::return_icon('unlock.png', get_lang('Lock attendance')).'</a>';
+                            Display::getMdiIcon(ActionIcon::UNLOCK, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Lock attendance')).'</a>';
                     } else {
                         if (api_is_platform_admin()) {
                             $actions .= '&nbsp;<a
                             onclick="javascript:if(!confirm(\''.get_lang('Are you sure you want to unlock the attendance?').'\')) return false;"
                             href="index.php?'.api_get_cidreq().'&action=unlock_attendance&attendance_id='.$id.'">'.
-                                    Display::return_icon('lock.png', get_lang('Unlock attendance')).'</a>';
+                                    Display::getMdiIcon(ActionIcon::LOCK, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Unlock attendance')).'</a>';
                         } else {
-                            $actions .= '&nbsp;'.Display::return_icon('locked_na.png', get_lang('Locked attendance'));
+                            $actions .= '&nbsp;'.Display::getMdiIcon(ActionIcon::LOCK, 'ch-tool-icon-disabled', null, ICON_SIZE_SMALL, get_lang('Locked attendance'));
                         }
                     }
                 }
@@ -334,57 +337,57 @@ class Attendance
      */
     public function attendance_add($link_to_gradebook = false)
     {
-        $_course = api_get_course_info();
-        $table_link = Database::get_main_table(TABLE_MAIN_GRADEBOOK_LINK);
-        $session_id = api_get_session_id();
-        $course_code = $_course['code'];
-        $title_gradebook = $this->attendance_qualify_title;
-        $value_calification = 0;
-        $weight_calification = api_float_val($this->attendance_weight);
+        $courseInfo = api_get_course_info();
+        $tableLink = Database::get_main_table(TABLE_MAIN_GRADEBOOK_LINK);
+        $sessionId = api_get_session_id();
+        $courseCode = $courseInfo['code'];
+        $titleGradebook = (string) $this->attendance_qualify_title;
+        $valueCalification = 0;
+        $weightCalification = api_float_val($this->attendance_weight);
         $course = api_get_course_entity();
         $attendance = new CAttendance();
         $attendance
-            ->setName($this->name)
+            ->setTitle($this->title)
             ->setDescription($this->description)
-            ->setAttendanceQualifyTitle($title_gradebook)
-            ->setAttendanceWeight($weight_calification)
+            ->setAttendanceQualifyTitle($titleGradebook)
+            ->setAttendanceWeight($weightCalification)
             ->setParent($course)
             ->addCourseLink($course, api_get_session_entity())
         ;
 
         $repo = Container::getAttendanceRepository();
         $repo->create($attendance);
-        $last_id = $attendance->getIid();
+        $lastId = $attendance->getIid();
 
         // add link to gradebook
         if ($link_to_gradebook && !empty($this->category_id)) {
             $description = '';
-            $link_info = GradebookUtils::isResourceInCourseGradebook(
-                $course_code,
+            $linkInfo = GradebookUtils::isResourceInCourseGradebook(
+                $course->getId(),
                 7,
-                $last_id,
-                $session_id
+                $lastId,
+                $sessionId
             );
-            $link_id = $link_info['id'];
-            if (!$link_info) {
+            $linkId = $linkInfo['id'];
+            if (!$linkInfo) {
                 GradebookUtils::add_resource_to_course_gradebook(
                     $this->category_id,
-                    $course_code,
+                    $courseInfo['real_id'],
                     7,
-                    $last_id,
-                    $title_gradebook,
-                    $weight_calification,
-                    $value_calification,
+                    $lastId,
+                    $titleGradebook,
+                    $weightCalification,
+                    $valueCalification,
                     $description,
                     1,
-                    $session_id
+                    $sessionId
                 );
             } else {
-                Database::query('UPDATE '.$table_link.' SET weight='.$weight_calification.' WHERE iid='.$link_id.'');
+                Database::query("UPDATE $tableLink SET weight = $weightCalification WHERE iid = $linkId");
             }
         }
 
-        return $last_id;
+        return $lastId;
     }
 
     /**
@@ -408,7 +411,7 @@ class Attendance
         if ($attendance) {
             $attendanceId = $attendance->getIid();
             $attendance
-                ->setName($this->name)
+                ->setTitle($this->title)
                 ->setDescription($this->description)
                 ->setAttendanceQualifyTitle($title_gradebook)
                 ->setAttendanceWeight($weight_calification)
@@ -418,7 +421,7 @@ class Attendance
             $repo->update($attendance);
 
             /*$params = [
-                'name' => $this->name,
+                'title' => $this->title,
                 'description' => $this->description,
                 'attendance_qualify_title' => $title_gradebook,
                 'attendance_weight' => $weight_calification,
@@ -440,7 +443,7 @@ class Attendance
             if ($link_to_gradebook && !empty($this->category_id)) {
                 $description = '';
                 $link_info = GradebookUtils::isResourceInCourseGradebook(
-                    $course_code,
+                    $_course['real_id'],
                     7,
                     $attendanceId,
                     $session_id
@@ -448,7 +451,7 @@ class Attendance
                 if (!$link_info) {
                     GradebookUtils::add_resource_to_course_gradebook(
                         $this->category_id,
-                        $course_code,
+                        $_course['real_id'],
                         7,
                         $attendanceId,
                         $title_gradebook,
@@ -776,7 +779,8 @@ class Attendance
                 $sql = "INSERT INTO $tbl_attendance_sheet SET
                         user_id = '$uid',
                         attendance_calendar_id = '$calendar_id',
-                        presence = 1";
+                        presence = 1,
+                        signature = ''";
                 $result = Database::query($sql);
 
                 $affected_rows += Database::affected_rows($result);
@@ -803,7 +807,8 @@ class Attendance
                 $sql = "INSERT INTO $tbl_attendance_sheet SET
                         user_id ='$uid',
                         attendance_calendar_id = '$calendar_id',
-                        presence = 0";
+                        presence = 0,
+                        signature = ''";
                 $result = Database::query($sql);
                 $affected_rows += Database::affected_rows($result);
             } else {
@@ -1445,7 +1450,7 @@ class Attendance
         $rs = Database::query($sql);
         $data = [];
         if (Database::num_rows($rs) > 0) {
-            while ($row = Database::fetch_array($rs, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($rs)) {
                 $row['db_date_time'] = $row['date_time'];
                 $row['date_time'] = api_get_local_time($row['date_time']);
                 $row['date'] = api_format_date($row['date_time'], DATE_FORMAT_SHORT);
@@ -1633,7 +1638,8 @@ class Attendance
         $calendar
             ->setAttendance($attendance)
             ->setDateTime(new Datetime($this->date_time))
-            ->setDoneAttendance(false);
+            ->setDoneAttendance(false)
+            ->setBlocked(false);
 
         $em = Database::getManager();
         $em->persist($calendar);
@@ -1914,9 +1920,9 @@ class Attendance
         $this->date_time = $datetime;
     }
 
-    public function set_name($name)
+    public function set_title($title)
     {
-        $this->name = $name;
+        $this->title = $title;
     }
 
     public function set_description($description)
@@ -1950,9 +1956,9 @@ class Attendance
         return $this->date_time;
     }
 
-    public function get_name()
+    public function get_title()
     {
-        return $this->name;
+        return $this->title;
     }
 
     public function get_description()
@@ -2219,8 +2225,8 @@ class Attendance
                             $attendancesProcess[3] = $courseItem['real_id'];
                             $attendancesProcess['courseId'] = $courseItem['real_id'];
 
-                            $attendancesProcess[4] = $attendanceData->getName();
-                            $attendancesProcess['attendanceName'] = $attendanceData->getName();
+                            $attendancesProcess[4] = $attendanceData->getTitle();
+                            $attendancesProcess['attendanceName'] = $attendanceData->getTitle();
                             $attendancesProcess['courseCode'] = $courseItem['course_code'];
 
                             $attendancesProcess[5] = $attendanceId;
@@ -2257,7 +2263,7 @@ class Attendance
 
         $rs = Database::query($sql);
         // get info from sessions
-        while ($row = Database::fetch_array($rs, 'ASSOC')) {
+        while ($row = Database::fetch_assoc($rs)) {
             $courseId = $row['c_id'];
             $sessionId = $row['session_id'];
             $courseItem = api_get_course_info_by_id($courseId);
@@ -2294,8 +2300,8 @@ class Attendance
                             $attendancesProcess['courseTitle'] = $courseItem['title'];
                             $attendancesProcess[3] = $courseItem['real_id'];
                             $attendancesProcess['courseId'] = $courseItem['real_id'];
-                            $attendancesProcess[4] = $attendanceData->getName();
-                            $attendancesProcess['attendanceName'] = $attendanceData->getName();
+                            $attendancesProcess[4] = $attendanceData->getTitle();
+                            $attendancesProcess['attendanceName'] = $attendanceData->getTitle();
                             $attendancesProcess[5] = $attendanceId;
                             $attendancesProcess['attendanceId'] = $attendanceId;
                             $attendancesProcess['courseCode'] = $courseItem['official_code'];
@@ -2400,14 +2406,14 @@ class Attendance
 
         if ($attendance) {
             $default = [];
-            $default['title'] = Security::remove_XSS($attendance->getName());
+            $default['title'] = Security::remove_XSS($attendance->getTitle());
             $default['description'] = Security::remove_XSS($attendance->getDescription(), STUDENT);
             $default['attendance_qualify_title'] = $attendance->getAttendanceQualifyTitle();
             $default['attendance_weight'] = $attendance->getAttendanceWeight();
             $default['skills'] = array_keys($skillList);
 
             $link_info = GradebookUtils::isResourceInCourseGradebook(
-                api_get_course_id(),
+                api_get_course_int_id(),
                 7,
                 $attendance->getIid(),
                 $sessionId
@@ -2548,7 +2554,7 @@ class Attendance
             $groupList = GroupManager::get_group_list(null, null, 1);
             $groupIdList = ['--'];
             foreach ($groupList as $group) {
-                $groupIdList[$group['iid']] = $group['name'];
+                $groupIdList[$group['iid']] = $group['title'];
             }
 
             if (!empty($groupList)) {
@@ -2577,12 +2583,12 @@ class Attendance
                 $actionsLeft = '<a
                     style="float:left;"
                     href="index.php?'.api_get_cidreq().'&action=calendar_list&attendance_id='.$attendanceId.'">'.
-                    Display::return_icon('attendance_calendar.png', get_lang('Attendance calendar'), '', ICON_SIZE_MEDIUM).
+                    Display::getMdiIcon(ObjectIcon::AGENDA, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Attendance calendar')).
                     '</a>';
                 $actionsLeft .= '<a
                     id="pdf_export" style="float:left;"
                     href="index.php?'.api_get_cidreq().'&action=attendance_sheet_export_to_pdf&attendance_id='.$attendanceId.'&filter='.$default_filter.'&group_id='.$groupId.'">'.
-                    Display::return_icon('pdf.png', get_lang('Export to PDF'), '', ICON_SIZE_MEDIUM).'</a>';
+                    Display::getMdiIcon(ActionIcon::EXPORT_PDF, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Export to PDF')).'</a>';
 
                 $actionsRight = $form->returnForm();
                 $content .= Display::toolbarAction('toolbar-attendance', [$actionsLeft, $actionsRight]);
@@ -2674,11 +2680,7 @@ class Attendance
                         $time = $calendar['time'];
                         $datetime = '<div class="grey">'.$date.' - '.$time.'</div>';
 
-                        $img_lock = Display::return_icon(
-                            'lock-closed.png',
-                            get_lang('Unlock date'),
-                            ['class' => 'img_lock', 'id' => 'datetime_column_'.$calendarId]
-                        );
+                        $img_lock = Display::getMdiIcon(ActionIcon::LOCK, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Unlock date'));
 
                         if (!empty($calendar['done_attendance'])) {
                             $datetime = '<div class="blue">'.$date.' - '.$time.'</div>';
@@ -2692,11 +2694,7 @@ class Attendance
                                 id="hidden_input_'.$calendarId.'" name="hidden_input[]"
                                 value="'.$calendarId.'" />';
                             $disabled_check = '';
-                            $img_lock = Display::return_icon(
-                                'lock-closed.png',
-                                get_lang('Lock date'),
-                                ['class' => 'img_unlock', 'id' => 'datetime_column_'.$calendarId]
-                            );
+                            $img_lock = Display::getMdiIcon(ActionIcon::LOCK, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Lock date'));
                         }
 
                         $result .= '<th>';
@@ -2722,12 +2720,7 @@ class Attendance
                 } else {
                     $result = '<th width="2000px"><span>
                     <a href="index.php?'.api_get_cidreq().'&action=calendar_list&attendance_id='.$attendanceId.'">';
-                    $result .= Display::return_icon(
-                            'attendance_calendar.png',
-                            get_lang('Attendance calendar'),
-                            '',
-                            ICON_SIZE_MEDIUM
-                        ).' '.get_lang('Go to the attendance calendar');
+                    $result .= Display::getMdiIcon(ObjectIcon::AGENDA, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Attendance calendar')).' '.get_lang('Go to the attendance calendar');
                     $result .= '</a></span></th>';
                 }
 
@@ -2788,26 +2781,16 @@ class Attendance
                                     value="'.$user['user_id'].'" '.$disabled.' '.$checked.' />';
                                     $form .= '<span class="anchor_'.$calendar['iid'].'"></span>';
                                 } else {
-                                    $form .= $presence ? Display::return_icon(
-                                        'checkbox_on.png',
-                                        get_lang('Assistance'),
-                                        null,
-                                        ICON_SIZE_TINY
-                                    ) : Display::return_icon(
-                                        'checkbox_off.png',
-                                        get_lang('Assistance'),
-                                        null,
-                                        ICON_SIZE_TINY
-                                    );
+                                    $form .= $presence ? Display::getMdiIcon(StateIcon::CHECKBOX_MARKED, 'ch-tool-icon', null, ICON_SIZE_TINY, get_lang('Assistance')) : Display::getMdiIcon(StateIcon::CHECKBOX_BLANK, 'ch-tool-icon', null, ICON_SIZE_TINY, get_lang('Assistance'));
                                 }
                             } else {
                                 switch ($presence) {
                                     case 1:
-                                        $form .= Display::return_icon('accept.png', get_lang('Attended'));
+                                        $form .= Display::getMdiIcon(StateIcon::CHECKBOX_BLANK, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Attended'));
 
                                         break;
                                     case 0:
-                                        $form .= Display::return_icon('exclamation.png', get_lang('Not attended'));
+                                        $form .= Display::getMdiIcon(StateIcon::CHECKBOX_MARKED, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Not attended'));
 
                                         break;
                                     case -1:
@@ -2839,7 +2822,7 @@ class Attendance
                             <div class="col-md-12">';
                 if (!$is_locked_attendance || api_is_platform_admin()) {
                     if ($allowToEdit) {
-                        $form .= '<button type="submit" class="btn btn-primary">'.get_lang('Save').'</button>';
+                        $form .= '<button type="submit" class="btn btn--primary">'.get_lang('Save').'</button>';
                     }
                 }
                 $form .= '</div>
@@ -2891,7 +2874,7 @@ class Attendance
                         $class = 'row_odd';
                     }
 
-                    $check = $presence['presence'] ? Display::return_icon('checkbox_on.png', get_lang('Assistance'), null, ICON_SIZE_TINY) : Display::return_icon('checkbox_off.png', get_lang('Assistance'), null, ICON_SIZE_TINY);
+                    $check = $presence['presence'] ? Display::getMdiIcon(StateIcon::CHECKBOX_MARKED, 'ch-tool-icon', null, ICON_SIZE_TINY, get_lang('Assistance')) : Display::getMdiIcon(StateIcon::CHECKBOX_BLANK, 'ch-tool-icon', null, ICON_SIZE_TINY, get_lang('Assistance'));
                     $content .= '<tr class="'.$class.'">
                             <td>
                                 '.$check.'&nbsp; '.$presence['date_time'].'
@@ -3061,7 +3044,7 @@ class Attendance
             'course_code' => $courseInfo['code'],
             'add_signatures' => ['Drh', 'Teacher', 'Date'],
             'pdf_teachers' => $teacherName,
-            'pdf_course_category' => $courseCategory ? $courseCategory['name'] : '',
+            'pdf_course_category' => $courseCategory ? $courseCategory['title'] : '',
             'format' => 'A4-L',
             'orientation' => 'L',
         ];

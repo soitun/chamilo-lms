@@ -6,8 +6,8 @@
  * This means creating a new URL of ID 1 and moving all previous records
  * referencing ID 1 to ID 2.
  */
-die();
-require __DIR__.'/../../main/inc/global.inc.php';
+die('Remove the "die()" statement on line '.__LINE__.' to execute this script'.PHP_EOL);
+require_once __DIR__.'/../../public/main/inc/global.inc.php';
 
 $tableAccessUrl = Database::get_main_table(TABLE_MAIN_ACCESS_URL);
 $tableUserRelCourseVote = Database::get_main_table(TABLE_MAIN_USER_REL_COURSE_VOTE);
@@ -120,4 +120,3 @@ $resU = Database::query($sqlU);
 echo "Table $tableAccessUrlRelUserGroup updated".PHP_EOL;
 
 echo "Database updated.".PHP_EOL;
-echo "Please set \$_configuration['multiple_access_urls'] to true in the app/config/configuration.php file".PHP_EOL;

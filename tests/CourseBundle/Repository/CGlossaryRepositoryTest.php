@@ -27,9 +27,8 @@ class CGlossaryRepositoryTest extends AbstractApiTest
         $teacher = $this->createUser('teacher');
 
         $glossary = (new CGlossary())
-            ->setName('glossary')
+            ->setTitle('glossary')
             ->setDescription('desc')
-            ->setDisplayOrder(1)
             ->setParent($course)
             ->setCreator($teacher)
             ->addCourseLink($course)
@@ -40,7 +39,6 @@ class CGlossaryRepositoryTest extends AbstractApiTest
 
         $this->assertSame('glossary', (string) $glossary);
         $this->assertSame('desc', $glossary->getDescription());
-        $this->assertSame(1, $glossary->getDisplayOrder());
         $this->assertSame($glossary->getResourceIdentifier(), $glossary->getIid());
 
         $router = $this->getContainer()->get(RouterInterface::class);
@@ -56,7 +54,8 @@ class CGlossaryRepositoryTest extends AbstractApiTest
 
         $courseRepo->delete($course);
 
+        // A glossary is a global resource, so don't cascade-delete it
+        $this->assertSame(1, $glossaryRepo->count([]));
         $this->assertSame(0, $courseRepo->count([]));
-        $this->assertSame(0, $glossaryRepo->count([]));
     }
 }

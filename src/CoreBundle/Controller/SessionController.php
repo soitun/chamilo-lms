@@ -29,18 +29,17 @@ use SessionManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 use UserManager;
 
 #[Route('/sessions')]
 class SessionController extends AbstractController
 {
     /**
-     * @Route("/{sid}/about", name="chamilo_core_session_about")
-     *
      * @Entity("session", expr="repository.find(sid)")
      */
-    public function aboutAction(
+    #[Route(path: '/{sid}/about', name: 'chamilo_core_session_about')]
+    public function about(
         Request $request,
         Session $session,
         IllustrationRepository $illustrationRepo,
@@ -56,6 +55,7 @@ class SessionController extends AbstractController
 
         /** @var EntityRepository $fieldsRepo */
         $fieldsRepo = $em->getRepository(ExtraField::class);
+
         /** @var TagRepository $tagRepo */
         $tagRepo = $em->getRepository(Tag::class);
 
@@ -64,7 +64,7 @@ class SessionController extends AbstractController
 
         /** @var ExtraField $tagField */
         $tagField = $fieldsRepo->findOneBy([
-            'extraFieldType' => ExtraField::COURSE_FIELD_TYPE,
+            'itemType' => ExtraField::COURSE_FIELD_TYPE,
             'variable' => 'tags',
         ]);
 
@@ -83,6 +83,7 @@ class SessionController extends AbstractController
 
             $courseCoaches = $userRepo->getCoachesForSessionCourse($session, $sessionCourse);
             $coachesData = [];
+
             /** @var User $courseCoach */
             foreach ($courseCoaches as $courseCoach) {
                 $coachData = [
@@ -117,35 +118,43 @@ class SessionController extends AbstractController
             if (!empty($descriptionsData)) {
                 foreach ($descriptionsData as $descriptionInfo) {
                     $type = $descriptionInfo->getDescriptionType();
+
                     switch ($type) {
                         case CCourseDescription::TYPE_DESCRIPTION:
                             $courseDescription[] = $descriptionInfo;
 
                             break;
+
                         case CCourseDescription::TYPE_OBJECTIVES:
                             $courseObjectives[] = $descriptionInfo;
 
                             break;
+
                         case CCourseDescription::TYPE_TOPICS:
                             $courseTopics[] = $descriptionInfo;
 
                             break;
+
                         case CCourseDescription::TYPE_METHODOLOGY:
                             $courseMethodology[] = $descriptionInfo;
 
                             break;
+
                         case CCourseDescription::TYPE_COURSE_MATERIAL:
                             $courseMaterial[] = $descriptionInfo;
 
                             break;
+
                         case CCourseDescription::TYPE_RESOURCES:
                             $courseResources[] = $descriptionInfo;
 
                             break;
+
                         case CCourseDescription::TYPE_ASSESSMENT:
                             $courseAssessment[] = $descriptionInfo;
 
                             break;
+
                         case CCourseDescription::TYPE_CUSTOM:
                             $courseCustom[] = $descriptionInfo;
 
@@ -178,19 +187,17 @@ class SessionController extends AbstractController
         $sessionDates = SessionManager::parseSessionDates($session, true);
 
         $hasRequirements = false;
+
         /*$sessionRequirements = $sequenceResourceRepo->getRequirements(
-            $session->getId(),
-            SequenceResource::SESSION_TYPE
-        );
-
-        foreach ($sessionRequirements as $sequence) {
-            if (!empty($sequence['requirements'])) {
-                $hasRequirements = true;
-
-                break;
-            }
-        }*/
-
+         * $session->getId(),
+         * SequenceResource::SESSION_TYPE
+         * );
+         * foreach ($sessionRequirements as $sequence) {
+         * if (!empty($sequence['requirements'])) {
+         * $hasRequirements = true;
+         * break;
+         * }
+         * }*/
         $plugin = BuyCoursesPlugin::create();
         $checker = $plugin->isEnabled();
         $sessionIsPremium = null;
@@ -205,7 +212,7 @@ class SessionController extends AbstractController
             }
         }
 
-        $redirectToSession = api_get_configuration_value('allow_redirect_to_session_after_inscription_about');
+        $redirectToSession = ('true' === Container::getSettingsManager()->getSetting('session.allow_redirect_to_session_after_inscription_about'));
         $redirectToSession = $redirectToSession ? '?s='.$sessionId : false;
 
         $coursesInThisSession = SessionManager::get_course_list_by_session_id($sessionId);
@@ -223,22 +230,15 @@ class SessionController extends AbstractController
             'essence' => $essence,
             'session_extra_fields' => $sessionValues->getAllValuesForAnItem($session->getId(), null, true),
             'has_requirements' => $hasRequirements,
-            //'sequences' => $sessionRequirements,
+            // 'sequences' => $sessionRequirements,
             'is_premium' => $sessionIsPremium,
             'show_tutor' => 'true' === api_get_setting('show_session_coach'),
-            'page_url' => api_get_path(WEB_PATH).sprintf('sessions/%s/about/', $session->getId()),
+            'page_url' => api_get_path(WEB_PATH).\sprintf('sessions/%s/about/', $session->getId()),
             'session_date' => $sessionDates,
             'is_subscribed' => SessionManager::isUserSubscribedAsStudent(
                 $session->getId(),
                 api_get_user_id()
             ),
-            /*'subscribe_button' => \CoursesAndSessionsCatalog::getRegisteredInSessionButton(
-                $session->getId(),
-                $session->getName(),
-                $hasRequirements,
-                true,
-                true
-            ),*/
             'user_session_time' => SessionManager::getDayLeftInSession(
                 [
                     'id' => $session->getId(),
@@ -246,6 +246,7 @@ class SessionController extends AbstractController
                 ],
                 api_get_user_id()
             ),
+            'base_url' => $request->getSchemeAndHttpHost(),
         ];
 
         return $this->render('@ChamiloCore/Session/about.html.twig', $params);

@@ -16,7 +16,7 @@
 
                         {% if course.categories %}
                             {% for category in course.categories %}
-                                <p><strong>{{ 'Category'|get_lang }}</strong><br>{{ category.name }}</p>
+                                <p><strong>{{ 'Category'|get_lang }}</strong><br>{{ category.title }}</p>
                             {% endfor %}
                         {% endif %}
                     </div>
@@ -81,7 +81,7 @@
                     </dt>
                     <dd>
                         <span class="text-color">
-                             {{ 'pencil' | mdi_icon }}
+                             {{ 'ActionIcon::EDIT' | mdi_icon }}
                         </span>
                         <span class="text-color">{{ data.number_assignments }}</span>
                     </dd>

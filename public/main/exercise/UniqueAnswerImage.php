@@ -57,7 +57,7 @@ class UniqueAnswerImage extends UniqueAnswer
                 get_lang('Images will be resized (up or down) to 200x150 pixels. For a better rendering of the question, we recommend you upload only images of this size.')
             .'</div>';
 
-        $zoomOptions = api_get_configuration_value('quiz_image_zoom');
+        $zoomOptions = api_get_setting('exercise.quiz_image_zoom', true);
         if (isset($zoomOptions['options'])) {
             $finderFolder = api_get_path(WEB_PATH).'vendor/studio-42/elfinder/';
             $html .= '<!-- elFinder CSS (REQUIRED) -->';
@@ -247,7 +247,7 @@ class UniqueAnswerImage extends UniqueAnswer
                     '<br><div class="form-group ">
                         <label for="question_admin_form_btn_add_img['.$i.']" class="col-sm-2 control-label"></label>
                         <div class="col-sm-8">
-                            <button class="add_img_link btn btn-info btn-sm"
+                            <button class="add_img_link btn btn--info btn-sm"
                                 name="btn_add_img['.$i.']"
                                 type="submit"
                                 id="question_admin_form_btn_add_img['.$i.']">

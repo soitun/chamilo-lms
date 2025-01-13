@@ -3,13 +3,15 @@
 /* For licensing terms, see /license.txt */
 
 use Chamilo\CoreBundle\Entity\Course;
-use Chamilo\CoreBundle\Entity\PersonalAgenda;
-use Chamilo\CoreBundle\Entity\SysCalendar;
+use Chamilo\CoreBundle\Entity\Session as SessionEntity;
 use Chamilo\CoreBundle\Framework\Container;
 use Chamilo\CourseBundle\Entity\CCalendarEvent;
 use Chamilo\CourseBundle\Entity\CCalendarEventAttachment;
 use Chamilo\CourseBundle\Entity\CGroup;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
+
 
 /**
  * Class Agenda.
@@ -54,8 +56,6 @@ class Agenda
         $sessionId = 0
     ) {
         // Table definitions
-        $this->tbl_global_agenda = Database::get_main_table(TABLE_MAIN_SYSTEM_CALENDAR);
-        $this->tbl_personal_agenda = Database::get_main_table(TABLE_PERSONAL_AGENDA);
         $this->tbl_course_agenda = Database::get_course_table(TABLE_AGENDA);
         $this->table_repeat = Database::get_course_table(TABLE_AGENDA_REPEAT);
 
@@ -105,7 +105,7 @@ class Agenda
                 }
 
                 if (!empty($sessionId)) {
-                    $allowDhrToEdit = api_get_configuration_value('allow_agenda_edit_for_hrm');
+                    $allowDhrToEdit = ('true' === api_get_setting('agenda.allow_agenda_edit_for_hrm'));
                     if ($allowDhrToEdit) {
                         $isHrm = SessionManager::isUserSubscribedAsHRM($sessionId, api_get_user_id());
                         if ($isHrm) {
@@ -124,8 +124,7 @@ class Agenda
 
         $this->setIsAllowedToEdit($isAllowToEdit);
         $this->events = [];
-        $agendaColors = array_merge(
-            [
+        $agendaColors = [
                 'platform' => 'red', //red
                 'course' => '#458B00', //green
                 'group' => '#A0522D', //siena
@@ -133,9 +132,11 @@ class Agenda
                 'other_session' => '#999', // kind of green
                 'personal' => 'steel blue', //steel blue
                 'student_publication' => '#FF8C00', //DarkOrange
-            ],
-            api_get_configuration_value('agenda_colors') ?: []
-        );
+            ];
+        $settingAgendaColors = api_get_setting('agenda.agenda_colors', true);
+        if (is_array($settingAgendaColors)) {
+            $agendaColors = array_merge($agendaColors, $settingAgendaColors);
+        }
 
         // Event colors
         $this->event_platform_color = $agendaColors['platform'];
@@ -267,7 +268,7 @@ class Agenda
         $em = Database::getManager();
         switch ($this->type) {
             case 'personal':
-                $event = new PersonalAgenda();
+                /*$event = new PersonalAgenda();
                 $event
                     ->setTitle($title)
                     ->setText($content)
@@ -279,7 +280,7 @@ class Agenda
                 ;
                 $em->persist($event);
                 $em->flush();
-                $id = $event->getId();
+                $id = $event->getId();*/
                 break;
             case 'course':
                 $sessionId = $this->getSessionId();
@@ -359,22 +360,6 @@ class Agenda
                             $counter++;
                         }
                     }
-                }
-                break;
-            case 'admin':
-                if (api_is_platform_admin()) {
-                    $event = new SysCalendar();
-                    $event
-                        ->setTitle($title)
-                        ->setContent($content)
-                        ->setStartDate($start)
-                        ->setEndDate($end)
-                        ->setAllDay($allDay)
-                        ->setUrl(api_get_url_entity())
-                    ;
-                    $em->persist($event);
-                    $em->flush();
-                    $id = $event->getId();
                 }
                 break;
         }
@@ -630,7 +615,7 @@ class Agenda
 
         switch ($this->type) {
             case 'personal':
-                $eventInfo = $this->get_event($id);
+                /*$eventInfo = $this->get_event($id);
                 if ($eventInfo['user'] != api_get_user_id()) {
                     break;
                 }
@@ -653,7 +638,7 @@ class Agenda
                     $this->tbl_personal_agenda,
                     $attributes,
                     ['id = ?' => $id]
-                );
+                );*/
                 break;
             case 'course':
                 $repo = Container::getCalendarEventRepository();
@@ -805,26 +790,6 @@ class Agenda
 
                 return false;
                 break;
-            case 'admin':
-            case 'platform':
-                if (api_is_platform_admin()) {
-                    $attributes = [
-                        'title' => $title,
-                        'start_date' => $start,
-                        'end_date' => $end,
-                        'all_day' => $allDay,
-                    ];
-
-                    if ($updateContent) {
-                        $attributes['content'] = $content;
-                    }
-                    Database::update(
-                        $this->tbl_global_agenda,
-                        $attributes,
-                        ['id = ?' => $id]
-                    );
-                }
-                break;
         }
     }
 
@@ -836,13 +801,13 @@ class Agenda
     {
         switch ($this->type) {
             case 'personal':
-                $eventInfo = $this->get_event($id);
+                /*$eventInfo = $this->get_event($id);
                 if ($eventInfo['user'] == api_get_user_id()) {
                     Database::delete(
                         $this->tbl_personal_agenda,
                         ['id = ?' => $id]
                     );
-                }
+                }*/
                 break;
             case 'course':
                 $courseId = api_get_course_int_id();
@@ -919,14 +884,6 @@ class Agenda
                     }
                 }
                 break;
-            case 'admin':
-                if (api_is_platform_admin()) {
-                    Database::delete(
-                        $this->tbl_global_agenda,
-                        ['id = ?' => $id]
-                    );
-                }
-                break;
         }
     }
 
@@ -951,9 +908,6 @@ class Agenda
         $format = 'json'
     ) {
         switch ($this->type) {
-            case 'admin':
-                $this->getPlatformEvents($start, $end);
-                break;
             case 'course':
                 $course = api_get_course_entity($courseId);
 
@@ -995,15 +949,7 @@ class Agenda
                     $sessionFilterActive = true;
                 }
 
-                if (false == $sessionFilterActive) {
-                    // Getting personal events
-                    $this->getPersonalEvents($start, $end);
-
-                    // Getting platform/admin events
-                    $this->getPlatformEvents($start, $end);
-                }
-
-                $ignoreVisibility = api_get_configuration_value('personal_agenda_show_all_session_events');
+                $ignoreVisibility = ('true' === api_get_setting('agenda.personal_agenda_show_all_session_events'));
 
                 // Getting course events
                 $my_course_list = [];
@@ -1152,10 +1098,10 @@ class Agenda
         if (!empty($event)) {
             switch ($this->type) {
                 case 'personal':
-                    $sql = "UPDATE $this->tbl_personal_agenda SET
+                    /*$sql = "UPDATE $this->tbl_personal_agenda SET
                             enddate = DATE_ADD(enddate, INTERVAL $delta MINUTE)
 							WHERE id = ".$id;
-                    Database::query($sql);
+                    Database::query($sql);*/
                     break;
                 case 'course':
                     $sql = "UPDATE $this->tbl_course_agenda SET
@@ -1163,12 +1109,6 @@ class Agenda
 							WHERE
 							    c_id = ".$this->course['real_id']." AND
 							    id = ".$id;
-                    Database::query($sql);
-                    break;
-                case 'admin':
-                    $sql = "UPDATE $this->tbl_global_agenda SET
-                            end_date = DATE_ADD(end_date, INTERVAL $delta MINUTE)
-							WHERE id = ".$id;
                     Database::query($sql);
                     break;
             }
@@ -1200,11 +1140,11 @@ class Agenda
         if (!empty($event)) {
             switch ($this->type) {
                 case 'personal':
-                    $sql = "UPDATE $this->tbl_personal_agenda SET
+                    /*$sql = "UPDATE $this->tbl_personal_agenda SET
                             all_day = $allDay, date = DATE_ADD(date, INTERVAL $delta MINUTE),
                             enddate = DATE_ADD(enddate, INTERVAL $delta MINUTE)
 							WHERE id=".$id;
-                    Database::query($sql);
+                    Database::query($sql);*/
                     break;
                 case 'course':
                     $sql = "UPDATE $this->tbl_course_agenda SET
@@ -1214,14 +1154,6 @@ class Agenda
 							WHERE
 							    c_id = ".$this->course['real_id']." AND
 							    id=".$id;
-                    Database::query($sql);
-                    break;
-                case 'admin':
-                    $sql = "UPDATE $this->tbl_global_agenda SET
-                            all_day = $allDay,
-                            start_date = DATE_ADD(start_date,INTERVAL $delta MINUTE),
-                            end_date = DATE_ADD(end_date, INTERVAL $delta MINUTE)
-							WHERE id=".$id;
                     Database::query($sql);
                     break;
             }
@@ -1244,16 +1176,16 @@ class Agenda
         $event = null;
         switch ($this->type) {
             case 'personal':
-                $sql = "SELECT * FROM ".$this->tbl_personal_agenda."
+                /*$sql = "SELECT * FROM ".$this->tbl_personal_agenda."
                         WHERE id = $id AND user = ".api_get_user_id();
                 $result = Database::query($sql);
                 if (Database::num_rows($result)) {
-                    $event = Database::fetch_array($result, 'ASSOC');
+                    $event = Database::fetch_assoc($result);
                     $event['description'] = $event['text'];
                     $event['content'] = $event['text'];
                     $event['start_date'] = $event['date'];
                     $event['end_date'] = $event['enddate'];
-                }
+                }*/
                 break;
             case 'course':
                 $repo = Container::getCalendarEventRepository();
@@ -1283,16 +1215,6 @@ class Agenda
 
                         $event['attachment'] = $eventEntity->getAttachments();
                     }
-                }
-                break;
-            case 'admin':
-            case 'platform':
-                $sql = "SELECT * FROM ".$this->tbl_global_agenda."
-                        WHERE id = $id";
-                $result = Database::query($sql);
-                if (Database::num_rows($result)) {
-                    $event = Database::fetch_array($result, 'ASSOC');
-                    $event['description'] = $event['content'];
                 }
                 break;
         }
@@ -1329,7 +1251,7 @@ class Agenda
         $result = Database::query($sql);
         $my_events = [];
         if (Database::num_rows($result)) {
-            while ($row = Database::fetch_array($result, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($result)) {
                 $event = [];
                 $event['id'] = 'personal_'.$row['id'];
                 $event['title'] = $row['title'];
@@ -1432,7 +1354,9 @@ class Agenda
         $start = (int) $start;
         $end = (int) $end;
 
+        /** @var string|null $start */
         $start = !empty($start) ? api_get_utc_datetime($start) : null;
+        /** @var string|null $end */
         $end = !empty($end) ? api_get_utc_datetime($end) : null;
 
         if (null === $course) {
@@ -1459,7 +1383,7 @@ class Agenda
 
         $isAllowToEditByHrm = false;
         if (!empty($sessionId)) {
-            $allowDhrToEdit = api_get_configuration_value('allow_agenda_edit_for_hrm');
+            $allowDhrToEdit = ('true' === api_get_setting('agenda.allow_agenda_edit_for_hrm'));
             if ($allowDhrToEdit) {
                 $isHrm = SessionManager::isUserSubscribedAsHRM($sessionId, $userId);
                 if ($isHrm) {
@@ -1646,7 +1570,10 @@ class Agenda
             $event['attachment'] = '';
             if (!empty($attachmentList)) {
                 $icon = Display::getMdiIcon(
-                    'paperclip'
+                    ObjectIcon::ATTACHMENT,
+                    'ch-tool-icon',
+                    null,
+                    ICON_SIZE_SMALL
                 );
                 /** @var CCalendarEventAttachment $attachment */
                 foreach ($attachmentList as $attachment) {
@@ -1726,13 +1653,13 @@ class Agenda
                     $sentTo[] = $link->getUser()->getFirstname();
                 }
                 if ($link->getCourse()) {
-                    $sentTo[] = $link->getCourse()->getName();
+                    $sentTo[] = $link->getCourse()->getTitle();
                 }
                 if ($link->getSession()) {
-                    $sentTo[] = $link->getSession()->getName();
+                    $sentTo[] = $link->getSession()->getTitle();
                 }
                 if ($link->getGroup()) {
-                    $sentTo[] = $link->getGroup()->getName();
+                    $sentTo[] = $link->getGroup()->getTitle();
                 }
             }
 
@@ -1831,7 +1758,7 @@ class Agenda
         $result = Database::query($sql);
         $my_events = [];
         if (Database::num_rows($result)) {
-            while ($row = Database::fetch_array($result, 'ASSOC')) {
+            while ($row = Database::fetch_assoc($result)) {
                 $event = [];
                 $event['id'] = 'platform_'.$row['id'];
                 $event['title'] = $row['title'];
@@ -1931,7 +1858,7 @@ class Agenda
                 $count = $group->getMembers()->count();
                 $countUsers = " &ndash; $count ".get_lang('Users');
                 $option = [
-                    'text' => $group->getName().$countUsers,
+                    'text' => $group->getTitle().$countUsers,
                     'value' => "GROUP:".$groupId,
                 ];
 
@@ -2323,8 +2250,8 @@ class Agenda
     public static function changeVisibility(
         $id,
         $visibility,
-        $courseInfo,
-        $userId = null
+        ?Course $course,
+        ?SessionEntity $session,
     ) {
         $id = (int) $id;
 
@@ -2335,9 +2262,9 @@ class Agenda
 
         if ($event) {
             if (0 === $visibility) {
-                $repo->setVisibilityDraft($event);
+                $repo->setVisibilityDraft($event, $course, $session);
             } else {
-                $repo->setVisibilityPublished($event);
+                $repo->setVisibilityPublished($event, $course, $session);
             }
         }
 
@@ -2389,7 +2316,7 @@ class Agenda
                 ";
         $result = Database::query($sql);
         if (0 != Database::num_rows($result)) {
-            $row = Database::fetch_array($result, 'ASSOC');
+            $row = Database::fetch_assoc($result);
         }
 
         return $row;
@@ -2515,7 +2442,7 @@ class Agenda
                                 parent_event_id = ".$eventId;
                     $result = Database::query($sql);
                     if (Database::num_rows($result)) {
-                        while ($row = Database::fetch_array($result, 'ASSOC')) {
+                        while ($row = Database::fetch_assoc($result)) {
                             $events[] = $row;
                         }
                     }
@@ -2543,11 +2470,11 @@ class Agenda
 
         $actionsLeft = '';
         $actionsLeft .= Display::url(
-            Display::return_icon('calendar.png', get_lang('Calendar'), [], ICON_SIZE_MEDIUM),
+            Display::getMdiIcon(ObjectIcon::AGENDA, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Calendar')),
             $codePath."calendar/agenda_js.php?type={$this->type}&$cidReq"
         );
         $actionsLeft .= Display::url(
-            Display::return_icon('week.png', get_lang('Agenda list'), [], ICON_SIZE_MEDIUM),
+            Display::getMdiIcon(ObjectIcon::AGENDA_WEEK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Agenda list')),
             $codePath."calendar/agenda_list.php?type={$this->type}&$cidReq"
         );
 
@@ -2561,12 +2488,12 @@ class Agenda
             )
         ) {
             $actionsLeft .= Display::url(
-                Display::return_icon('new_event.png', get_lang('Add event'), [], ICON_SIZE_MEDIUM),
+                Display::getMdiIcon(ObjectIcon::AGENDA_EVENT, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Add event')),
                 $codePath."calendar/agenda.php?action=add&type={$this->type}&$cidReq"
             );
 
             $actionsLeft .= Display::url(
-                Display::return_icon('import_calendar.png', get_lang('Outlook import'), [], ICON_SIZE_MEDIUM),
+                Display::getMdiIcon(ActionIcon::IMPORT_ARCHIVE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Outlook import')),
                 $codePath."calendar/agenda.php?action=importical&type={$this->type}&$cidReq"
             );
 
@@ -2593,14 +2520,14 @@ class Agenda
 
         if ('personal' === $this->type && !api_is_anonymous()) {
             $actionsLeft .= Display::url(
-                Display::return_icon('1day.png', get_lang('Sessions plan calendar'), [], ICON_SIZE_MEDIUM),
+                Display::getMdiIcon(ObjectIcon::AGENDA_PLAN, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Sessions plan calendar')),
                 $codePath."calendar/planification.php"
             );
 
             if (api_is_student_boss() || api_is_platform_admin()) {
                 $actionsLeft .= Display::url(
-                    Display::return_icon('calendar-user.png', get_lang('MyStudentsSchedule'), [], ICON_SIZE_MEDIUM),
-                    $codePath.'mySpace/calendar_plan.php'
+                    Display::getMdiIcon(ObjectIcon::AGENDA_USER_EVENT, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('MyStudentsSchedule')),
+                    $codePath.'my_space/calendar_plan.php'
                 );
             }
         }
@@ -2907,7 +2834,7 @@ class Agenda
             }
             $result = Database::query($sqlquery);
 
-            while ($item = Database::fetch_array($result, 'ASSOC')) {
+            while ($item = Database::fetch_assoc($result)) {
                 $agendaday = -1;
                 if (!empty($item['start_date'])) {
                     $item['start_date'] = api_get_local_time(
@@ -3146,7 +3073,7 @@ class Agenda
         }
 
         $result = Database::query($sql);
-        while ($item = Database::fetch_array($result, 'ASSOC')) {
+        while ($item = Database::fetch_assoc($result)) {
             $time_minute = api_convert_and_format_date(
                 $item['date'],
                 TIME_NO_SEC_FORMAT
@@ -3318,7 +3245,7 @@ class Agenda
                 if (($curday > 0) && ($curday <= $numberofdays[$month])) {
                     $bgcolor = $class = 'class="days_week"';
                     $dayheader = Display::div(
-                        $curday,
+                        strval($curday),
                         ['class' => 'agenda_day']
                     );
                     if (($curday == $today['mday']) && ($year == $today['year']) && ($month == $today['mon'])) {
@@ -3356,48 +3283,40 @@ class Agenda
                             switch ($value['calendar_type']) {
                                 case 'personal':
                                     $bg_color = '#D0E7F4';
-                                    $icon = Display::return_icon(
-                                        'user.png',
-                                        get_lang('Personal agenda'),
-                                        [],
-                                        ICON_SIZE_SMALL
-                                    );
+                                    $icon = Display::getMdiIcon(ObjectIcon::USER, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Personal agenda'));
                                     break;
                                 case 'global':
                                     $bg_color = '#FFBC89';
-                                    $icon = Display::return_icon(
-                                        'view_remove.png',
-                                        get_lang('Platform event'),
-                                        [],
-                                        ICON_SIZE_SMALL
-                                    );
+                                    $icon = Display::getMdiIcon(ObjectIcon::AGENDA_PLATFORM_EVENT, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Platform event'));
                                     break;
                                 case 'course':
                                     $bg_color = '#CAFFAA';
-                                    $icon_name = 'course.png';
+                                    $icon_name = ObjectIcon::COURSE;
                                     if (!empty($value['session_id'])) {
-                                        $icon_name = 'session.png';
+                                        $icon_name = ObjectIcon::SESSION;
                                     }
                                     if ($show_content) {
                                         $icon = Display::url(
-                                            Display::return_icon(
+                                            Display::getMdiIcon(
                                                 $icon_name,
+                                                'ch-tool-icon',
+                                                null,
+                                                ICON_SIZE_SMALL,
                                                 $value['course_name'].' '.get_lang(
                                                     'Course'
-                                                ),
-                                                [],
-                                                ICON_SIZE_SMALL
+                                                )
                                             ),
                                             $value['url']
                                         );
                                     } else {
-                                        $icon = Display::return_icon(
+                                        $icon = Display::getMdiIcon(
                                             $icon_name,
+                                            'ch-tool-icon',
+                                            null,
+                                            ICON_SIZE_SMALL,
                                             $value['course_name'].' '.get_lang(
                                                 'Course'
-                                            ),
-                                            [],
-                                            ICON_SIZE_SMALL
+                                            )
                                         );
                                     }
                                     break;
@@ -3675,5 +3594,35 @@ class Agenda
         $eventDate->setTimezone($platformTimeZone);
 
         return $eventDate->format(DateTime::ISO8601);
+    }
+
+    public static function getJsForReminders(string $cssSelectorBtnAdd): string
+    {
+        return '
+            var template = \'<div class="flex flex-row items-center gap-4">\' +
+                \'<input min="0" step="1" id="notification_count[]" type="number" name="notification_count[]">\' +
+                \'<select name="notification_period[]" id="form_notification_period[]">\' +
+                \'<option value="i">'.get_lang('Minutes').'</option>\' +
+                \'<option value="h">'.get_lang('Hours').'</option>\' +
+                \'<option value="d">'.get_lang('Days').'</option>\' +
+                \'</select>\' +
+                \'<p class="form-control-static">'.get_lang('Before').'</p>\' +
+                \'<button class="btn btn--danger delete-notification" type="button" aria-label="'.get_lang('Delete').'">\' +
+                \'<i class="mdi mdi-close" aria-hidden="true"></i>\' +
+                \'</button>\' +
+                \'</div>\';
+
+            $("'.$cssSelectorBtnAdd.'").on("click", function (e) {
+                e.preventDefault();
+
+                $(template).appendTo("#notification_list");
+                $("#notification_list select").selectpicker("refresh");
+            });
+
+            $("#notification_list").on("click", ".delete-notification", function (e) {
+                e.preventDefault();
+
+                $(this).parents(".form-group").remove();
+            });';
     }
 }

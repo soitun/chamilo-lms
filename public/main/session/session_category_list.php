@@ -25,9 +25,9 @@ $tbl_session = Database::get_main_table(TABLE_MAIN_SESSION);
 
 $page = isset($_GET['page']) ? (int) $_GET['page'] : null;
 $action = isset($_REQUEST['action']) ? Security::remove_XSS($_REQUEST['action']) : null;
-$sort = isset($_GET['sort']) && in_array($_GET['sort'], ['name', 'nbr_session', 'date_start', 'date_end'])
+$sort = isset($_GET['sort']) && in_array($_GET['sort'], ['title', 'nbr_session', 'date_start', 'date_end'])
     ? Security::remove_XSS($_GET['sort'])
-    : 'name';
+    : 'title';
 $idChecked = isset($_REQUEST['idChecked']) ? Security::remove_XSS($_REQUEST['idChecked']) : null;
 $order = isset($_REQUEST['order']) ? Security::remove_XSS($_REQUEST['order']) : 'ASC';
 $keyword = isset($_REQUEST['keyword']) ? Security::remove_XSS($_REQUEST['keyword']) : null;
@@ -63,9 +63,9 @@ if (isset($_GET['search']) && 'advanced' === $_GET['search']) {
     //if user is crfp admin only list its sessions
     $where = null;
     if (!api_is_platform_admin()) {
-        $where .= empty($keyword) ? "" : " WHERE name LIKE '%".Database::escape_string(trim($keyword))."%'";
+        $where .= empty($keyword) ? "" : " WHERE title LIKE '%".Database::escape_string(trim($keyword))."%'";
     } else {
-        $where .= empty($keyword) ? "" : " WHERE name LIKE '%".Database::escape_string(trim($keyword))."%'";
+        $where .= empty($keyword) ? "" : " WHERE title LIKE '%".Database::escape_string(trim($keyword))."%'";
     }
     if (empty($where)) {
         $where = " WHERE access_url_id = ".api_get_current_access_url_id()." ";
@@ -100,16 +100,16 @@ if (isset($_GET['search']) && 'advanced' === $_GET['search']) {
     Display::display_header($tool_name);
 
     $actionsLeft = Display::url(
-            Display::return_icon('new_folder.png', get_lang('Add category'), [], ICON_SIZE_MEDIUM),
+            Display::getMdiIcon('file-tree-outline', 'ch-tool-icon-gradient', null, 32, get_lang('Add category')),
             api_get_path(WEB_CODE_PATH).'session/session_category_add.php'
         ).Display::url(
-            Display::return_icon('session.png', get_lang('Training sessions list'), [], ICON_SIZE_MEDIUM),
+            Display::getMdiIcon('google-classroom', 'ch-tool-icon-gradient', null, 32, get_lang('Training sessions list')),
             api_get_path(WEB_CODE_PATH).'session/session_list.php'
         );
-    $actionsRight = '<form method="POST" action="session_category_list.php" class="form-inline">
+    $actionsRight = '<form method="POST" action="session_category_list.php" class="form--inline">
                         <div class="form-group">
                             <input class="form-control" type="text" name="keyword" aria-label="'.get_lang('Search').'"/>
-                            <button class="btn btn-default" type="submit" name="name"
+                            <button class="btn btn--plain" type="submit" name="title"
                                     value="'.get_lang('Search').'">
                                     <em class="fa fa-search"></em>'.get_lang('Search').'</button>
                         </div>
@@ -159,7 +159,7 @@ if (isset($_GET['search']) && 'advanced' === $_GET['search']) {
             <table class="data_table" width="100%">
                 <tr>
                     <th>&nbsp;</th>
-                    <th><a href="<?php echo api_get_self(); ?>?sort=name&order=<?php echo ('name' == $sort) ? $order
+                    <th><a href="<?php echo api_get_self(); ?>?sort=title&order=<?php echo ('title' == $sort) ? $order
                             : 'ASC'; ?>"><?php echo get_lang('Category name'); ?></a></th>
                     <th><a href="<?php echo api_get_self(); ?>?sort=nbr_session&order=<?php echo ('nbr_session'
                             == $sort) ? $order : 'ASC'; ?>"><?php echo get_lang('Number sessions'); ?></a></th>
@@ -190,7 +190,7 @@ if (isset($_GET['search']) && 'advanced' === $_GET['search']) {
                     <tr class="<?php echo $i ? 'row_odd' : 'row_even'; ?>">
                         <td><input type="checkbox" id="idChecked_<?php echo $x; ?>" name="idChecked[]"
                                    value="<?php echo $enreg['id']; ?>"></td>
-                        <td><?php echo api_htmlentities($enreg['name'], ENT_QUOTES); ?></td>
+                        <td><?php echo api_htmlentities($enreg['title'], ENT_QUOTES); ?></td>
                         <td><?php echo "<a href=\"session_list.php?id_category=".$enreg['id']."\">".$nb_courses
                                 ." Session(s) </a>"; ?></td>
                         <td><?php echo api_format_date($enreg['date_start'], DATE_FORMAT_SHORT); ?></td>
@@ -204,14 +204,14 @@ if (isset($_GET['search']) && 'advanced' === $_GET['search']) {
                         </td>
                         <td>
                             <a href="session_category_edit.php?&id=<?php echo $enreg['id']; ?>">
-                                <?php echo Display::return_icon('edit.png', get_lang('Edit'), [], ICON_SIZE_SMALL); ?>
+                                <?php echo Display::getMdiIcon('pencil', 'ch-tool-icon', null, 22, get_lang('Edit')); ?>
                             </a>
                             <a href="<?php echo api_get_self(
                             ); ?>?sort=<?php echo $sort; ?>&action=delete_off_session&idChecked=<?php echo $enreg['id']; ?>"
                                onclick="if(!confirm('<?php echo get_lang(
                                    'Please confirm your choice'
                                ); ?>')) return false;">
-                                <?php echo Display::return_icon('delete.png', get_lang('Delete'), [], ICON_SIZE_SMALL); ?>
+                                <?php echo Display::getMdiIcon('delete', 'ch-tool-icon', null, 22, get_lang('Delete')); ?>
                             </a>
                         </td>
                     </tr>
@@ -255,10 +255,10 @@ if (isset($_GET['search']) && 'advanced' === $_GET['search']) {
             <div class="row">
                 <div class="col-sm-4">
                     <div class="btn-group">
-                        <button type="button" class="btn btn-default" onclick="selectAll('idChecked',<?php echo $x; ?>,'true');">
+                        <button type="button" class="btn btn--plain" onclick="selectAll('idChecked',<?php echo $x; ?>,'true');">
                             <?php echo get_lang('Select all'); ?>
                         </button>
-                        <button type="button" class="btn btn-default" onclick="selectAll('idChecked',<?php echo $x; ?>,'false');">
+                        <button type="button" class="btn btn--plain" onclick="selectAll('idChecked',<?php echo $x; ?>,'false');">
                             <?php echo get_lang('UnSelect all'); ?>
                         </button>
                     </div>
@@ -274,7 +274,7 @@ if (isset($_GET['search']) && 'advanced' === $_GET['search']) {
                     </select>
                 </div>
                 <div class="col-sm-2">
-                    <button class="btn btn-success" type="submit" name="name" value="<?php echo get_lang('Validate'); ?>">
+                    <button class="btn btn--success" type="submit" name="title" value="<?php echo get_lang('Validate'); ?>">
                         <?php echo get_lang('Validate'); ?>
                     </button>
                 </div>

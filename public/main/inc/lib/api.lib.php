@@ -9,7 +9,12 @@ use Chamilo\CoreBundle\Entity\Session as SessionEntity;
 use Chamilo\CoreBundle\Entity\SettingsCurrent;
 use Chamilo\CoreBundle\Entity\User;
 use Chamilo\CoreBundle\Entity\UserCourseCategory;
+use Chamilo\CoreBundle\Exception\NotAllowedException;
 use Chamilo\CoreBundle\Framework\Container;
+use Chamilo\CoreBundle\ServiceHelper\AccessUrlHelper;
+use Chamilo\CoreBundle\ServiceHelper\MailHelper;
+use Chamilo\CoreBundle\ServiceHelper\PermissionServiceHelper;
+use Chamilo\CoreBundle\ServiceHelper\ThemeHelper;
 use Chamilo\CourseBundle\Entity\CGroup;
 use Chamilo\CourseBundle\Entity\CLp;
 use ChamiloSession as Session;
@@ -18,8 +23,12 @@ use Symfony\Component\Finder\Finder;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Yaml\Yaml;
 use ZipStream\Option\Archive;
 use ZipStream\ZipStream;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
 
 /**
  * This is a code library for Chamilo.
@@ -30,7 +39,7 @@ use ZipStream\ZipStream;
  */
 
 // PHP version requirement.
-define('REQUIRED_PHP_VERSION', '8.0');
+define('REQUIRED_PHP_VERSION', '8.2');
 define('REQUIRED_MIN_MEMORY_LIMIT', '128');
 define('REQUIRED_MIN_UPLOAD_MAX_FILESIZE', '10');
 define('REQUIRED_MIN_POST_MAX_SIZE', '10');
@@ -42,9 +51,9 @@ define('STUDENT', 5);
 define('COURSEMANAGER', 1);
 /** global status of a user: session admin */
 define('SESSIONADMIN', 3);
-/** global status of a user: human ressource manager */
+/** global status of a user: human resources manager */
 define('DRH', 4);
-/** global status of a user: human ressource manager */
+/** global status of a user: anonymous visitor */
 define('ANONYMOUS', 6);
 /** global status of a user: low security, necessary for inserting data from
  * the teacher through HTMLPurifier */
@@ -196,7 +205,14 @@ define('LOG_GROUP_PORTAL_USER_UPDATE_ROLE', 'soc_gr_update_role');
 define('LOG_MESSAGE_DATA', 'message_data');
 define('LOG_MESSAGE_DELETE', 'msg_deleted');
 
+const LOG_RESOURCE_LINK_DELETE = 'resource_link_deleted';
+const LOG_RESOURCE_LINK_SOFT_DELETE = 'resource_link_soft_deleted';
+const LOG_RESOURCE_NODE = 'resource_node_id';
+const LOG_RESOURCE_LINK = 'resource_link_id';
+const LOG_RESOURCE_NODE_AND_RESOURCE_LINK = 'resource_node_id_and_resource_link_id';
+
 define('LOG_USER_DELETE', 'user_deleted');
+define('LOG_USER_PREDELETE', 'user_predeleted');
 define('LOG_USER_CREATE', 'user_created');
 define('LOG_USER_UPDATE', 'user_updated');
 define('LOG_USER_PASSWORD_UPDATE', 'user_password_updated');
@@ -294,7 +310,7 @@ define('LOG_SURVEY_ID', 'survey_id');
 define('LOG_SURVEY_CREATED', 'survey_created');
 define('LOG_SURVEY_DELETED', 'survey_deleted');
 define('LOG_SURVEY_CLEAN_RESULTS', 'survey_clean_results');
-define('USERNAME_PURIFIER', '/[^0-9A-Za-z_\.\$-]/');
+define('USERNAME_PURIFIER', '/[^0-9A-Za-z_\.@\$-]/');
 
 //used when login_is_email setting is true
 define('USERNAME_PURIFIER_MAIL', '/[^0-9A-Za-z_\.@]/');
@@ -624,7 +640,7 @@ define('RESOURCE_SCORM', 'Scorm');
 define('RESOURCE_SURVEY', 'survey');
 define('RESOURCE_SURVEYQUESTION', 'survey_question');
 define('RESOURCE_SURVEYINVITATION', 'survey_invitation');
-//define('RESOURCE_WIKI', 'wiki');
+define('RESOURCE_WIKI', 'wiki');
 define('RESOURCE_THEMATIC', 'thematic');
 define('RESOURCE_ATTENDANCE', 'attendance');
 define('RESOURCE_WORK', 'work');
@@ -658,6 +674,12 @@ define('SE_DOCTYPE_EXERCISE_QUESTION', 1);
 // xapian prefixes
 define('XAPIAN_PREFIX_COURSEID', 'C');
 define('XAPIAN_PREFIX_TOOLID', 'O');
+
+// User active field constants
+define('USER_ACTIVE', 1);
+define('USER_INACTIVE', 0);
+define('USER_INACTIVE_AUTOMATIC', -1);
+define('USER_SOFT_DELETED', -2);
 
 /**
  * Returns a path to a certain resource within Chamilo.
@@ -702,9 +724,7 @@ function api_get_path($path = '', $configuration = [])
         );
     }
 
-    if (isset($configuration['multiple_access_urls']) &&
-        $configuration['multiple_access_urls']
-    ) {
+    /*if (api_get_multiple_access_url()) {
         // To avoid that the api_get_access_url() function fails since global.inc.php also calls the main_api.lib.php
         if (isset($configuration['access_url']) && !empty($configuration['access_url'])) {
             // We look into the DB the function api_get_access_url
@@ -715,7 +735,7 @@ function api_get_path($path = '', $configuration = [])
                 $root_web = 1 == $urlInfo['active'] ? $urlInfo['url'] : $configuration['root_web'];
             }
         }
-    }
+    }*/
 
     $paths = [
         WEB_PATH => $root_web,
@@ -875,9 +895,17 @@ function api_valid_email($address)
  *
  * @author Roan Embrechts
  */
-function api_protect_course_script($print_headers = false, $allow_session_admins = false, $checkTool = '')
+function api_protect_course_script($print_headers = false, $allow_session_admins = false, string $checkTool = '', $cid = null): bool
 {
     $course_info = api_get_course_info();
+    if (empty($course_info) && isset($_REQUEST['cid'])) {
+        $course_info = api_get_course_info_by_id((int) $_REQUEST['cid']);
+    }
+
+    if (isset($cid)) {
+        $course_info = api_get_course_info_by_id($cid);
+    }
+
     if (empty($course_info)) {
         api_not_allowed($print_headers);
 
@@ -889,7 +917,7 @@ function api_protect_course_script($print_headers = false, $allow_session_admins
     }
 
     // Session admin has access to course
-    $sessionAccess = api_get_configuration_value('session_admins_access_all_content');
+    $sessionAccess = ('true' === api_get_setting('session.session_admins_access_all_content'));
     if ($sessionAccess) {
         $allow_session_admins = true;
     }
@@ -1051,7 +1079,7 @@ function api_protect_admin_script($allow_sessions_admins = false, $allow_drh = f
 function api_block_inactive_user()
 {
     $data = true;
-    if (1 != api_get_configuration_value('security_block_inactive_users_immediately')) {
+    if ('true' !== api_get_setting('security.security_block_inactive_users_immediately')) {
         return $data;
     }
 
@@ -1073,16 +1101,16 @@ function api_block_inactive_user()
         $tpl = new Template(null, true, true, false, true, false, true, 0);
         $tpl->assign('hide_login_link', 1);
 
-        //api_not_allowed(true, get_lang('AccountInactive'));
+        //api_not_allowed(true, get_lang('Account inactive'));
         // we were not in a course, return to home page
         $msg = Display::return_message(
-            get_lang('AccountInactive'),
+            get_lang('Account inactive'),
             'error',
             false
         );
 
         $msg .= '<p class="text-center">
-                 <a class="btn btn-default" href="'.$homeUrl.'">'.get_lang('BackHome').'</a></p>';
+                 <a class="btn btn--plain" href="'.$homeUrl.'">'.get_lang('Back to Home Page.').'</a></p>';
 
         $tpl->assign('content', $msg);
         $tpl->display_one_col_template();
@@ -1120,7 +1148,7 @@ function api_protect_teacher_script()
  */
 function api_block_anonymous_users($printHeaders = true)
 {
-    $isAuth = Container::getAuthorizationChecker()->isGranted('IS_AUTHENTICATED_FULLY');
+    $isAuth = Container::getAuthorizationChecker()->isGranted('IS_AUTHENTICATED');
 
     if (false === $isAuth) {
         api_not_allowed($printHeaders);
@@ -1332,6 +1360,47 @@ function _api_format_user($user, $add_password = false, $loadAvatars = true)
         $result['avatar_no_query'] = '';
         $result['avatar_small'] = '';
         $result['avatar_medium'] = '';
+
+        if (empty($user['avatar'])) {
+            $originalFile = UserManager::getUserPicture(
+                $user_id,
+                USER_IMAGE_SIZE_ORIGINAL,
+                null,
+                $result
+            );
+            $result['avatar'] = $originalFile;
+            $avatarString = explode('?', $result['avatar']);
+            $result['avatar_no_query'] = reset($avatarString);
+        } else {
+            $result['avatar'] = $user['avatar'];
+            $avatarString = explode('?', $user['avatar']);
+            $result['avatar_no_query'] = reset($avatarString);
+        }
+
+        if (!isset($user['avatar_small'])) {
+            $smallFile = UserManager::getUserPicture(
+                $user_id,
+                USER_IMAGE_SIZE_SMALL,
+                null,
+                $result
+            );
+            $result['avatar_small'] = $smallFile;
+        } else {
+            $result['avatar_small'] = $user['avatar_small'];
+        }
+
+        if (!isset($user['avatar_medium'])) {
+            $mediumFile = UserManager::getUserPicture(
+                $user_id,
+                USER_IMAGE_SIZE_MEDIUM,
+                null,
+                $result
+            );
+            $result['avatar_medium'] = $mediumFile;
+        } else {
+            $result['avatar_medium'] = $user['avatar_medium'];
+        }
+
         $urlImg = api_get_path(WEB_IMG_PATH);
         $iconStatus = '';
         $iconStatusMedium = '';
@@ -1577,7 +1646,7 @@ function api_get_user_info_from_entity(
     $result['phone'] = $user->getPhone();
     $result['address'] = $user->getAddress();
     $result['official_code'] = $user->getOfficialCode();
-    $result['active'] = $user->getActive();
+    $result['active'] = $user->isActive();
     $result['auth_source'] = $user->getAuthSource();
     $result['language'] = $user->getLocale();
     $result['creator_id'] = $user->getCreatorId();
@@ -1778,11 +1847,11 @@ function api_get_course_id()
 /**
  * Returns the current course id (integer).
  *
- * @param string $code Optional course code
+ * @param ?string $code Optional course code
  *
  * @return int
  */
-function api_get_course_int_id($code = null)
+function api_get_course_int_id(?string $code = null): int
 {
     if (!empty($code)) {
         $code = Database::escape_string($code);
@@ -1796,11 +1865,16 @@ function api_get_course_int_id($code = null)
         if (is_array($row) && isset($row['id'])) {
             return $row['id'];
         } else {
-            return false;
+            return 0;
         }
     }
 
-    return Session::read('_real_cid', 0);
+    $cid = Session::read('_real_cid', 0);
+    if (empty($cid) && isset($_REQUEST['cid'])) {
+        $cid = (int) $_REQUEST['cid'];
+    }
+
+    return $cid;
 }
 
 /**
@@ -1903,7 +1977,7 @@ function api_get_anonymous_id()
     $table = Database::get_main_table(TABLE_STATISTIC_TRACK_E_LOGIN);
     $tableU = Database::get_main_table(TABLE_MAIN_USER);
     $ip = Database::escape_string(api_get_real_ip());
-    $max = (int) api_get_configuration_value('max_anonymous_users');
+    $max = (int) api_get_setting('admin.max_anonymous_users');
     if ($max >= 2) {
         $sql = "SELECT * FROM $table as TEL
                 JOIN $tableU as U
@@ -1932,7 +2006,7 @@ function api_get_anonymous_id()
                 $login
             );
         } else {
-            $row = Database::fetch_array($result, 'ASSOC');
+            $row = Database::fetch_assoc($result);
 
             return $row['id'];
         }
@@ -1944,7 +2018,7 @@ function api_get_anonymous_id()
             WHERE status = ".ANONYMOUS." ";
     $res = Database::query($sql);
     if (Database::num_rows($res) > 0) {
-        $row = Database::fetch_array($res, 'ASSOC');
+        $row = Database::fetch_assoc($res);
 
         return $row['id'];
     }
@@ -1985,12 +2059,19 @@ function api_get_cidreq_params($courseId, $sessionId = 0, $groupId = 0)
 function api_get_cidreq($addSessionId = true, $addGroupId = true, $origin = '')
 {
     $courseId = api_get_course_int_id();
+    if (0 === $courseId && isset($_REQUEST['cid'])) {
+        $courseId = (int) $_REQUEST['cid'];
+    }
     $url = empty($courseId) ? '' : 'cid='.$courseId;
     $origin = empty($origin) ? api_get_origin() : Security::remove_XSS($origin);
 
     if ($addSessionId) {
         if (!empty($url)) {
-            $url .= 0 == api_get_session_id() ? '&sid=0' : '&sid='.api_get_session_id();
+            $sessionId = api_get_session_id();
+            if (0 === $sessionId && isset($_REQUEST['sid'])) {
+                $sessionId = (int) $_REQUEST['sid'];
+            }
+            $url .= 0 === $sessionId ? '&sid=0' : '&sid='.$sessionId;
         }
     }
 
@@ -2002,7 +2083,9 @@ function api_get_cidreq($addSessionId = true, $addGroupId = true, $origin = '')
 
     if (!empty($url)) {
         $url .= '&gradebook='.(int) api_is_in_gradebook();
-        $url .= '&origin='.$origin;
+        if (false !== $origin) {
+            $url .= '&origin=' . $origin;
+        }
     }
 
     return $url;
@@ -2054,6 +2137,10 @@ function api_get_course_info($courseCode = null)
     $course = Session::read('_course');
     if ('-1' == $course) {
         $course = [];
+    }
+
+    if (empty($course) && isset($_REQUEST['cid'])) {
+        $course = api_get_course_info_by_id((int) $_REQUEST['cid']);
     }
 
     return $course;
@@ -2123,11 +2210,10 @@ function api_get_url_entity($id = 0): ?AccessUrl
  *
  * @param int $id Numeric ID of the course
  *
- * @return array The course info as an array formatted by api_format_course_array, including category.name
+ * @return array The course info as an array formatted by api_format_course_array, including category.title
  */
-function api_get_course_info_by_id($id = 0)
+function api_get_course_info_by_id(?int $id = 0)
 {
-    $id = (int) $id;
     if (empty($id)) {
         $course = Session::read('_course', []);
 
@@ -2161,7 +2247,7 @@ function api_format_course_array(Course $course = null)
 
     // Added
     $courseData['code'] = $courseData['sysCode'] = $course->getCode();
-    $courseData['name'] = $courseData['title'] = $course->getTitle();
+    $courseData['name'] = $courseData['title'] = $course->getTitle(); // 'name' only used for backwards compatibility - should be removed in the long run
     $courseData['official_code'] = $courseData['visual_code'] = $course->getVisualCode();
     $courseData['creation_date'] = $course->getCreationDate()->format('Y-m-d H:i:s');
     $courseData['titular'] = $course->getTutorName();
@@ -2188,14 +2274,11 @@ function api_format_course_array(Course $course = null)
     $courseData['about_url'] = $coursePath.$courseData['real_id'].'/about';
     $courseData['add_teachers_to_sessions_courses'] = $course->isAddTeachersToSessionsCourses();
 
-    $image = Display::return_icon(
-        'course.png',
+    $image = Display::getMdiIcon(
+        ObjectIcon::COURSE,
+        'ch-tool-icon',
         null,
-        null,
-        ICON_SIZE_BIG,
-        null,
-        true,
-        false
+        ICON_SIZE_BIG
     );
 
     $illustration = Container::getIllustrationRepository()->getIllustrationUrl($course);
@@ -2206,17 +2289,17 @@ function api_format_course_array(Course $course = null)
     $courseData['course_image'] = $image.'?filter=course_picture_small';
     $courseData['course_image_large'] = $image.'?filter=course_picture_medium';
 
+    if ('true' === api_get_setting('course.show_course_duration') && null !== $course->getDuration()) {
+        $courseData['duration'] = $course->getDuration();
+    }
+
     return $courseData;
 }
 
 /**
  * Returns a difficult to guess password.
- *
- * @param int $length the length of the password
- *
- * @return string the generated password
  */
-function api_generate_password($length = 8)
+function api_generate_password(int $length = 8, $useRequirements = true): string
 {
     if ($length < 2) {
         $length = 2;
@@ -2224,13 +2307,15 @@ function api_generate_password($length = 8)
 
     $charactersLowerCase = 'abcdefghijkmnopqrstuvwxyz';
     $charactersUpperCase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    $charactersSpecials = '!@#$%^&*()_+-=[]{}|;:,.<>?';
     $minNumbers = 2;
     $length = $length - $minNumbers;
     $minLowerCase = round($length / 2);
     $minUpperCase = $length - $minLowerCase;
+    $minSpecials = 1; // Default minimum special characters
 
     $password = '';
-    $passwordRequirements = api_get_configuration_value('password_requirements');
+    $passwordRequirements = $useRequirements ? Security::getPasswordRequirements() : [];
 
     $factory = new RandomLib\Factory();
     $generator = $factory->getGenerator(new SecurityLib\Strength(SecurityLib\Strength::MEDIUM));
@@ -2240,8 +2325,9 @@ function api_generate_password($length = 8)
         $minNumbers = $passwordRequirements['min']['numeric'];
         $minLowerCase = $passwordRequirements['min']['lowercase'];
         $minUpperCase = $passwordRequirements['min']['uppercase'];
+        $minSpecials = $passwordRequirements['min']['specials'];
 
-        $rest = $length - $minNumbers - $minLowerCase - $minUpperCase;
+        $rest = $length - $minNumbers - $minLowerCase - $minUpperCase - $minSpecials;
         // Add the rest to fill the length requirement
         if ($rest > 0) {
             $password .= $generator->generateString($rest, $charactersLowerCase.$charactersUpperCase);
@@ -2258,6 +2344,11 @@ function api_generate_password($length = 8)
 
     // Min uppercase
     $password .= $generator->generateString($minUpperCase, $charactersUpperCase);
+
+    // Min special characters
+    $password .= $generator->generateString($minSpecials, $charactersSpecials);
+
+    // Shuffle the password to ensure randomness
     $password = str_shuffle($password);
 
     return $password;
@@ -2382,14 +2473,14 @@ function api_get_session_name($session_id = 0)
         }
     }
     $t = Database::get_main_table(TABLE_MAIN_SESSION);
-    $s = "SELECT name FROM $t WHERE id = ".(int) $session_id;
+    $s = "SELECT title FROM $t WHERE id = ".(int) $session_id;
     $r = Database::query($s);
     $c = Database::num_rows($r);
     if ($c > 0) {
         //technically, there can be only one, but anyway we take the first
         $rec = Database::fetch_array($r);
 
-        return $rec['name'];
+        return $rec['title'];
     }
 
     return null;
@@ -2447,7 +2538,7 @@ function api_get_session_visibility(
         return SESSION_INVISIBLE;
     }
 
-    $row = Database::fetch_array($result, 'ASSOC');
+    $row = Database::fetch_assoc($result);
     $visibility = $row['visibility'];
 
     // I don't care the session visibility.
@@ -2483,6 +2574,9 @@ function api_get_session_visibility(
     // If start date was set.
     if (!empty($row['access_start_date'])) {
         $visibility = $now > api_strtotime($row['access_start_date'], 'UTC') ? SESSION_AVAILABLE : SESSION_INVISIBLE;
+    } else {
+        // If there's no start date, assume it's available until the end date
+        $visibility = SESSION_AVAILABLE;
     }
 
     // If the end date was set.
@@ -2533,11 +2627,12 @@ function api_get_session_image($sessionId, User $user)
     if (!$user->hasRole('ROLE_STUDENT')) {
         // Check whether is not a student
         if ($sessionId > 0) {
-            $image = '&nbsp;&nbsp;'.Display::return_icon(
-                'star.png',
-                get_lang('Session-specific resource'),
-                ['align' => 'absmiddle'],
-                ICON_SIZE_SMALL
+            $image = '&nbsp;&nbsp;'.Display::getMdiIcon(
+                ObjectIcon::STAR,
+                'ch-tool-icon',
+                'align:absmiddle;',
+                ICON_SIZE_SMALL,
+                get_lang('Session-specific resource')
             );
         }
     }
@@ -2595,7 +2690,7 @@ function api_get_session_condition(
  *
  * @return string|array
  */
-function api_get_setting($variable)
+function api_get_setting($variable, $isArray = false, $key = null)
 {
     $settingsManager = Container::getSettingsManager();
     if (empty($settingsManager)) {
@@ -2612,8 +2707,6 @@ function api_get_setting($variable)
             }
 
             return 'prod';
-        case 'stylesheets':
-            $variable = 'platform.theme';
         // deprecated settings
         // no break
         case 'openid_authentication':
@@ -2631,7 +2724,31 @@ function api_get_setting($variable)
             return $newResult;
             break;
         default:
-            return $settingsManager->getSetting($variable);
+            $settingValue = $settingsManager->getSetting($variable, true);
+            if (is_string($settingValue) && $isArray && !empty($settingValue)) {
+                // Check if the value is a valid JSON string
+                $decodedValue = json_decode($settingValue, true);
+
+                // If it's a valid JSON string and the result is an array, return it
+                if (is_array($decodedValue)) {
+                    return $decodedValue;
+                }
+
+                // If it's not an array, continue with the normal flow
+                // Optional: If you need to evaluate the value using eval
+                $strArrayValue = rtrim($settingValue, ';');
+                $value = eval("return $strArrayValue;");
+                if (is_array($value)) {
+                    return $value;
+                }
+            }
+
+            // If the value is not a JSON array or wasn't returned previously, continue with the normal flow
+            if (!empty($key) && isset($settingValue[$variable][$key])) {
+                return $settingValue[$variable][$key];
+            }
+
+            return $settingValue;
             break;
     }
 }
@@ -2666,7 +2783,7 @@ function api_get_plugin_setting($plugin, $variable)
             $variableName,
         ],
     ];
-    $table = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+    $table = Database::get_main_table(TABLE_MAIN_SETTINGS);
     $result = Database::select(
         'selected_value',
         $table,
@@ -2709,7 +2826,7 @@ function api_get_plugin_setting($plugin, $variable)
  */
 function api_get_settings_params($params)
 {
-    $table = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+    $table = Database::get_main_table(TABLE_MAIN_SETTINGS);
 
     return Database::select('*', $table, ['where' => $params]);
 }
@@ -2721,7 +2838,7 @@ function api_get_settings_params($params)
  */
 function api_get_settings_params_simple($params)
 {
-    $table = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+    $table = Database::get_main_table(TABLE_MAIN_SETTINGS);
 
     return Database::select('*', $table, ['where' => $params], 'one');
 }
@@ -2731,7 +2848,7 @@ function api_get_settings_params_simple($params)
  */
 function api_delete_settings_params($params)
 {
-    $table = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+    $table = Database::get_main_table(TABLE_MAIN_SETTINGS);
 
     return Database::delete($table, $params);
 }
@@ -2775,7 +2892,7 @@ function api_is_platform_admin($allowSessionAdmins = false, $allowDrh = false)
         return true;
     }
 
-    if ($allowDrh && $currentUser->hasRole('ROLE_RRHH')) {
+    if ($allowDrh && $currentUser->hasRole('ROLE_HR')) {
         return true;
     }
 
@@ -2950,7 +3067,7 @@ function api_is_coach($session_id = 0, $courseId = null, $check_student_view = t
     $sessionIsCoach = [];
 
     if (!empty($courseId)) {
-        $sql = "SELECT DISTINCT s.id, name, access_start_date, access_end_date
+        $sql = "SELECT DISTINCT s.id, title, access_start_date, access_end_date
                 FROM $session_table s
                 INNER JOIN $session_rel_course_rel_user_table session_rc_ru
                 ON session_rc_ru.session_id = s.id AND session_rc_ru.user_id = '".$userId."'
@@ -2965,13 +3082,13 @@ function api_is_coach($session_id = 0, $courseId = null, $check_student_view = t
     if (!empty($session_id)) {
         $sql = "SELECT DISTINCT s.id
                 FROM $session_table AS s
-                INNER JOIN $tblSessionRelUser sru 
+                INNER JOIN $tblSessionRelUser sru
                 ON s.id = sru.session_id
-                WHERE 
-                    sru.user_id = $userId AND 
-                    s.id = $session_id AND 
-                    sru.relation_type = ".SessionEntity::GENERAL_COACH." 
-                ORDER BY s.access_start_date, s.access_end_date, s.name";
+                WHERE
+                    sru.user_id = $userId AND
+                    s.id = $session_id AND
+                    sru.relation_type = ".SessionEntity::GENERAL_COACH."
+                ORDER BY s.access_start_date, s.access_end_date, s.title";
         $result = Database::query($sql);
         if (!empty($sessionIsCoach)) {
             $sessionIsCoach = array_merge(
@@ -3044,7 +3161,7 @@ function api_is_session_admin(?User $user = null)
  */
 function api_is_drh()
 {
-    return api_user_has_role('ROLE_RRHH');
+    return api_user_has_role('ROLE_HR');
 }
 
 /**
@@ -3179,17 +3296,17 @@ function api_display_tool_view_option()
             // We have to remove the isStudentView=true from the $sourceurl
             $sourceurl = str_replace('&isStudentView=true', '', $sourceurl);
             $sourceurl = str_replace('&isStudentView=false', '', $sourceurl);
-            $output_string .= '<a class="btn btn-primary btn-sm" href="'.$sourceurl.'&isStudentView=false" target="_self">'.
+            $output_string .= '<a class="btn btn--primary btn-sm" href="'.$sourceurl.'&isStudentView=false" target="_self">'.
                 Display::getMdiIcon('eye').' '.get_lang('Switch to teacher view').'</a>';
         } elseif ('teacherview' == $_SESSION['studentview']) {
             // Switching to teacherview
             $sourceurl = str_replace('&isStudentView=true', '', $sourceurl);
             $sourceurl = str_replace('&isStudentView=false', '', $sourceurl);
-            $output_string .= '<a class="btn btn-default btn-sm" href="'.$sourceurl.'&isStudentView=true" target="_self">'.
+            $output_string .= '<a class="btn btn--plain btn-sm" href="'.$sourceurl.'&isStudentView=true" target="_self">'.
                 Display::getMdiIcon('eye').' '.get_lang('Switch to student view').'</a>';
         }
     } else {
-        $output_string .= '<a class="btn btn-default btn-sm" href="'.$sourceurl.'&isStudentView=true" target="_self">'.
+        $output_string .= '<a class="btn btn--plain btn-sm" href="'.$sourceurl.'&isStudentView=true" target="_self">'.
             Display::getMdiIcon('eye').' '.get_lang('Switch to student view').'</a>';
     }
     $output_string = Security::remove_XSS($output_string);
@@ -3237,7 +3354,7 @@ function api_is_allowed_to_edit(
 
     $sessionId = api_get_session_id();
 
-    if ($sessionId && api_get_configuration_value('session_courses_read_only_mode')) {
+    if ($sessionId && 'true' === api_get_setting('session.session_courses_read_only_mode')) {
         $efv = new ExtraFieldValue('course');
         $lockExrafieldField = $efv->get_values_by_handler_and_field_variable(
             api_get_course_int_id(),
@@ -3424,22 +3541,24 @@ function api_is_allowed_to_session_edit($tutor = false, $coach = false)
  */
 function api_is_anonymous()
 {
-    return !Container::getAuthorizationChecker()->isGranted('IS_AUTHENTICATED_FULLY');
+    return !Container::getAuthorizationChecker()->isGranted('IS_AUTHENTICATED');
 }
 
 /**
  * Displays message "You are not allowed here..." and exits the entire script.
  *
- * @param bool   $print_headers Whether or not to print headers (default = false -> does not print them)
+ * @param bool $print_headers Whether to print headers (default = false -> does not print them)
  * @param string $message
- * @param int    $responseCode
+ * @param int $responseCode
+ *
+ * @throws Exception
  */
 function api_not_allowed(
     $print_headers = false,
     $message = null,
     $responseCode = 0
-) {
-    throw new Exception('You are not allowed');
+): never {
+    throw new NotAllowedException($message ?: 'You are not allowed', null, $responseCode);
 }
 
 /**
@@ -3449,7 +3568,7 @@ function api_not_allowed(
  */
 function languageToCountryIsoCode($languageIsoCode)
 {
-    $allow = api_get_configuration_value('language_flags_by_country');
+    $allow = ('true' === api_get_setting('language.language_flags_by_country'));
 
     // @todo save in DB
     switch ($languageIsoCode) {
@@ -3546,7 +3665,7 @@ function api_get_languages()
             ORDER BY original_name ASC";
     $result = Database::query($sql);
     $languages = [];
-    while ($row = Database::fetch_array($result, 'ASSOC')) {
+    while ($row = Database::fetch_assoc($result)) {
         $languages[$row['isocode']] = $row['original_name'];
     }
 
@@ -3569,7 +3688,7 @@ function api_get_language_id($language)
 
     // We check the language by iscocode
     $langInfo = api_get_language_from_iso($language);
-    if (!empty($langInfo->getId())) {
+    if (null !== $langInfo && !empty($langInfo->getId())) {
         return $langInfo->getId();
     }
 
@@ -3626,83 +3745,13 @@ function api_get_language_from_iso($code)
 }
 
 /**
- * Returns the name of the visual (CSS) theme to be applied on the current page.
- * The returned name depends on the platform, course or user -wide settings.
- *
- * @return string The visual theme's name, it is the name of a folder inside web/css/themes
+ * Shortcut to ThemeHelper::getVisualTheme()
  */
-function api_get_visual_theme()
+function api_get_visual_theme(): string
 {
-    static $visual_theme;
-    if (!isset($visual_theme)) {
-        // Get style directly from DB
-        /*$styleFromDatabase = api_get_settings_params_simple(
-            [
-                'variable = ? AND access_url = ?' => [
-                    'stylesheets',
-                    api_get_current_access_url_id(),
-                ],
-            ]
-        );
+    $themeHelper = Container::$container->get(ThemeHelper::class);
 
-        if ($styleFromDatabase) {
-            $platform_theme = $styleFromDatabase['selected_value'];
-        } else {
-            $platform_theme = api_get_setting('stylesheets');
-        }*/
-        $platform_theme = api_get_setting('stylesheets');
-
-        // Platform's theme.
-        $visual_theme = $platform_theme;
-        if ('true' == api_get_setting('user_selected_theme')) {
-            $user_info = api_get_user_info();
-            if (isset($user_info['theme'])) {
-                $user_theme = $user_info['theme'];
-
-                if (!empty($user_theme)) {
-                    $visual_theme = $user_theme;
-                    // User's theme.
-                }
-            }
-        }
-
-        $course_id = api_get_course_id();
-        if (!empty($course_id)) {
-            if ('true' == api_get_setting('allow_course_theme')) {
-                $course_theme = api_get_course_setting('course_theme', $course_id);
-
-                if (!empty($course_theme) && -1 != $course_theme) {
-                    if (!empty($course_theme)) {
-                        // Course's theme.
-                        $visual_theme = $course_theme;
-                    }
-                }
-
-                $allow_lp_theme = api_get_course_setting('allow_learning_path_theme');
-                if (1 == $allow_lp_theme) {
-                    /*global $lp_theme_css, $lp_theme_config;
-                    // These variables come from the file lp_controller.php.
-                    if (!$lp_theme_config) {
-                        if (!empty($lp_theme_css)) {
-                            // LP's theme.
-                            $visual_theme = $lp_theme_css;
-                        }
-                    }*/
-                }
-            }
-        }
-
-        if (empty($visual_theme)) {
-            $visual_theme = 'chamilo';
-        }
-
-        /*global $lp_theme_log;
-        if ($lp_theme_log) {
-            $visual_theme = $platform_theme;
-        }*/
-    }
-
-    return $visual_theme;
+    return $themeHelper->getVisualTheme();
 }
 
 /**
@@ -3740,7 +3789,7 @@ function api_get_themes($getOnlyThemeFromVirtualInstance = false)
         return $list;
     };
 
-    $dir = api_get_path(SYS_CSS_PATH).'themes/';
+    $dir = Container::getProjectDir().'var/themes/';
     $list = $readCssFolder($dir);
 
     if (!empty($virtualTheme)) {
@@ -3791,10 +3840,12 @@ function api_time_to_hms($seconds, $space = ':', $showSeconds = true, $roundMinu
     if (-1 == $seconds) {
         return
             get_lang('Unknown').
-            Display::return_icon(
-                'info2.gif',
-                get_lang('The datas about this user were registered when the calculation of time spent on the platform wasn\'t possible.'),
-                ['align' => 'absmiddle', 'hspace' => '3px']
+            Display::getMdiIcon(
+                ActionIcon::INFORMATION,
+                'ch-tool-icon',
+                'align: absmiddle; hspace: 3px',
+                ICON_SIZE_SMALL,
+                get_lang('The datas about this user were registered when the calculation of time spent on the platform wasn\'t possible.')
             );
     }
 
@@ -4263,12 +4314,8 @@ function api_get_version()
  */
 function api_get_software_name()
 {
-    $name = api_get_configuration_value('software_name');
-    if (!empty($name)) {
-        return $name;
-    } else {
-        return 'Chamilo';
-    }
+    $name = api_get_env_variable('SOFTWARE_NAME', 'Chamilo');
+    return $name;
 }
 
 function api_get_status_list()
@@ -4325,11 +4372,11 @@ function api_get_status_langvars()
 {
     return [
         COURSEMANAGER => get_lang('Teacher'),
-        SESSIONADMIN => get_lang('SessionsAdmin'),
+        SESSIONADMIN => get_lang('Sessions administrator'),
         DRH => get_lang('Human Resources Manager'),
         STUDENT => get_lang('Learner'),
         ANONYMOUS => get_lang('Anonymous'),
-        STUDENT_BOSS => get_lang('RoleStudentBoss'),
+        STUDENT_BOSS => get_lang('Student boss'),
         INVITEE => get_lang('Invited'),
     ];
 }
@@ -4348,7 +4395,7 @@ function api_get_settings_options($var)
             ORDER BY id";
     $result = Database::query($sql);
     $settings_options_array = [];
-    while ($row = Database::fetch_array($result, 'ASSOC')) {
+    while ($row = Database::fetch_assoc($result)) {
         $settings_options_array[] = $row;
     }
 
@@ -4373,7 +4420,7 @@ function api_set_setting_option($params)
  */
 function api_set_setting_simple($params)
 {
-    $table = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+    $table = Database::get_main_table(TABLE_MAIN_SETTINGS);
     $url_id = api_get_current_access_url_id();
 
     if (empty($params['id'])) {
@@ -4412,7 +4459,7 @@ function api_set_setting($var, $value, $subvar = null, $cat = null, $access_url 
     if (empty($var)) {
         return false;
     }
-    $t_settings = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+    $t_settings = Database::get_main_table(TABLE_MAIN_SETTINGS);
     $var = Database::escape_string($var);
     $value = Database::escape_string($value);
     $access_url = (int) $access_url;
@@ -4518,7 +4565,7 @@ function api_set_settings_category($category, $value = null, $access_url = 1, $f
         return false;
     }
     $category = Database::escape_string($category);
-    $t_s = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+    $t_s = Database::get_main_table(TABLE_MAIN_SETTINGS);
     $access_url = (int) $access_url;
     if (empty($access_url)) {
         $access_url = 1;
@@ -4649,7 +4696,7 @@ function api_get_access_url($id, $returnDefault = true)
  */
 function &api_get_settings($cat = null, $ordering = 'list', $access_url = 1, $url_changeable = 0)
 {
-    $table = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+    $table = Database::get_main_table(TABLE_MAIN_SETTINGS);
     $access_url = (int) $access_url;
     $where_condition = '';
     if (1 == $url_changeable) {
@@ -4672,7 +4719,8 @@ function &api_get_settings($cat = null, $ordering = 'list', $access_url = 1, $ur
     }
     $result = Database::query($sql);
     if (null === $result) {
-        return [];
+        $result = [];
+        return $result;
     }
     $result = Database::store_result($result, 'ASSOC');
 
@@ -5055,8 +5103,9 @@ function api_request_uri()
  * @return int access_url_id of the current Chamilo Installation
  *
  * @author Julio Montoya <gugli100@gmail.com>
+ * @throws Exception
  */
-function api_get_current_access_url_id()
+function api_get_current_access_url_id(): int
 {
     if (false === api_get_multiple_access_url()) {
         return 1;
@@ -5110,7 +5159,7 @@ function api_get_access_url_from_user($user_id)
             WHERE user_id = ".$user_id;
     $result = Database::query($sql);
     $list = [];
-    while ($row = Database::fetch_array($result, 'ASSOC')) {
+    while ($row = Database::fetch_assoc($result)) {
         $list[] = $row['access_url_id'];
     }
 
@@ -5167,7 +5216,7 @@ function api_is_valid_secret_key($original_key_secret, $security_key)
         return false;
     }
 
-    return (string) $original_key_secret === sha1($security_key);
+    return (string) $original_key_secret === hash('sha512', $security_key);
 }
 
 /**
@@ -5312,7 +5361,7 @@ function api_get_tool_information_by_name($name)
     $course_id = api_get_course_int_id();
 
     $sql = "SELECT id FROM tool
-            WHERE name = '".Database::escape_string($name)."' ";
+            WHERE title = '".Database::escape_string($name)."' ";
     $rs = Database::query($sql);
     $data = Database::fetch_array($rs);
     if ($data) {
@@ -5321,7 +5370,7 @@ function api_get_tool_information_by_name($name)
                 WHERE c_id = $course_id  AND tool_id = '".$tool."' ";
         $rs = Database::query($sql);
 
-        return Database::fetch_array($rs, 'ASSOC');
+        return Database::fetch_assoc($rs);
     }
 
     return [];
@@ -5815,8 +5864,8 @@ function api_get_jquery_ui_js()
 
 function api_get_jqgrid_js()
 {
-    return api_get_build_css('free-jqgrid.css').PHP_EOL
-        .api_get_build_js('free-jqgrid.js');
+    return api_get_build_css('legacy_free-jqgrid.css').PHP_EOL
+        .api_get_build_js('legacy_free-jqgrid.js');
 }
 
 /**
@@ -5923,18 +5972,16 @@ function api_get_course_url($courseId = null, $sessionId = null, $groupId = null
 }
 
 /**
- * Check if the current portal has the $_configuration['multiple_access_urls'] parameter on.
+ * Check if there is more than the default URL defined in the access_url table.
  */
 function api_get_multiple_access_url(): bool
 {
-    global $_configuration;
-    if (isset($_configuration['multiple_access_urls']) && $_configuration['multiple_access_urls']) {
-        return true;
-    }
-
-    return false;
+    return Container::$container->get(AccessUrlHelper::class)->isMultiple();
 }
 
+/**
+ * @deprecated Use AccessUrlHelper::isMultiple
+ */
 function api_is_multiple_url_enabled(): bool
 {
     return api_get_multiple_access_url();
@@ -6091,10 +6138,18 @@ function api_get_locked_settings()
  * @author Jorge Frisancho Jibaja <jrfdeft@gmail.com>, USIL - Some changes to allow the use of real IP using reverse proxy
  *
  * @version CEV CHANGE 24APR2012
+ * @throws RuntimeException
  */
-function api_get_real_ip()
+function api_get_real_ip(): string
 {
-    $ip = trim($_SERVER['REMOTE_ADDR']);
+    if ('cli' === PHP_SAPI) {
+        $ip = '127.0.0.1';
+    } else {
+        $ip = trim($_SERVER['REMOTE_ADDR']);
+        if (empty($ip)) {
+            throw new RuntimeException("Unable to retrieve remote IP address.");
+        }
+    }
     if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
         if (preg_match('/,/', $_SERVER['HTTP_X_FORWARDED_FOR'])) {
             @list($ip1, $ip2) = @explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
@@ -6291,6 +6346,15 @@ function api_get_roles()
     return $roles;
 }
 
+function api_get_user_roles(): array
+{
+    $permissionService = Container::$container->get(PermissionServiceHelper::class);
+
+    $roles = $permissionService->getUserRoles();
+
+    return array_combine($roles, $roles);
+}
+
 /**
  * @param string $file
  *
@@ -6420,53 +6484,71 @@ function api_get_password_checker_js($usernameInputId, $passwordInputId)
         return null;
     }
 
-    $translations = [
-        'wordLength' => get_lang('The password is too short'),
-        'wordNotEmail' => get_lang('Your password cannot be the same as your email'),
-        'wordSimilarToUsername' => get_lang('Your password cannot contain your username'),
-        'wordTwoCharacterClasses' => get_lang('Use different character classes'),
-        'wordRepetitions' => get_lang('Too many repetitions'),
-        'wordSequences' => get_lang('Your password contains sequences'),
-        'errorList' => get_lang('errors found'),
-        'veryWeak' => get_lang('Very weak'),
-        'weak' => get_lang('Weak'),
-        'normal' => get_lang('Normal'),
-        'medium' => get_lang('Medium'),
-        'strong' => get_lang('Strong'),
-        'veryStrong' => get_lang('Very strong'),
+    $minRequirements = Security::getPasswordRequirements()['min'];
+
+    $options = [
+        'rules' => [],
     ];
 
-    $js = api_get_asset('pwstrength-bootstrap/dist/pwstrength-bootstrap.js');
-    $js .= "<script>
-    var errorMessages = {
-        password_to_short : \"".get_lang('The password is too short')."\",
-        same_as_username : \"".get_lang('Your password cannot be the same as your username')."\"
-    };
+    if ($minRequirements['length'] > 0) {
+        $options['rules'][] = [
+            'minChar' => $minRequirements['length'],
+            'pattern' => '.',
+            'helpText' => sprintf(
+                get_lang('Minimum %s characters in total'),
+                $minRequirements['length']
+            ),
+        ];
+    }
 
+    if ($minRequirements['lowercase'] > 0) {
+        $options['rules'][] = [
+            'minChar' => $minRequirements['lowercase'],
+            'pattern' => '[a-z]',
+            'helpText' => sprintf(
+                get_lang('Minimum %s lowercase characters'),
+                $minRequirements['lowercase']
+            ),
+        ];
+    }
+
+    if ($minRequirements['uppercase'] > 0) {
+        $options['rules'][] = [
+            'minChar' => $minRequirements['uppercase'],
+            'pattern' => '[A-Z]',
+            'helpText' => sprintf(
+                get_lang('Minimum %s uppercase characters'),
+                $minRequirements['uppercase']
+            ),
+        ];
+    }
+
+    if ($minRequirements['numeric'] > 0) {
+        $options['rules'][] = [
+            'minChar' => $minRequirements['numeric'],
+            'pattern' => '[0-9]',
+            'helpText' => sprintf(
+                get_lang('Minimum %s numerical (0-9) characters'),
+                $minRequirements['numeric']
+            ),
+        ];
+    }
+
+    if ($minRequirements['specials'] > 0) {
+        $options['rules'][] = [
+            'minChar' => $minRequirements['specials'],
+            'pattern' => '[!"#$%&\'()*+,\-./\\\:;<=>?@[\\]^_`{|}~]',
+            'helpText' => sprintf(
+                get_lang('Minimum %s special characters'),
+                $minRequirements['specials']
+            ),
+        ];
+    }
+
+    $js = api_get_js('password-checker/password-checker.js');
+    $js .= "<script>
     $(function() {
-        var lang = ".json_encode($translations).";
-        var options = {
-            onLoad : function () {
-                //$('#messages').text('Start typing password');
-            },
-            onKeyUp: function (evt) {
-                $(evt.target).pwstrength('outputErrorList');
-            },
-            errorMessages : errorMessages,
-            viewports: {
-                progress: '#password_progress',
-                verdict: '#password-verdict',
-                errors: '#password-errors'
-            },
-            usernameField: '$usernameInputId'
-        };
-        options.i18n = {
-            t: function (key) {
-                var result = lang[key];
-                return result === key ? '' : result; // This assumes you return the
-            }
-        };
-        $('".$passwordInputId."').pwstrength(options);
+        $('".$passwordInputId."').passwordChecker(".json_encode($options).");
     });
     </script>";
 
@@ -6614,7 +6696,7 @@ function api_can_login_as($loginAsUserId, $userId = null)
 
     $loginAsStatusForSessionAdmins = [STUDENT];
 
-    if (api_get_setting('session.allow_session_admin_login_as_teacher')) {
+    if ('true' === api_get_setting('session.allow_session_admin_login_as_teacher')) {
         $loginAsStatusForSessionAdmins[] = COURSEMANAGER;
     }
 
@@ -6738,6 +6820,58 @@ function api_get_configuration_value($variable)
 }
 
 /**
+ * Loads hosting limits from the YAML file.
+ *
+ * @return array The hosting limits.
+ */
+function load_hosting_limits(): array
+{
+    $container = Container::$container;
+
+    $hostingLimits = $container->getParameter('hosting_limits');
+
+    return $hostingLimits['urls'] ?? [];
+}
+
+/**
+ * Gets a specific hosting limit.
+ *
+ * @param int $urlId The URL ID.
+ * @param string $limitName The name of the limit.
+ * @return mixed The value of the limit, or null if not found.
+ */
+function get_hosting_limit(int $urlId, string $limitName): mixed
+{
+    $limits = load_hosting_limits();
+
+    foreach ($limits[$urlId] as $limitArray) {
+        if (isset($limitArray[$limitName])) {
+            return $limitArray[$limitName];
+        }
+    }
+
+    return null;
+}
+
+
+/**
+ * Retrieves an environment variable value with validation and handles boolean conversion.
+ *
+ * @param string $variable The name of the environment variable.
+ * @param mixed $default The default value to return if the variable is not set.
+ * @return mixed The value of the environment variable, converted to boolean if necessary, or the default value.
+ */
+function api_get_env_variable(string $variable, mixed $default = null): mixed
+{
+    $variable = strtolower($variable);
+    if (Container::$container->hasParameter($variable)) {
+        return Container::$container->getParameter($variable);
+    }
+
+    return $default;
+}
+
+/**
  * Retreives and returns a value in a hierarchical configuration array
  * api_get_configuration_sub_value('a/b/c') returns api_get_configuration_value('a')['b']['c'].
  *
@@ -6848,7 +6982,7 @@ function api_get_supported_image_extensions($supportVectors = true)
  */
 function api_register_campus($listCampus = true)
 {
-    $tbl_settings = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+    $tbl_settings = Database::get_main_table(TABLE_MAIN_SETTINGS);
 
     $sql = "UPDATE $tbl_settings SET selected_value='true' WHERE variable='registered'";
     Database::query($sql);
@@ -6967,6 +7101,62 @@ function api_format_time($time, $originFormat = 'php')
     return $formattedTime;
 }
 
+function api_set_noreply_and_from_address_to_mailer(
+    TemplatedEmail $email,
+    array $sender,
+    array $replyToAddress = []
+): void {
+    $validator = Container::getLegacyHelper()->getValidator();
+    $emailConstraint = new Assert\Email();
+
+    $noReplyAddress = api_get_setting('noreply_email_address');
+    $avoidReplyToAddress = false;
+
+    if (!empty($noReplyAddress)) {
+        // $avoidReplyToAddress = api_get_configuration_value('mail_no_reply_avoid_reply_to');
+    }
+
+    // Default values
+    $notification = new Notification();
+    $defaultSenderName = $notification->getDefaultPlatformSenderName();
+    $defaultSenderEmail = $notification->getDefaultPlatformSenderEmail();
+
+    // If the parameter is set don't use the admin.
+    $senderName = !empty($sender['name']) ? $sender['name'] : $defaultSenderName;
+    $senderEmail = !empty($sender['email']) ? $sender['email'] : $defaultSenderEmail;
+
+    // Send errors to the platform admin
+    $adminEmail = api_get_setting('admin.administrator_email');
+
+    $adminEmailValidation = $validator->validate($adminEmail, $emailConstraint);
+
+    if (!empty($adminEmail) && 0 === $adminEmailValidation->count()) {
+        $email
+            ->getHeaders()
+            ->addIdHeader('Errors-To', $adminEmail)
+        ;
+    }
+
+    if (!$avoidReplyToAddress && !empty($replyToAddress)) {
+        $replyToEmailValidation = $validator->validate($replyToAddress['mail'], $emailConstraint);
+
+        if (0 === $replyToEmailValidation->count()) {
+            $email->addReplyTo(new Address($replyToAddress['mail'], $replyToAddress['name']));
+        }
+    }
+
+    if ('true' === api_get_setting('mail.smtp_unique_sender')) {
+        $senderName = $defaultSenderName;
+        $senderEmail = $defaultSenderEmail;
+
+        $email->sender(new Address($senderEmail, $senderName));
+    }
+
+    if ($senderEmail) {
+        $email->from(new Address($senderEmail, $senderName));
+    }
+}
+
 /**
  * Sends an email
  * Sender name and email can be specified, if not specified
@@ -6995,93 +7185,24 @@ function api_mail_html(
     $extra_headers = [],
     $data_file = [],
     $embeddedImage = false,
-    $additionalParameters = []
+    $additionalParameters = [],
+    string $sendErrorTo = null
 ) {
-    if (!api_valid_email($recipientEmail)) {
-        return false;
-    }
+    $mailHelper = Container::$container->get(MailHelper::class);
 
-    // Default values
-    $notification = new Notification();
-    $defaultEmail = $notification->getDefaultPlatformSenderEmail();
-    $defaultName = $notification->getDefaultPlatformSenderName();
-
-    // If the parameter is set don't use the admin.
-    $senderName = !empty($senderName) ? $senderName : $defaultName;
-    $senderEmail = !empty($senderEmail) ? $senderEmail : $defaultEmail;
-
-    // Reply to first
-    $replyToName = '';
-    $replyToEmail = '';
-    if (isset($extra_headers['reply_to'])) {
-        $replyToEmail = $extra_headers['reply_to']['mail'];
-        $replyToName = $extra_headers['reply_to']['name'];
-    }
-
-    try {
-        $bus = Container::getMessengerBus();
-        //$sendMessage = new \Chamilo\CoreBundle\Message\SendMessage();
-        //$bus->dispatch($sendMessage);
-
-        $message = new TemplatedEmail();
-        $message->subject($subject);
-
-        $list = api_get_configuration_value('send_all_emails_to');
-        if (!empty($list) && isset($list['emails'])) {
-            foreach ($list['emails'] as $email) {
-                $message->cc($email);
-            }
-        }
-
-        // Attachment
-        if (!empty($data_file)) {
-            foreach ($data_file as $file_attach) {
-                if (!empty($file_attach['path']) && !empty($file_attach['filename'])) {
-                    $message->attachFromPath($file_attach['path'], $file_attach['filename']);
-                }
-            }
-        }
-
-        $noReply = api_get_setting('noreply_email_address');
-        $automaticEmailText = '';
-        if (!empty($noReply)) {
-            $automaticEmailText = '<br />'.get_lang('This is an automatic email message. Please do not reply to it.');
-        }
-
-        $params = [
-            'mail_header_style' => api_get_configuration_value('mail_header_style'),
-            'mail_content_style' => api_get_configuration_value('mail_content_style'),
-            'link' => $additionalParameters['link'] ?? '',
-            'automatic_email_text' => $automaticEmailText,
-            'content' => $body,
-            'theme' => api_get_visual_theme(),
-        ];
-
-        if (!empty($senderEmail)) {
-            $message->from(new Address($senderEmail, $senderName));
-        }
-
-        if (!empty($recipientEmail)) {
-            $message->to(new Address($recipientEmail, $recipientName));
-        }
-
-        if (!empty($replyToEmail)) {
-            $message->replyTo(new Address($replyToEmail, $replyToName));
-        }
-
-        $message
-            ->htmlTemplate('@ChamiloCore/Mailer/Default/default.html.twig')
-            ->textTemplate('@ChamiloCore/Mailer/Default/default.text.twig')
-        ;
-        $message->context($params);
-        Container::getMailer()->send($message);
-
-        return true;
-    } catch (Exception $e) {
-        error_log($e->getMessage());
-    }
-
-    return 1;
+    return $mailHelper->send(
+        $recipientName,
+        $recipientEmail,
+        $subject,
+        $body,
+        $senderName,
+        $senderEmail,
+        $extra_headers,
+        $data_file,
+        $embeddedImage,
+        $additionalParameters,
+        $sendErrorTo
+    );
 }
 
 /**
@@ -7201,7 +7322,7 @@ function api_protect_limit_for_session_admin()
  */
 function api_protect_session_admin_list_users()
 {
-    $limitAdmin = api_get_configuration_value('limit_session_admin_list_users');
+    $limitAdmin = ('true' === api_get_setting('session.limit_session_admin_list_users'));
 
     if (api_is_session_admin() && true === $limitAdmin) {
         api_not_allowed(true);
@@ -7211,7 +7332,7 @@ function api_protect_session_admin_list_users()
 /**
  * @return bool
  */
-function api_is_student_view_active()
+function api_is_student_view_active(): bool
 {
     $studentView = Session::read('studentview');
 
@@ -7398,4 +7519,18 @@ function api_protect_webservices()
         echo "To enable, add \$_configuration['disable_webservices'] = true; in configuration.php";
         exit;
     }
+}
+
+/**
+ * Checks if a set of roles have a specific permission.
+ *
+ * @param string $permissionSlug The slug of the permission to check.
+ * @param array  $roles          An array of role codes to check against.
+ * @return bool True if any of the roles have the permission, false otherwise.
+ */
+function api_get_permission(string $permissionSlug, array $roles): bool
+{
+    $permissionService = Container::$container->get(PermissionServiceHelper::class);
+
+    return $permissionService->hasPermission($permissionSlug, $roles);
 }

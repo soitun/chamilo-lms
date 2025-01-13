@@ -6,52 +6,67 @@ declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\Entity;
 
+use Chamilo\CoreBundle\Repository\TrackEDownloadsRepository;
 use DateTime;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * TrackEDownloads.
- *
- * @ORM\Table(name="track_e_downloads", indexes={
- *     @ORM\Index(name="idx_ted_user_id", columns={"down_user_id"}),
- *     @ORM\Index(name="idx_ted_c_id", columns={"c_id"}),
- *     @ORM\Index(name="down_session_id", columns={"down_session_id"})
- * })
- * @ORM\Entity
  */
+#[ORM\Table(name: 'track_e_downloads')]
+#[ORM\Index(name: 'idx_ted_user_id', columns: ['down_user_id'])]
+#[ORM\Entity(repositoryClass: TrackEDownloadsRepository::class)]
 class TrackEDownloads
 {
-    /**
-     * @ORM\Column(name="down_id", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     */
+    #[ORM\Column(name: 'down_id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
     protected int $downId;
 
-    /**
-     * @ORM\Column(name="down_user_id", type="integer", nullable=true)
-     */
+    #[ORM\Column(name: 'down_user_id', type: 'integer', nullable: true)]
     protected ?int $downUserId = null;
 
-    /**
-     * @ORM\Column(name="down_date", type="datetime", nullable=false)
-     */
+    #[ORM\Column(name: 'down_date', type: 'datetime', nullable: false)]
     protected DateTime $downDate;
 
-    /**
-     * @ORM\Column(name="c_id", type="integer", nullable=false)
-     */
-    protected int $cId;
-
-    /**
-     * @ORM\Column(name="down_doc_path", type="string", length=255, nullable=false)
-     */
+    #[ORM\Column(name: 'down_doc_path', type: 'string', length: 255, nullable: true)]
     protected string $downDocPath;
 
+    #[ORM\ManyToOne(targetEntity: ResourceLink::class, cascade: ['persist', 'remove'])]
+    #[ORM\JoinColumn(name: 'resource_link_id', referencedColumnName: 'id', onDelete: 'SET NULL', nullable: true)]
+    protected ?ResourceLink $resourceLink = null;
+
     /**
-     * @ORM\Column(name="down_session_id", type="integer", nullable=false)
+     * Set downDocPath.
+     *
+     * @return TrackEDownloads
      */
-    protected int $downSessionId;
+    public function setDownDocPath(string $downDocPath)
+    {
+        $this->downDocPath = $downDocPath;
+
+        return $this;
+    }
+
+    /**
+     * Get downDocPath.
+     *
+     * @return string
+     */
+    public function getDownDocPath()
+    {
+        return $this->downDocPath;
+    }
+
+    /**
+     * Get downId.
+     *
+     * @return int
+     */
+    public function getDownId()
+    {
+        return $this->downId;
+    }
 
     /**
      * Set downUserId.
@@ -98,78 +113,12 @@ class TrackEDownloads
     }
 
     /**
-     * Set cId.
-     *
-     * @return TrackEDownloads
+     * Set resourceLink.
      */
-    public function setCId(int $cId)
+    public function setResourceLink(?ResourceLink $resourceLink): self
     {
-        $this->cId = $cId;
+        $this->resourceLink = $resourceLink;
 
         return $this;
-    }
-
-    /**
-     * Get cId.
-     *
-     * @return int
-     */
-    public function getCId()
-    {
-        return $this->cId;
-    }
-
-    /**
-     * Set downDocPath.
-     *
-     * @return TrackEDownloads
-     */
-    public function setDownDocPath(string $downDocPath)
-    {
-        $this->downDocPath = $downDocPath;
-
-        return $this;
-    }
-
-    /**
-     * Get downDocPath.
-     *
-     * @return string
-     */
-    public function getDownDocPath()
-    {
-        return $this->downDocPath;
-    }
-
-    /**
-     * Set downSessionId.
-     *
-     * @return TrackEDownloads
-     */
-    public function setDownSessionId(int $downSessionId)
-    {
-        $this->downSessionId = $downSessionId;
-
-        return $this;
-    }
-
-    /**
-     * Get downSessionId.
-     *
-     * @return int
-     */
-    public function getDownSessionId()
-    {
-        return $this->downSessionId;
-    }
-
-    /**
-     * Get downId.
-     *
-     * @return int
-     */
-    public function getDownId()
-    {
-        return $this->downId;
     }
 }

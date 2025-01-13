@@ -2,9 +2,11 @@
 
 /* For licensing terms, see /license.txt */
 
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
 use Chamilo\CoreBundle\Entity\AbstractResource;
 use Chamilo\CoreBundle\Framework\Container;
 use Chamilo\CourseBundle\Entity\CAnnouncement;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
 
 /**
  * @author Frederik Vermeire <frederik.vermeire@pandora.be>, UGent Internship
@@ -25,9 +27,12 @@ api_protect_course_group(GroupManager::GROUP_TOOL_ANNOUNCEMENT);
 $token = Security::get_existing_token();
 
 $courseId = api_get_course_int_id();
+$course = api_get_course_entity();
 $_course = api_get_course_info_by_id($courseId);
 $group_id = api_get_group_id();
+$group = api_get_group_entity();
 $sessionId = api_get_session_id();
+$session = api_get_session_entity();
 $current_course_tool = TOOL_ANNOUNCEMENT;
 $this_section = SECTION_COURSES;
 $nameTools = get_lang('Announcements');
@@ -36,7 +41,7 @@ $repo = Container::getAnnouncementRepository();
 $allowToEdit = (
     api_is_allowed_to_edit(false, true) ||
     (1 === (int) api_get_course_setting('allow_user_edit_announcement') && !api_is_anonymous()) ||
-    ($sessionId && api_is_coach() && api_get_configuration_value('allow_coach_to_edit_announcements'))
+    ($sessionId && api_is_coach() && ('true' === api_get_setting('announcement.allow_coach_to_edit_announcements')))
 );
 $allowStudentInGroupToSend = false;
 
@@ -57,7 +62,7 @@ if (!empty($group_id)) {
     ];
     $interbreadcrumb[] = [
         'url' => api_get_path(WEB_CODE_PATH).'group/group_space.php?'.api_get_cidreq(),
-        'name' => get_lang('Group area').' '.$groupEntity->getName(),
+        'name' => get_lang('Group area').' '.$groupEntity->getTitle(),
     ];
 
     if (false === $allowToEdit) {
@@ -89,71 +94,51 @@ $logInfo = [
 ];
 Event::registerLog($logInfo);
 
-$announcementAttachmentIsDisabled = api_get_configuration_value('disable_announcement_attachment');
+$announcementAttachmentIsDisabled = ('true' === api_get_setting('announcement.disable_announcement_attachment'));
 $thisAnnouncementId = null;
 
 switch ($action) {
     case 'move':
-        throw new Exception('@todo move');
+
         if (!$allowToEdit) {
             api_not_allowed(true);
         }
 
+        $em = Database::getManager();
+        $repo = Container::getAnnouncementRepository();
+
         /* Move announcement up/down */
+        $thisAnnouncementId = null;
+        $sortDirection = null;
+
         if (!empty($_GET['down'])) {
-            $thisAnnouncementId = (int) ($_GET['down']);
-            $sortDirection = 'DESC';
-        }
-        /*
-        if (!empty($_GET['up'])) {
-            $thisAnnouncementId = (int) ($_GET['up']);
-            $sortDirection = 'ASC';
+            $thisAnnouncementId = (int) $_GET['down'];
+            $sortDirection = 'down';
+        } elseif (!empty($_GET['up'])) {
+            $thisAnnouncementId = (int) $_GET['up'];
+            $sortDirection = 'up';
         }
 
-        if (!empty($sortDirection)) {
-            if (!in_array(trim(strtoupper($sortDirection)), ['ASC', 'DESC'])) {
-                $sortDirection = 'ASC';
-            }
+        /** @var CAnnouncement $currentAnnouncement */
+        $currentAnnouncement = $repo->find($thisAnnouncementId);
+        if ($currentAnnouncement) {
+            $resourceNode = $currentAnnouncement->getResourceNode();
+            $link = $resourceNode->getResourceLinkByContext($course, $session, $group);
 
-            $sql = "SELECT DISTINCT announcement.id, announcement.display_order
-                    FROM $tbl_announcement announcement
-                    INNER JOIN $tbl_item_property itemproperty
-                    ON (announcement.c_id = itemproperty.c_id)
-                    WHERE
-                        announcement.c_id = $courseId AND
-                        itemproperty.c_id = $courseId AND
-                        itemproperty.ref = announcement.id AND
-                        itemproperty.tool = '".TOOL_ANNOUNCEMENT."'  AND
-                        itemproperty.visibility <> 2
-                    ORDER BY display_order $sortDirection";
-            $result = Database::query($sql);
-            $thisAnnouncementOrderFound = false;
-            $thisAnnouncementOrder = null;
-
-            while (list($announcementId, $announcementOrder) = Database::fetch_row($result)) {
-                if ($thisAnnouncementOrderFound) {
-                    $nextAnnouncementId = $announcementId;
-                    $nextAnnouncementOrder = $announcementOrder;
-                    $sql = "UPDATE $tbl_announcement SET display_order = '$nextAnnouncementOrder'
-                            WHERE c_id = $courseId AND id = $thisAnnouncementId";
-                    Database::query($sql);
-                    $sql = "UPDATE $tbl_announcement  SET display_order = '$thisAnnouncementOrder'
-                            WHERE c_id = $courseId AND id =  $nextAnnouncementId";
-                    Database::query($sql);
-                    break;
+            if ($link) {
+                if ('down' === $sortDirection) {
+                    $link->moveDownPosition();
+                } else {
+                    $link->moveUpPosition();
                 }
-                // STEP 1 : FIND THE ORDER OF THE ANNOUNCEMENT
-                if ($announcementId == $thisAnnouncementId) {
-                    $thisAnnouncementOrder = $announcementOrder;
-                    $thisAnnouncementOrderFound = true;
-                }
-            }
-            Display::addFlash(Display::return_message(get_lang('The announcement has been moved')));
-            header('Location: '.$homeUrl);
-            exit;
-        }*/
 
-        break;
+                $em->flush();
+            }
+        }
+
+        header('Location: '.$homeUrl);
+        exit;
+
     case 'view':
         $interbreadcrumb[] = [
             'url' => api_get_path(WEB_CODE_PATH).'announcements/announcements.php?'.api_get_cidreq(),
@@ -215,28 +200,28 @@ switch ($action) {
             [
                 'name' => 'title',
                 'index' => 'title',
-                'width' => '300',
+                'width' => '400px',
                 'align' => 'left',
                 'sortable' => 'false',
             ],
             [
                 'name' => 'username',
                 'index' => 'username',
-                'width' => '100',
+                'width' => '350px',
                 'align' => 'left',
                 'sortable' => 'false',
             ],
             [
                 'name' => 'lastedit_date',
                 'index' => 'lastedit_date',
-                'width' => '200',
+                'width' => '350px',
                 'align' => 'left',
                 'sortable' => 'false',
             ],
             [
                 'name' => 'actions',
                 'index' => 'actions',
-                'width' => '150',
+                'width' => '150px',
                 'align' => 'left',
                 'sortable' => 'false',
             ],
@@ -278,11 +263,7 @@ switch ($action) {
         });
         </script>';
 
-        $count = AnnouncementManager::getAnnouncements(
-            $token,
-            $announcement_number,
-            true
-        );
+        $count = AnnouncementManager::getNumberAnnouncements();
 
         if (empty($count)) {
             $html = '';
@@ -291,7 +272,7 @@ switch ($action) {
             ) {
                 $html .= Display::noDataView(
                     get_lang('Announcements'),
-                    Display::return_icon('valves.png', '', [], 64),
+                    Display::getMdiIcon(ObjectIcon::ANNOUNCEMENT, 'ch-tool-icon', null, ICON_SIZE_BIG, get_lang('Add an announcement')),
                     get_lang('Add an announcement'),
                     api_get_self().'?'.api_get_cidreq().'&action=add'
                 );
@@ -329,7 +310,7 @@ switch ($action) {
         break;
     case 'delete_all':
         if (api_is_allowed_to_edit()) {
-            $allow = api_get_configuration_value('disable_delete_all_announcements');
+            $allow = ('true' === api_get_setting('announcement.disable_delete_all_announcements'));
             if (false === $allow) {
                 AnnouncementManager::delete_all_announcements($_course);
                 Display::addFlash(Display::return_message(get_lang('Announcement has been deletedAll')));
@@ -367,9 +348,10 @@ switch ($action) {
                 api_is_element_in_the_session(TOOL_ANNOUNCEMENT, $announcement_id)
             ) {
                 AnnouncementManager::change_visibility_announcement(
-                    $_course,
                     $announcement_id,
-                    $status
+                    $status,
+                    $course,
+                    $session
                 );
                 Display::addFlash(Display::return_message(get_lang('The visibility has been changed.')));
                 header('Location: '.$homeUrl);
@@ -622,7 +604,7 @@ switch ($action) {
             );
         }
 
-        $config = api_get_configuration_value('announcement.hide_send_to_hrm_users');
+        $config = api_get_setting('announcement.announcements_hide_send_to_hrm_users');
 
         if (false === $config) {
             $form->addCheckBox(
@@ -644,6 +626,24 @@ switch ($action) {
             $form->addHtml('<div id="add_event_options" style="display:none;">');
             $form->addDateTimePicker('event_date_start', get_lang('Date start'));
             $form->addDateTimePicker('event_date_end', get_lang('Date end'));
+
+            $form->addHtml('<hr><div id="notification_list"></div>');
+            $form
+                ->addButton(
+                    'add_notification',
+                    get_lang('Add reminder'),
+                    ActionIcon::ADD_EVENT_REMINDER->value,
+                    'plain'
+                )
+                ->setType('button')
+            ;
+            $form->addHtml('<hr>');
+
+            $htmlHeadXtra[] = '<script>$(function () {'
+                .Agenda::getJsForReminders('#announcement_add_notification')
+                .'});</script>'
+            ;
+
             $form->addHtml('</div>');
         }
 
@@ -652,7 +652,7 @@ switch ($action) {
                 Display::url(
                     get_lang('Preview'),
                     'javascript:void(0)',
-                    ['class' => 'btn btn-default', 'id' => 'announcement_preview']
+                    ['class' => 'btn btn--plain', 'id' => 'announcement_preview']
                 ).'<div id="announcement_preview_result" style="display:none"></div>'
             );
             $form->addHtml('<div id="send_button" style="display:none">');
@@ -666,6 +666,12 @@ switch ($action) {
             $data['users'] = $data['users'] ?? [];
             $sendToUsersInSession = isset($data['send_to_users_in_session']);
             $sendMeCopy = isset($data['send_me_a_copy_by_email']);
+
+            $notificationCount = $data['notification_count'] ?? [];
+            $notificationPeriod = $data['notification_period'] ?? [];
+
+            $reminders = $notificationCount ? array_map(null, $notificationCount, $notificationPeriod) : [];
+
             if (isset($id) && $id) {
                 // there is an Id => the announcement already exists => update mode
                 $file_comment = $announcementAttachmentIsDisabled ? null : $_POST['file_comment'];
@@ -745,7 +751,8 @@ switch ($action) {
                                 $data['users'],
                                 api_get_course_entity(),
                                 api_get_session_entity(),
-                                api_get_group_entity()
+                                api_get_group_entity(),
+                                $reminders
                             );
                     }
 
@@ -804,35 +811,30 @@ $actionsLeft = '';
 if (($allowToEdit || $allowStudentInGroupToSend) && (empty($_GET['origin']) || 'learnpath' !== $_GET['origin'])) {
     if (in_array($action, ['add', 'modify', 'view'])) {
         $actionsLeft .= "<a href='".api_get_self().'?'.api_get_cidreq()."'>".
-            Display::return_icon('back.png', get_lang('Back'), '', ICON_SIZE_MEDIUM).
+            Display::getMdiIcon('arrow-left-bold-box', 'ch-tool-icon', null, 32, get_lang('Back')).
             '</a>';
     } else {
         $actionsLeft .= "<a href='".api_get_self().'?'.api_get_cidreq()."&action=add'>".
-            Display::return_icon('new_announce.png', get_lang('Add an announcement'), '', ICON_SIZE_MEDIUM).
+            Display::getMdiIcon('bullhorn', 'ch-tool-icon', null, 32, get_lang('Add an announcement')).
             '</a>';
     }
     $show_actions = true;
 } else {
     if (in_array($action, ['view'])) {
         $actionsLeft .= "<a href='".api_get_self().'?'.api_get_cidreq()."'>".
-            Display::return_icon('back.png', get_lang('Back'), '', ICON_SIZE_MEDIUM).'</a>';
+            Display::getMdiIcon('arrow-left-bold-box', 'ch-tool-icon', null, 32, get_lang('Back')).'</a>';
     }
 }
 
 /*
 if ($allowToEdit && 0 == api_get_group_id()) {
-    $allow = api_get_configuration_value('disable_delete_all_announcements');
+    $allow = ('true' === api_get_setting('announcement.disable_delete_all_announcements'));
     if (false === $allow && api_is_allowed_to_edit()) {
         if (!isset($_GET['action']) ||
             isset($_GET['action']) && 'list' == $_GET['action']
         ) {
             $actionsLeft .= '<a href="'.api_get_self().'?'.api_get_cidreq()."&action=delete_all\" onclick=\"javascript:if(!confirm('".get_lang('Please confirm your choice')."')) return false;\">".
-                Display::return_icon(
-                    'delete_announce.png',
-                    get_lang('Clear list of announcements'),
-                    '',
-                    ICON_SIZE_MEDIUM
-                ).'</a>';
+                Display::getMdiIcon('delete', 'ch-tool-icon', null, 32, get_lang('Clear list of announcements')).'</a>';
         }
     }
 }*/

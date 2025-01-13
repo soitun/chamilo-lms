@@ -3,6 +3,7 @@
 /* For licensing terms, see /license.txt */
 
 use ChamiloSession as Session;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
 
 /**
  * Shows the exercise results.
@@ -22,7 +23,15 @@ if (in_array($origin, ['learnpath', 'embeddable', 'mobileapp'])) {
     $show_headers = false;
 }
 
-api_protect_course_script($show_headers);
+$cid = isset($_REQUEST['cid']) ? (int) $_REQUEST['cid'] : null;
+$sid = isset($_REQUEST['sid']) ? (int) $_REQUEST['sid'] : null;
+// Hack for sid not being picked up by CidReqListener (cid isn't either)
+if (!empty($sid)) {
+    Session::write('sid', $sid);
+}
+
+// A notice for unauthorized people.
+api_protect_course_script($show_headers, false, '', $cid);
 
 if (empty($id)) {
     api_not_allowed($show_headers);
@@ -42,7 +51,8 @@ $exercise_id = $track_exercise_info['exe_exo_id'];
 $student_id = (int) $track_exercise_info['exe_user_id'];
 $current_user_id = api_get_user_id();
 
-$objExercise = new Exercise();
+// Pass cid manually to avoid context issues with cid not being picked up by CidReqListener
+$objExercise = new Exercise($cid);
 if (!empty($exercise_id)) {
     $objExercise->read($exercise_id);
 }
@@ -68,7 +78,7 @@ if ($student_id === $current_user_id && ExerciseSignaturePlugin::exerciseHasSign
 }
 
 $htmlHeadXtra[] = '<link rel="stylesheet" href="'.api_get_path(WEB_LIBRARY_JS_PATH).'hotspot/css/hotspot.css">';
-$htmlHeadXtra[] = api_get_build_js('exercise.js');
+$htmlHeadXtra[] = api_get_build_js('legacy_exercise.js');
 
 if ($show_headers) {
     $interbreadcrumb[] = [
@@ -84,7 +94,7 @@ if ($show_headers) {
 
     if ('mobileapp' === $origin) {
         $actions = '<a href="javascript:window.history.go(-1);">'.
-            Display::return_icon('back.png', get_lang('GoBackToQuestionList'), [], 32).'</a>';
+            Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('GoBackToQuestionList')).'</a>';
         echo Display::toolbarAction('toolbar', [$actions]);
     }
 }
@@ -92,7 +102,7 @@ if ($show_headers) {
 $message = Session::read('attempt_remaining');
 Session::erase('attempt_remaining');
 
-$allowExportPdf = api_get_configuration_value('quiz_results_answers_report');
+$allowExportPdf = ('true' === api_get_setting('exercise.quiz_results_answers_report'));
 ob_start();
 $stats = ExerciseLib::displayQuestionListByAttempt(
     $objExercise,
@@ -110,7 +120,6 @@ switch ($action) {
         if ($allowExportPdf) {
             $allAnswers = $stats['all_answers_html'];
             @$pdf = new PDF();
-            $cssFile = api_get_path(SYS_CSS_PATH).'themes/chamilo/default.css';
             $title = get_lang('ResponseReport');
             $exerciseTitle = $objExercise->get_formated_title();
             $studentInfo = api_get_user_info($student_id);
@@ -128,7 +137,7 @@ switch ($action) {
                     $userHeader
                     $allAnswers
                     </body></html>",
-                file_get_contents($cssFile),
+                null,
                 $filename,
                 api_get_course_id(),
                 'D',
@@ -141,18 +150,17 @@ switch ($action) {
             api_not_allowed(true);
         }
         exit;
-        break;
 }
 
 $lpId = (int) $track_exercise_info['orig_lp_id'];
 $lpItemId = (int) $track_exercise_info['orig_lp_item_id'];
 $lpViewId = (int) $track_exercise_info['orig_lp_item_view_id'];
-$pageBottom = '<div class="question-return">';
+$pageBottom = '<div class="question-return mb-4">';
 $pageBottom .= Display::url(
     get_lang('Back to the attempt list'),
     api_get_path(WEB_CODE_PATH).'exercise/overview.php?exerciseId='.$exercise_id.'&'.api_get_cidreq().
     "&learnpath_id=$lpId&learnpath_item_id=$lpItemId&learnpath_item_view_id=$lpViewId",
-    ['class' => 'btn btn-primary']
+    ['class' => 'btn btn--primary']
 );
 $pageBottom .= '</div>';
 $pageContent .= $pageBottom;

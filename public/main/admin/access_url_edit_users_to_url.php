@@ -5,6 +5,9 @@
 /**
  * @author Julio Montoya <gugli100@gmail.com>
  */
+
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+
 $cidReset = true;
 
 require_once __DIR__.'/../inc/global.inc.php';
@@ -68,12 +71,11 @@ function remove_item(origin) {
 }
 </script>';
 
-$errorMsg = '';
 $message = '';
 
 if (isset($_POST['form_sent']) && $_POST['form_sent']) {
     $form_sent = $_POST['form_sent'];
-    $UserList = $_POST['sessionUsersList'];
+    $UserList = !empty($_POST['sessionUsersList']) ?: [];
 
     if (!is_array($UserList)) {
         $UserList = [];
@@ -135,7 +137,7 @@ echo Display::toolbarAction(
     'url',
     [
         Display::url(
-            Display::return_icon('view_more_stats.gif', get_lang('Add user to this URL'), ''),
+            Display::getMdiIcon(ActionIcon::VIEW_DETAILS, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Add user to this URL')),
             api_get_path(WEB_CODE_PATH).'admin/access_url_add_users_to_url.php'
         ),
     ]
@@ -216,11 +218,6 @@ $url_list = UrlManager::get_url_data();
 <input type="hidden" name="form_sent" value="1" />
 <input type="hidden" name="add_type" value = "<?php echo $add_type; ?>" />
 
-<?php
-if (!empty($errorMsg)) {
-            echo Display::return_message($errorMsg, 'normal'); //main API
-        }
-?>
 
 <table border="0" cellpadding="5" cellspacing="0" width="100%">
 <tr>
@@ -266,18 +263,18 @@ if (!empty($errorMsg)) {
   <td width="10%" valign="middle" align="center">
     <?php if ($ajax_search) {
         ?>
-        <button class="btn btn-default" type="button" onclick="remove_item(document.getElementById('destination_users'))">
-            <em class="fa fa-arrow-left"></em>
+        <button class="btn btn--plain" type="button" onclick="remove_item(document.getElementById('destination_users'))">
+            <i class="mdi mdi-rewind-outline ch-tool-icon"></i>
         </button>
     <?php
     } else {
         ?>
-        <button class="btn btn-default" type="button" onclick="moveItem(document.getElementById('origin_users'), document.getElementById('destination_users'))" >
-            <em class="fa fa-arrow-right"></em>
+        <button class="btn btn--plain" type="button" onclick="moveItem(document.getElementById('origin_users'), document.getElementById('destination_users'))" >
+            <i class="mdi mdi-fast-forward-outline ch-tool-icon"></i>
         </button>
         <br /><br />
-        <button class="btn btn-default" type="button" onclick="moveItem(document.getElementById('destination_users'), document.getElementById('origin_users'))" >
-            <em class="fa fa-arrow-left"></em>
+        <button class="btn btn--plain" type="button" onclick="moveItem(document.getElementById('destination_users'), document.getElementById('origin_users'))" >
+            <i class="mdi mdi-rewind-outline ch-tool-icon"></i>
 
         </button>
     <?php

@@ -298,6 +298,13 @@ class BuyCoursesPlugin extends Plugin
         $fielddefault = '';
         UserManager::create_extra_field($fieldlabel, $fieldtype, $fieldtitle, $fielddefault);
 
+        $table = self::TABLE_TRANSFER;
+        $sql = "ALTER TABLE $table CHANGE COLUMN name title varchar(255)";
+        Database::query($sql);
+        $table = self::TABLE_SERVICES;
+        $sql = "ALTER TABLE $table CHANGE COLUMN name title varchar(255)";
+        Database::query($sql);
+
         header('Location: '.api_get_path(WEB_PLUGIN_PATH).'buycourses');
         exit;
     }
@@ -357,7 +364,7 @@ class BuyCoursesPlugin extends Plugin
         $productId = (int) $productId;
         $productType = (int) $productType;
         $url = api_get_path(WEB_PLUGIN_PATH).'buycourses/src/process.php?i='.$productId.'&t='.$productType;
-        $html = '<a class="btn btn-success btn-sm" title="'.$this->get_lang('Buy').'" href="'.$url.'">'.
+        $html = '<a class="btn btn--success btn-sm" title="'.$this->get_lang('Buy').'" href="'.$url.'">'.
             Display::getMdiIcon('cart').'</a>';
 
         return $html;
@@ -777,7 +784,7 @@ class BuyCoursesPlugin extends Plugin
             'course_img' => null,
         ];
 
-        $courseTeachers = $course->getTeachers();
+        $courseTeachers = $course->getTeachersSubscriptions();
 
         foreach ($courseTeachers as $teachers) {
             $user = $teachers->getUser();
@@ -824,7 +831,7 @@ class BuyCoursesPlugin extends Plugin
         $globalParameters = $this->getGlobalParameters();
         $sessionInfo = [
             'id' => $session->getId(),
-            'name' => $session->getName(),
+            'name' => $session->getTitle(),
             'description' => $session->getDescription(),
             'dates' => $sessionDates,
             'courses' => [],
@@ -913,7 +920,7 @@ class BuyCoursesPlugin extends Plugin
                 return false;
             }
 
-            $productName = $session->getName();
+            $productName = $session->getTitle();
         }
 
         $price = $item['price'];
@@ -1674,7 +1681,7 @@ class BuyCoursesPlugin extends Plugin
         $sessionItem = [
             'item_id' => null,
             'session_id' => $session->getId(),
-            'session_name' => $session->getName(),
+            'session_name' => $session->getTitle(),
             'session_visibility' => $session->getVisibility(),
             'session_display_start_date' => null,
             'session_display_end_date' => null,
@@ -2089,7 +2096,7 @@ class BuyCoursesPlugin extends Plugin
         $return = Database::insert(
             $servicesTable,
             [
-                'name' => Security::remove_XSS($service['name']),
+                'title' => Security::remove_XSS($service['name']),
                 'description' => Security::remove_XSS($service['description']),
                 'price' => $service['price'],
                 'tax_perc' => '' != $service['tax_perc'] ? (int) $service['tax_perc'] : null,
@@ -2144,7 +2151,7 @@ class BuyCoursesPlugin extends Plugin
         return Database::update(
             $servicesTable,
             [
-                'name' => Security::remove_XSS($service['name']),
+                'title' => Security::remove_XSS($service['name']),
                 'description' => Security::remove_XSS($service['description']),
                 'price' => $service['price'],
                 'tax_perc' => '' != $service['tax_perc'] ? (int) $service['tax_perc'] : null,
@@ -2412,7 +2419,7 @@ class BuyCoursesPlugin extends Plugin
         $isoCode = $currency['iso_code'];
 
         $servicesSale = Database::select(
-            'ss.*, s.name, s.description, s.price as service_price, s.duration_days, s.applies_to, s.owner_id, s.visibility, s.image',
+            'ss.*, s.title, s.description, s.price as service_price, s.duration_days, s.applies_to, s.owner_id, s.visibility, s.image',
             "$servicesSaleTable ss $innerJoins",
             $conditions,
             'first'
@@ -2421,7 +2428,7 @@ class BuyCoursesPlugin extends Plugin
         $buyer = api_get_user_info($servicesSale['buyer_id']);
 
         $servicesSale['service']['id'] = $servicesSale['service_id'];
-        $servicesSale['service']['name'] = $servicesSale['name'];
+        $servicesSale['service']['title'] = $servicesSale['title'];
         $servicesSale['service']['description'] = $servicesSale['description'];
         $servicesSale['service']['price'] = $servicesSale['service_price'];
         $servicesSale['service']['currency'] = $isoCode;
@@ -2508,7 +2515,7 @@ class BuyCoursesPlugin extends Plugin
         ];
 
         if (!empty($name)) {
-            $whereConditions['AND s.name LIKE %?%'] = $name;
+            $whereConditions['AND s.title LIKE %?%'] = $name;
         }
 
         if (!empty($min)) {
@@ -3011,7 +3018,7 @@ class BuyCoursesPlugin extends Plugin
         ];
 
         if (!empty($name)) {
-            $whereConditions['AND s.name LIKE %?%'] = $name;
+            $whereConditions['AND s.title LIKE %?%'] = $name;
         }
 
         if (!empty($min)) {

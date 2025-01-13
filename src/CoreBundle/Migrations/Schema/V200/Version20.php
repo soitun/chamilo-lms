@@ -8,14 +8,23 @@ namespace Chamilo\CoreBundle\Migrations\Schema\V200;
 
 use Chamilo\CoreBundle\DataFixtures\LanguageFixtures;
 use Chamilo\CoreBundle\Migrations\AbstractMigrationChamilo;
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Schema;
+use Psr\Log\LoggerInterface;
 
 /**
- * Class Version20
  * Migrate file to updated to Chamilo 2.0.
  */
 class Version20 extends AbstractMigrationChamilo
 {
+    private PriorityMigrationHelper $priorityMigrationHelper;
+
+    public function __construct(Connection $connection, LoggerInterface $logger)
+    {
+        parent::__construct($connection, $logger);
+        $this->priorityMigrationHelper = new PriorityMigrationHelper($connection, $logger);
+    }
+
     public function getDescription(): string
     {
         return 'Basic changes';
@@ -23,9 +32,11 @@ class Version20 extends AbstractMigrationChamilo
 
     public function up(Schema $schema): void
     {
+        $this->priorityMigrationHelper->executeUp($schema);
+
         $this->addSql('set sql_mode=""');
         // Optimize bulk operations - see https://dev.mysql.com/doc/refman/5.6/en//optimizing-innodb-bulk-data-loading.html
-        //$this->addSql('set autocommit=0');
+        // $this->addSql('set autocommit=0');
         $this->addSql('set unique_checks=0');
         $this->addSql('set foreign_key_checks=0');
 
@@ -132,15 +143,15 @@ class Version20 extends AbstractMigrationChamilo
         $this->addSql('UPDATE ticket_message SET subject = "Ticket #"+ id WHERE subject IS NULL');
         $this->addSql('ALTER TABLE ticket_message CHANGE subject subject VARCHAR(255) NOT NULL');
 
-        $this->addSql('UPDATE settings_current SET variable = "No name" WHERE variable IS NULL');
-        $this->addSql('ALTER TABLE settings_current CHANGE variable variable VARCHAR(190) NOT NULL;');
+        $this->addSql('UPDATE settings SET variable = "No name" WHERE variable IS NULL');
+        $this->addSql('ALTER TABLE settings CHANGE variable variable VARCHAR(190) NOT NULL;');
 
         // Global tool.
         if (false === $schema->hasTable('tool')) {
             $this->addSql(
-                'CREATE TABLE IF NOT EXISTS tool (id INT AUTO_INCREMENT NOT NULL, name VARCHAR(255) NOT NULL, PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci ENGINE = InnoDB;'
+                'CREATE TABLE IF NOT EXISTS tool (id INT AUTO_INCREMENT NOT NULL, title VARCHAR(255) NOT NULL, PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci ENGINE = InnoDB;'
             );
-            $this->addSql('CREATE UNIQUE INDEX UNIQ_20F33ED15E237E06 ON tool (name)');
+            $this->addSql('CREATE UNIQUE INDEX UNIQ_20F33ED12B36786B ON tool (title)');
         }
 
         $table = $schema->getTable('language');
@@ -158,9 +169,12 @@ class Version20 extends AbstractMigrationChamilo
         $languages = LanguageFixtures::getLanguages();
         $languages = array_column($languages, 'isocode', 'english_name');
 
-        $sql = 'SELECT * FROM language';
-        $connection = $this->getEntityManager()->getConnection();
-        $result = $connection->executeQuery($sql);
+        // List of sublanguages to be excluded from updates, except those explicitly allowed.
+        $allowedSubLanguages = ['ast', 'ast_ES', 'ca', 'ca_ES', 'eo', 'gl', 'qu', 'quz_PE', 'qu_PE', 'zh-TW', 'zh_TW', 'pt-BR', 'pt_PT', 'fur', 'fur_IT', 'oc', 'oc_FR'];
+
+        // Selecting languages that are not sublanguages or are explicitly allowed.
+        $sql = "SELECT * FROM language WHERE parent_id IS NULL OR isocode IN ('".implode("', '", $allowedSubLanguages)."')";
+        $result = $this->connection->executeQuery($sql);
         $items = $result->fetchAllAssociative();
 
         foreach ($items as $item) {
@@ -172,15 +186,44 @@ class Version20 extends AbstractMigrationChamilo
             }
         }
 
-        $this->addSql("UPDATE language SET isocode = 'fr_FR' WHERE isocode = 'fr' ");
-        $this->addSql("UPDATE language SET isocode = 'pl_PL' WHERE isocode = 'pl' ");
-
+        // Specific updates for ISO codes.
+        $this->addSql("UPDATE language SET isocode = 'fr_FR' WHERE isocode = 'fr' AND parent_id IS NULL");
+        $this->addSql("UPDATE language SET isocode = 'pl_PL' WHERE isocode = 'pl' AND parent_id IS NULL");
+        $this->addSql("UPDATE language SET isocode = 'qu_PE' WHERE isocode = 'qu'");
         $this->addSql("UPDATE sys_announcement SET lang = 'english' WHERE lang IS NULL OR lang = '' ");
         $this->addSql("UPDATE course SET course_language = 'english' WHERE course_language IS NULL OR course_language = '' ");
 
-        $this->addSql('UPDATE course SET course_language = (SELECT isocode FROM language WHERE english_name = course_language)');
-        $this->addSql('UPDATE sys_announcement SET lang = (SELECT isocode FROM language WHERE english_name = lang);');
-        $this->addSql("UPDATE settings_current SET selected_value = (SELECT isocode FROM language WHERE english_name = selected_value) WHERE variable = 'platformLanguage'");
+        // Update ISO codes based on the English name, excluding non-allowed sublanguages.
+        $this->addSql("
+            UPDATE course
+            SET course_language = COALESCE((
+                SELECT isocode
+                FROM language
+                WHERE english_name = course_language
+                AND (parent_id IS NULL OR isocode IN ('".implode("', '", $allowedSubLanguages)."'))
+            ), course_language)
+        ");
+
+        $this->addSql("
+            UPDATE sys_announcement
+            SET lang = COALESCE((
+                SELECT isocode
+                FROM language
+                WHERE english_name = lang
+                AND (parent_id IS NULL OR isocode IN ('".implode("', '", $allowedSubLanguages)."'))
+            ), lang)
+        ");
+
+        $this->addSql("
+            UPDATE settings
+            SET selected_value = COALESCE((
+                SELECT isocode
+                FROM language
+                WHERE english_name = selected_value
+                AND (parent_id IS NULL OR isocode IN ('".implode("', '", $allowedSubLanguages)."'))
+            ), selected_value)
+            WHERE variable = 'platformLanguage'
+        ");
 
         $table = $schema->getTable('fos_group');
         if (false === $table->hasColumn('name')) {
@@ -189,7 +232,6 @@ class Version20 extends AbstractMigrationChamilo
             );
             $this->addSql('CREATE UNIQUE INDEX UNIQ_4B019DDB5E237E06 ON fos_group (name);');
         }
-        $this->addSql('ALTER TABLE fos_group CHANGE name name VARCHAR(255) NOT NULL');
 
         $table = $schema->getTable('fos_user_user_group');
         if ($table->hasForeignKey('FK_B3C77447A76ED395')) {
@@ -264,25 +306,28 @@ class Version20 extends AbstractMigrationChamilo
             $this->addSql('ALTER TABLE personal_agenda ADD CONSTRAINT FK_D86124608D93D649 FOREIGN KEY (user) REFERENCES user (id) ON DELETE CASCADE');
         }
 
-        //$this->addSql('ALTER TABLE c_tool_intro CHANGE id tool VARCHAR(255) NOT NULL');
+        // Convert user_api_key.api_service to 'default'
+        $table = $schema->getTable('user_api_key');
+        if ($table->hasColumn('api_service')) {
+            $this->addSql("UPDATE user_api_key SET api_service = 'default' WHERE api_service = 'dokeos'");
+        }
+        // $this->addSql('ALTER TABLE c_tool_intro CHANGE id tool VARCHAR(255) NOT NULL');
 
         /*$table = $schema->getTable('course_rel_class');
-        if (!$table->hasColumn('c_id')) {
-            $this->addSql("ALTER TABLE course_rel_class ADD c_id int NOT NULL");
-        }
-        if ($table->hasColumn('course_code')) {
-            $this->addSql("
-                UPDATE course_rel_class cc
-                SET cc.c_id = (SELECT id FROM course WHERE code = cc.course_code)
-            ");
-
-            $this->addSql("ALTER TABLE course_rel_class DROP course_code");
-            $this->addSql("ALTER TABLE course_rel_class DROP PRIMARY KEY");
-            $this->addSql("ALTER TABLE course_rel_class MODIFY COLUMN class_id INT DEFAULT NULL");
-            $this->addSql("ALTER TABLE course_rel_class ADD PRIMARY KEY (class_id, c_id)");
-            $this->addSql("ALTER TABLE course_rel_class ADD FOREIGN KEY (c_id) REFERENCES course (id) ON DELETE RESTRICT");
-        }*/
-
+         * if (!$table->hasColumn('c_id')) {
+         * $this->addSql("ALTER TABLE course_rel_class ADD c_id int NOT NULL");
+         * }
+         * if ($table->hasColumn('course_code')) {
+         * $this->addSql("
+         * UPDATE course_rel_class cc
+         * SET cc.c_id = (SELECT id FROM course WHERE code = cc.course_code)
+         * ");
+         * $this->addSql("ALTER TABLE course_rel_class DROP course_code");
+         * $this->addSql("ALTER TABLE course_rel_class DROP PRIMARY KEY");
+         * $this->addSql("ALTER TABLE course_rel_class MODIFY COLUMN class_id INT DEFAULT NULL");
+         * $this->addSql("ALTER TABLE course_rel_class ADD PRIMARY KEY (class_id, c_id)");
+         * $this->addSql("ALTER TABLE course_rel_class ADD FOREIGN KEY (c_id) REFERENCES course (id) ON DELETE RESTRICT");
+         * }*/
         $tables = [
             'shared_survey',
             'specific_field_values',
@@ -290,38 +335,33 @@ class Version20 extends AbstractMigrationChamilo
         ];
 
         foreach ($tables as $table) {
-            //$tableObj = $schema->getTable($table);
+            // $tableObj = $schema->getTable($table);
             /*if (!$tableObj->hasColumn('c_id')) {
-                $this->addSql("ALTER TABLE $table ADD c_id int NOT NULL");
-
-                if ($tableObj->hasColumn('course_code')) {
-                    $this->addSql("
-                      UPDATE $table t
-                      SET t.c_id = (SELECT id FROM course WHERE code = t.course_code)
-                    ");
-                    $this->addSql("ALTER TABLE $table DROP course_code");
-                }
-            }*/
+             * $this->addSql("ALTER TABLE $table ADD c_id int NOT NULL");
+             * if ($tableObj->hasColumn('course_code')) {
+             * $this->addSql("
+             * UPDATE $table t
+             * SET t.c_id = (SELECT id FROM course WHERE code = t.course_code)
+             * ");
+             * $this->addSql("ALTER TABLE $table DROP course_code");
+             * }
+             * }*/
             /*$this->addSql("
                 ALTER TABLE $table ADD FOREIGN KEY (c_id) REFERENCES course (id) ON DELETE RESTRICT
             ");*/
         }
         /*
-                $this->addSql("ALTER TABLE personal_agenda DROP course");
-
-                $this->addSql("
-                    ALTER TABLE specific_field_values
-                    ADD c_id int(11) NOT NULL,
-                    ADD FOREIGN KEY (c_id) REFERENCES course (id) ON DELETE RESTRICT;
-                ");
-        */
+         * $this->addSql("ALTER TABLE personal_agenda DROP course");
+         * $this->addSql("
+         * ALTER TABLE specific_field_values
+         * ADD c_id int(11) NOT NULL,
+         * ADD FOREIGN KEY (c_id) REFERENCES course (id) ON DELETE RESTRICT;
+         * ");
+         */
 
         // Create tables.
         $this->addSql(
             'CREATE TABLE IF NOT EXISTS scheduled_announcements (id INT AUTO_INCREMENT NOT NULL, subject VARCHAR(255) NOT NULL, message LONGTEXT NOT NULL, date DATETIME DEFAULT NULL, sent TINYINT(1) NOT NULL, session_id INT NOT NULL, c_id INT DEFAULT NULL, PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci ENGINE = InnoDB;'
-        );
-        $this->addSql(
-            'CREATE TABLE IF NOT EXISTS ext_translations (id INT AUTO_INCREMENT NOT NULL, locale VARCHAR(8) NOT NULL, object_class VARCHAR(190) NOT NULL, field VARCHAR(32) NOT NULL, foreign_key VARCHAR(64) NOT NULL, content LONGTEXT DEFAULT NULL, INDEX translations_lookup_idx (locale, object_class, foreign_key), UNIQUE INDEX lookup_unique_idx (locale, object_class, field, foreign_key), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci ENGINE = InnoDB;'
         );
         $this->addSql(
             'CREATE TABLE IF NOT EXISTS ext_log_entries (id INT AUTO_INCREMENT NOT NULL, action VARCHAR(8) NOT NULL, logged_at DATETIME NOT NULL, object_id VARCHAR(64) DEFAULT NULL, object_class VARCHAR(191) NOT NULL, version INT NOT NULL, data LONGTEXT DEFAULT NULL COMMENT "(DC2Type:array)", username VARCHAR(191) DEFAULT NULL, INDEX log_class_lookup_idx (object_class), INDEX log_date_lookup_idx (logged_at), INDEX log_user_lookup_idx (username), INDEX log_version_lookup_idx (object_id, object_class, version), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci ENGINE = InnoDB;'
@@ -336,7 +376,7 @@ class Version20 extends AbstractMigrationChamilo
         }
 
         if (false === $table->hasColumn('resource_node_id')) {
-            $this->addSql('ALTER TABLE usergroup ADD resource_node_id BIGINT DEFAULT NULL');
+            $this->addSql('ALTER TABLE usergroup ADD resource_node_id INT DEFAULT NULL');
         }
 
         // sequence_resource.
@@ -370,7 +410,18 @@ class Version20 extends AbstractMigrationChamilo
             $this->addSql('ALTER TABLE templates ADD CONSTRAINT FK_6F287D8EA76ED395 FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE');
         }
 
-        $this->addSql('CREATE TABLE IF NOT EXISTS ext_translations (id INT AUTO_INCREMENT NOT NULL, locale VARCHAR(8) NOT NULL, object_class VARCHAR(191) NOT NULL, field VARCHAR(32) NOT NULL, foreign_key VARCHAR(64) NOT NULL, content LONGTEXT DEFAULT NULL, INDEX translations_lookup_idx (locale, object_class, foreign_key), UNIQUE INDEX lookup_unique_idx (locale, object_class, field, foreign_key), PRIMARY KEY(id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB ROW_FORMAT = DYNAMIC;');
+        // Rename extra_field field_type and extra_field_type to item_type and value_type, also, the term "value" in exta_field_values.value renamed to field_value
+        $table = $schema->getTable('extra_field');
+        if ($table->hasColumn('extra_field_type')) {
+            $this->addSql('ALTER TABLE extra_field CHANGE extra_field_type item_type INT NOT NULL');
+        }
+        if ($table->hasColumn('field_type')) {
+            $this->addSql('ALTER TABLE extra_field CHANGE field_type value_type INT NOT NULL');
+        }
+        $table = $schema->getTable('extra_field_values');
+        if ($table->hasColumn('value')) {
+            $this->addSql('ALTER TABLE extra_field_values CHANGE `value` field_value LONGTEXT DEFAULT NULL');
+        }
 
         // Drop unused columns
         $dropColumnsAndIndex = [
@@ -474,7 +525,7 @@ class Version20 extends AbstractMigrationChamilo
             'c_glossary' => ['c_id', 'session_id', 'glossary_id'],
             'c_group_category' => ['c_id'],
             'c_group_info' => ['c_id', 'session_id'],
-            //'c_group_rel_tutor' => ['c_id'],
+            // 'c_group_rel_tutor' => ['c_id'],
             'c_link' => ['c_id', 'session_id'],
             'c_link_category' => ['c_id', 'session_id'],
 
@@ -483,7 +534,7 @@ class Version20 extends AbstractMigrationChamilo
             'c_lp_item' => ['c_id'],
             'c_lp_item_view' => ['c_id', 'session_id'],
             // 'c_lp_iv_interaction' => ['c_id'],
-            //'c_lp_iv_objective' => ['c_id'],
+            // 'c_lp_iv_objective' => ['c_id'],
             'c_notebook' => ['c_id', 'session_id'],
             'c_quiz' => ['c_id', 'session_id'],
             'c_quiz_answer' => ['c_id'],
@@ -537,5 +588,6 @@ class Version20 extends AbstractMigrationChamilo
 
     public function down(Schema $schema): void
     {
+        $this->priorityMigrationHelper->executeDown($schema);
     }
 }

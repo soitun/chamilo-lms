@@ -135,7 +135,7 @@ class BlockStudent extends Block
         $content = $students_table;
 
         if (count($students) > 0) {
-            $content .= '<div style="text-align:right;margin-top:10px;"><a href="'.api_get_path(WEB_CODE_PATH).'mySpace/index.php?view=admin&display=useroverview">'.get_lang('See more').'</a></div>';
+            $content .= '<div style="text-align:right;margin-top:10px;"><a href="'.api_get_path(WEB_CODE_PATH).'my_space/index.php?view=admin&display=useroverview">'.get_lang('See more').'</a></div>';
         }
 
         return $content;
@@ -168,7 +168,7 @@ class BlockStudent extends Block
                 if (!empty($results_faults_avg)) {
                     $attendances_faults_avg = '<a
                         title="'.get_lang('Go to learner details').'"
-                        href="'.api_get_path(WEB_CODE_PATH).'mySpace/myStudents.php?student='.$student_id.'">'.
+                        href="'.api_get_path(WEB_CODE_PATH).'my_space/myStudents.php?student='.$student_id.'">'.
                         $results_faults_avg['faults'].'/'.$results_faults_avg['total'].' ('.$results_faults_avg['percent'].'%)</a>';
                 } else {
                     $attendances_faults_avg = '0%';
@@ -182,15 +182,15 @@ class BlockStudent extends Block
                     $cats = Category::load(
                         null,
                         null,
-                        $course_code,
+                        $course['real_id'],
                         null,
                         null,
                         null,
-                        false
+                        null
                     );
                     $scoretotal = [];
                     if (isset($cats) && isset($cats[0])) {
-                        $scoretotal = $cats[0]->calc_score($student_id, null, $course_code);
+                        $scoretotal = $cats[0]->calc_score($student_id, null, $course['real_id']);
                     }
 
                     if (!empty($scoretotal)) {
@@ -200,7 +200,7 @@ class BlockStudent extends Block
                 }
 
                 if (!empty($weight)) {
-                    $evaluations_avg = '<a title="'.get_lang('Go to learner details').'" href="'.api_get_path(WEB_CODE_PATH).'mySpace/myStudents.php?student='.$student_id.'">'.round($score, 2).'/'.round($weight, 2).'('.round($score / $weight * 100, 2).' %)</a>';
+                    $evaluations_avg = '<a title="'.get_lang('Go to learner details').'" href="'.api_get_path(WEB_CODE_PATH).'my_space/myStudents.php?student='.$student_id.'">'.round($score, 2).'/'.round($weight, 2).'('.round($score / $weight * 100, 2).' %)</a>';
                 }
 
                 if (0 == $i % 2) {
@@ -225,7 +225,7 @@ class BlockStudent extends Block
 
         if (count($students) > 0) {
             $content .= '<div style="text-align:right;margin-top:10px;">
-                            <a href="'.api_get_path(WEB_CODE_PATH).'mySpace/index.php?view=admin&display=yourstudents">'.get_lang('See more').'</a>
+                            <a href="'.api_get_path(WEB_CODE_PATH).'my_space/index.php?view=admin&display=yourstudents">'.get_lang('See more').'</a>
                          </div>';
         }
         //$content .= '</div>';

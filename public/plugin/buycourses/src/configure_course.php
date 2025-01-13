@@ -55,7 +55,7 @@ if ($editingCourse) {
 
     $courseItem = $plugin->getCourseForConfiguration($course, $currency);
     $defaultBeneficiaries = [];
-    $teachers = $course->getTeachers();
+    $teachers = $course->getTeachersSubscriptions();
     $teachersOptions = [];
 
     foreach ($teachers as $courseTeacher) {
@@ -171,7 +171,7 @@ if ('true' === $commissionsEnable) {
             $(function() {
                 if ($('[name=\"commissions\"]').val() === '') {
                     $('#panelSliders').html(
-                        '<button id=\"setCommissionsButton\" class=\"btn btn-warning\">'
+                        '<button id=\"setCommissionsButton\" class=\"btn btn--warning\">'
                             + '".get_plugin_lang('SetCommissions', 'BuyCoursesPlugin')."'
                     );
                 } else {

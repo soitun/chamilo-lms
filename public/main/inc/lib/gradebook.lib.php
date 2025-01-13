@@ -42,7 +42,7 @@ class Gradebook extends Model
     public static function is_active($c_id = null)
     {
         $name = 'gradebook';
-        $table = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+        $table = Database::get_main_table(TABLE_MAIN_SETTINGS);
         $sql = "SELECT * from $table
                 WHERE variable='course_hide_tools' AND subkey='$name'
                 LIMIT 1";
@@ -59,7 +59,7 @@ class Gradebook extends Model
         $c_id = $c_id ? intval($c_id) : api_get_course_int_id();
         $table = Database::get_course_table(TABLE_TOOL_LIST);
         $sql = "SELECT * from $table
-                WHERE c_id = $c_id and name='$name'
+                WHERE c_id = $c_id and title = '$name'
                 LIMIT 1";
         $result = Database::query($sql);
         $item = Database::store_result($result, 'ASSOC');
@@ -204,7 +204,7 @@ class Gradebook extends Model
     public function getSkillsByGradebook($id)
     {
         $id = (int) $id;
-        $sql = "SELECT skill.id, skill.name
+        $sql = "SELECT skill.id, skill.title as name
                 FROM {$this->table_skill} skill
                 INNER JOIN {$this->table_skill_rel_gradebook} skill_rel_gradebook
                 ON skill.id = skill_rel_gradebook.skill_id

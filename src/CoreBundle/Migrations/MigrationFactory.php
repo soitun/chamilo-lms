@@ -5,16 +5,23 @@ declare(strict_types=1);
 namespace Chamilo\CoreBundle\Migrations;
 
 use Doctrine\Migrations\AbstractMigration;
-use Symfony\Component\DependencyInjection\ContainerAwareInterface;
+use Doctrine\Migrations\Version\MigrationFactory as DoctrineMigrationFactory;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
-class MigrationFactory implements \Doctrine\Migrations\Version\MigrationFactory
+class MigrationFactory implements DoctrineMigrationFactory
 {
-    private \Doctrine\Migrations\Version\MigrationFactory $migrationFactory;
+    private DoctrineMigrationFactory $migrationFactory;
     private ContainerInterface $container;
 
-    public function __construct(\Doctrine\Migrations\Version\MigrationFactory $migrationFactory, ContainerInterface $container)
-    {
+    /**
+     * @psalm-suppress ContainerDependency
+     */
+    public function __construct(
+        DoctrineMigrationFactory $migrationFactory,
+        ContainerInterface $container,
+        protected readonly EntityManagerInterface $entityManager
+    ) {
         $this->migrationFactory = $migrationFactory;
         $this->container = $container;
     }
@@ -23,8 +30,9 @@ class MigrationFactory implements \Doctrine\Migrations\Version\MigrationFactory
     {
         $instance = $this->migrationFactory->createVersion($migrationClassName);
 
-        if ($instance instanceof ContainerAwareInterface) {
+        if ($instance instanceof AbstractMigrationChamilo) {
             $instance->setContainer($this->container);
+            $instance->setEntityManager($this->entityManager);
         }
 
         return $instance;

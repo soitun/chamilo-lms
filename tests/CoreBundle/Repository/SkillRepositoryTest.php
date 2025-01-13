@@ -9,8 +9,8 @@ namespace Chamilo\Tests\CoreBundle\Repository;
 use Chamilo\CoreBundle\Entity\Asset;
 use Chamilo\CoreBundle\Entity\GradebookCategory;
 use Chamilo\CoreBundle\Entity\Level;
-use Chamilo\CoreBundle\Entity\Profile;
 use Chamilo\CoreBundle\Entity\Skill;
+use Chamilo\CoreBundle\Entity\SkillLevelProfile;
 use Chamilo\CoreBundle\Entity\SkillProfile;
 use Chamilo\CoreBundle\Entity\SkillRelCourse;
 use Chamilo\CoreBundle\Entity\SkillRelGradebook;
@@ -35,7 +35,7 @@ class SkillRepositoryTest extends AbstractApiTest
         $accessUrl = $this->getAccessUrl();
 
         $skill = (new Skill())
-            ->setName('php')
+            ->setTitle('php')
             ->setShortCode('php')
             ->setDescription('desc')
             ->setStatus(Skill::STATUS_ENABLED)
@@ -64,7 +64,7 @@ class SkillRepositoryTest extends AbstractApiTest
     {
         $em = $this->getEntityManager();
         $skillRepo = self::getContainer()->get(SkillRepository::class);
-        $profileRepo = $em->getRepository(Profile::class);
+        $profileRepo = $em->getRepository(SkillLevelProfile::class);
 
         $course = $this->createCourse('new');
         $session = $this->createSession('session');
@@ -75,34 +75,34 @@ class SkillRepositoryTest extends AbstractApiTest
 
         $skillProfile = (new SkillProfile())
             ->setDescription('desc')
-            ->setName('title')
+            ->setTitle('title')
         ;
         $em->persist($skillProfile);
 
-        $profile = (new Profile())
-            ->setName('profile')
+        $profile = (new SkillLevelProfile())
+            ->setTitle('profile')
         ;
         $em->persist($profile);
 
         $level = (new Level())
-            ->setName('level')
+            ->setTitle('level')
             ->setPosition(1)
             ->setProfile($profile)
-            ->setShortName('level')
+            ->setShortTitle('level')
         ;
         $em->persist($level);
 
         $skill = (new Skill())
-            ->setName('Dev')
+            ->setTitle('Dev')
             ->setShortCode('Dev')
             ->setStatus(Skill::STATUS_ENABLED)
             ->setAccessUrlId($accessUrl->getId())
-            ->setProfile($profile)
+            ->setLevelProfile($profile)
         ;
         $skillRepo->update($skill);
 
         $subSkill = (new Skill())
-            ->setName('php')
+            ->setTitle('php')
             ->setShortCode('php')
             ->setStatus(Skill::STATUS_ENABLED)
             ->setAccessUrlId($accessUrl->getId())
@@ -148,7 +148,7 @@ class SkillRepositoryTest extends AbstractApiTest
         $skill->addToCourse($skillRelCourse);
 
         $gradeBookCategory = (new GradebookCategory())
-            ->setName('title')
+            ->setTitle('title')
             ->setCourse($course)
             ->setVisible(true)
             ->setWeight(100)
@@ -166,7 +166,7 @@ class SkillRepositoryTest extends AbstractApiTest
         $em->flush();
         $em->clear();
 
-        /** @var Profile $profile */
+        /** @var SkillLevelProfile $profile */
         $profile = $profileRepo->find($profile->getId());
 
         /** @var Skill $skill */
@@ -186,7 +186,7 @@ class SkillRepositoryTest extends AbstractApiTest
 
         $this->assertTrue($skill->hasCourseAndSession($skillRelCourse));
 
-        $this->assertSame('profile', $profile->getName());
+        $this->assertSame('profile', $profile->getTitle());
         $this->assertSame('profile', (string) $profile);
         $this->assertSame(1, $profile->getLevels()->count());
         $this->assertSame(1, $profile->getSkills()->count());
@@ -205,7 +205,7 @@ class SkillRepositoryTest extends AbstractApiTest
         $accessUrl = $this->getAccessUrl();
 
         $skill = (new Skill())
-            ->setName('php')
+            ->setTitle('php')
             ->setShortCode('php')
             ->setDescription('desc')
             ->setStatus(Skill::STATUS_ENABLED)
@@ -247,7 +247,7 @@ class SkillRepositoryTest extends AbstractApiTest
         $this->assertSame(1, $skillRepo->count([]));
 
         $skill = (new Skill())
-            ->setName('php')
+            ->setTitle('php')
             ->setShortCode('php')
             ->setAccessUrlId($accessUrl->getId())
         ;
@@ -272,7 +272,7 @@ class SkillRepositoryTest extends AbstractApiTest
 
         // Create skill.
         $skill = (new Skill())
-            ->setName('php')
+            ->setTitle('php')
             ->setShortCode('php')
             ->setAccessUrlId($accessUrl->getId())
         ;
@@ -281,7 +281,7 @@ class SkillRepositoryTest extends AbstractApiTest
 
         // Create asset.
         $asset = (new Asset())
-            ->setTitle($skill->getName())
+            ->setTitle($skill->getTitle())
             ->setCategory(Asset::SKILL)
             ->setFile($file)
         ;
@@ -310,7 +310,7 @@ class SkillRepositoryTest extends AbstractApiTest
         $accessUrl = $this->getAccessUrl();
 
         $skill = (new Skill())
-            ->setName('php')
+            ->setTitle('php')
             ->setShortCode('php')
             ->setAccessUrlId($accessUrl->getId())
         ;
@@ -318,7 +318,7 @@ class SkillRepositoryTest extends AbstractApiTest
         $this->assertHasNoEntityViolations($skill);
 
         $asset = (new Asset())
-            ->setTitle($skill->getName())
+            ->setTitle($skill->getTitle())
             ->setCategory(Asset::SKILL)
             ->setFile($file)
         ;
@@ -328,7 +328,7 @@ class SkillRepositoryTest extends AbstractApiTest
         $skillRepo->update($skill);
 
         $this->assertNotEmpty($assetRepo->getAssetUrl($asset));
-        $this->assertSame(1, $skillRepo->count(['name' => 'php']));
+        $this->assertSame(1, $skillRepo->count(['title' => 'php']));
         $this->assertSame(1, $assetRepo->count([]));
 
         // Remove asset from skill
@@ -338,7 +338,7 @@ class SkillRepositoryTest extends AbstractApiTest
         $this->assertSame(0, $assetRepo->count([]));
 
         // Skill exists.
-        $this->assertSame(1, $skillRepo->count(['name' => 'php']));
+        $this->assertSame(1, $skillRepo->count(['title' => 'php']));
 
         $em->clear();
 

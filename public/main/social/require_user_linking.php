@@ -5,7 +5,7 @@ $cidReset = true;
 
 require_once __DIR__.'/../inc/global.inc.php';
 
-$isAllowed = api_get_configuration_value('show_link_request_hrm_user') && api_is_drh();
+$isAllowed = ('true' === api_get_setting('admin.show_link_request_hrm_user') && api_is_drh());
 
 if (!$isAllowed) {
     api_not_allowed(true);
@@ -85,7 +85,7 @@ $content .= '<div class="row">';
 foreach ($usersAssigned as $userAssigned) {
     $userAssigned = api_get_user_info($userAssigned['user_id']);
     $userPicture = isset($userAssigned["avatar_medium"]) ? $userAssigned["avatar_medium"] : $userAssigned["avatar"];
-    $studentLink = api_get_path(WEB_CODE_PATH).'mySpace/myStudents.php?student='.$userAssigned['user_id'];
+    $studentLink = api_get_path(WEB_CODE_PATH).'my_space/myStudents.php?student='.$userAssigned['user_id'];
 
     $content .= '
         <div class="col-sm-4 col-md-3">

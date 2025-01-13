@@ -2,16 +2,14 @@
 /*
  * This script insert session extra fields
  */
-
-//exit;
-
-require_once '../../main/inc/global.inc.php';
+die('Remove the "die()" statement on line '.__LINE__.' to execute this script'.PHP_EOL);
+require_once __DIR__.'/../../public/main/inc/global.inc.php';
 
 api_protect_admin_script();
 
 $teachingHours = new ExtraField('session');
 $teachingHours->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_INTEGER,
+    'value_type' => ExtraField::FIELD_TYPE_INTEGER,
     'variable' => 'teaching_hours',
     'display_text' => get_lang('TeachingHours'),
     'visible' => 1,
@@ -20,7 +18,7 @@ $teachingHours->save(array(
 
 $cost = new ExtraField('session');
 $cost->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_FLOAT,
+    'value_type' => ExtraField::FIELD_TYPE_FLOAT,
     'variable' => 'cost',
     'display_text' => get_lang('Cost'),
     'visible' => 1,
@@ -29,7 +27,7 @@ $cost->save(array(
 
 $vacancies = new ExtraField('session');
 $vacancies->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_INTEGER,
+    'value_type' => ExtraField::FIELD_TYPE_INTEGER,
     'variable' => 'vacancies',
     'display_text' => get_lang('Vacancies'),
     'visible' => 1,
@@ -38,7 +36,7 @@ $vacancies->save(array(
 
 $recommendedNumberOfParticipants = new ExtraField('session');
 $recommendedNumberOfParticipants->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_INTEGER,
+    'value_type' => ExtraField::FIELD_TYPE_INTEGER,
     'variable' => 'recommended_number_of_participants',
     'display_text' => get_lang('RecommendedNumberOfParticipants'),
     'visible' => 1,
@@ -47,7 +45,7 @@ $recommendedNumberOfParticipants->save(array(
 
 $place = new ExtraField('session');
 $place->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_ALPHANUMERIC,
+    'value_type' => ExtraField::FIELD_TYPE_ALPHANUMERIC,
     'variable' => 'place',
     'display_text' => get_lang('Place'),
     'visible' => 1,
@@ -56,7 +54,7 @@ $place->save(array(
 
 $schedule = new ExtraField('session');
 $schedule->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_TEXT,
+    'value_type' => ExtraField::FIELD_TYPE_TEXT,
     'variable' => 'schedule',
     'display_text' => get_lang('Schedule'),
     'visible' => 1,
@@ -65,7 +63,7 @@ $schedule->save(array(
 
 $allowVisitors = new ExtraField('session');
 $allowVisitors->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_CHECKBOX,
+    'value_type' => ExtraField::FIELD_TYPE_CHECKBOX,
     'variable' => 'allow_visitors',
     'display_text' => get_lang('AllowVisitors'),
     'visible' => 1,
@@ -80,7 +78,7 @@ $modeOptions = array(
 
 $mode = new ExtraField('session');
 $mode->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_SELECT,
+    'value_type' => ExtraField::FIELD_TYPE_SELECT,
     'variable' => 'mode',
     'display_text' => get_lang('Mode'),
     'visible' => 1,
@@ -90,7 +88,7 @@ $mode->save(array(
 
 $isInductionSession = new ExtraField('session');
 $isInductionSession->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_CHECKBOX,
+    'value_type' => ExtraField::FIELD_TYPE_CHECKBOX,
     'variable' => 'is_induccion_session',
     'display_text' => get_lang('IsInductionSession'),
     'visible' => 1,
@@ -99,7 +97,7 @@ $isInductionSession->save(array(
 
 $isOpenSession = new ExtraField('session');
 $isOpenSession->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_CHECKBOX,
+    'value_type' => ExtraField::FIELD_TYPE_CHECKBOX,
     'variable' => 'is_open_session',
     'display_text' => get_lang('IsOpenSession'),
     'visible' => 1,
@@ -108,7 +106,7 @@ $isOpenSession->save(array(
 
 $duration = new ExtraField('session');
 $duration->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_LETTERS_ONLY,
+    'value_type' => ExtraField::FIELD_TYPE_LETTERS_ONLY,
     'variable' => 'human_text_duration',
     'display_text' => get_lang('DurationInWords'),
     'visible' => 1,
@@ -123,7 +121,7 @@ $showStatusOptions = array(
 
 $showStatus = new ExtraField('session');
 $showStatus->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_SELECT,
+    'value_type' => ExtraField::FIELD_TYPE_SELECT,
     'variable' => 'show_status',
     'display_text' => get_lang('ShowStatus'),
     'visible' => 1,
@@ -133,7 +131,7 @@ $showStatus->save(array(
 
 $publicationStartDate = new ExtraField('session');
 $publicationStartDate->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_DATE,
+    'value_type' => ExtraField::FIELD_TYPE_DATE,
     'variable' => 'publication_start_date',
     'display_text' => get_lang('PublicationStartDate'),
     'visible' => 1,
@@ -142,7 +140,7 @@ $publicationStartDate->save(array(
 
 $publicationEndDate = new ExtraField('session');
 $publicationEndDate->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_DATE,
+    'value_type' => ExtraField::FIELD_TYPE_DATE,
     'variable' => 'publication_end_date',
     'display_text' => get_lang('PublicationEndDate'),
     'visible' => 1,
@@ -151,7 +149,7 @@ $publicationEndDate->save(array(
 
 $banner = new ExtraField('session');
 $banner->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_FILE_IMAGE,
+    'value_type' => ExtraField::FIELD_TYPE_FILE_IMAGE,
     'variable' => 'banner',
     'display_text' => get_lang('SessionBanner'),
     'visible' => 1,
@@ -160,7 +158,7 @@ $banner->save(array(
 
 $brochure = new ExtraField('session');
 $brochure->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_FILE,
+    'value_type' => ExtraField::FIELD_TYPE_FILE,
     'variable' => 'brochure',
     'display_text' => get_lang('Brochure'),
     'visible' => 1,
@@ -174,7 +172,7 @@ $targetOptions = array(
 
 $target = new ExtraField('session');
 $target->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_SELECT,
+    'value_type' => ExtraField::FIELD_TYPE_SELECT,
     'variable' => 'target',
     'display_text' => get_lang('Target'),
     'visible' => 1,
@@ -184,7 +182,7 @@ $target->save(array(
 
 $shortDescription = new ExtraField('session');
 $shortDescription->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_TEXT,
+    'value_type' => ExtraField::FIELD_TYPE_TEXT,
     'variable' => 'short_description',
     'display_text' => get_lang('ShortDescription'),
     'visible' => 1,
@@ -193,7 +191,7 @@ $shortDescription->save(array(
 
 $id = new ExtraField('session');
 $id->save(array(
-    'field_type' => ExtraField::FIELD_TYPE_TEXT,
+    'value_type' => ExtraField::FIELD_TYPE_TEXT,
     'variable' => 'code',
     'display_text' => get_lang('Code'),
     'visible' => 1,

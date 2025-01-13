@@ -1,81 +1,127 @@
 <template>
-  <v-card
-      v-if="course"
-      elevation="4"
-  >
-    <div class="">
-      <img class="object-cover w-full h-44" :src="course.illustrationUrl" />
-    </div>
-    <div class="p-4">
-      <div class="h-10 flex flex-row justify-between">
-        <div class="line-clamp-2 text-md w-5/6">
-          <router-link :to="{ name: 'CourseHome', params: {id: course._id, course: course}, query: { sid: sessionId } }">
-            <span v-if="session">
-              {{ session.name }} -
-            </span>
-            {{ course.title }}
-          </router-link>
+  <Card class="course-card">
+    <template #header>
+      <img
+        v-if="disabled"
+        :alt="course.title"
+        :src="course.illustrationUrl"
+      />
+      <BaseAppLink
+        v-else
+        :to="{ name: 'CourseHome', params: { id: course._id }, query: { sid: sessionId } }"
+        class="course-card__home-link"
+      >
+        <img
+          :alt="course.title"
+          :src="course.illustrationUrl"
+        />
+      </BaseAppLink>
+    </template>
+    <template #title>
+      <div class="course-card__title">
+        <div v-if="disabled">
+          <div
+            v-if="session"
+            class="session__title"
+            v-text="session.title"
+          />
+          {{ course.title }}
+          <span v-if="showCourseDuration && course.duration">
+            ({{ (course.duration / 60 / 60).toFixed(2) }} hours)
+          </span>
         </div>
-        <div>
-          <v-icon icon="mdi-dots-vertical" />
-        </div>
-      </div>
+        <BaseAppLink
+          v-else
+          :to="{ name: 'CourseHome', params: { id: course._id }, query: { sid: sessionId } }"
+          class="course-card__home-link"
+        >
+          <div
+            v-if="session"
+            class="session__title"
+            v-text="session.title"
+          />
+          {{ course.title }}
+        </BaseAppLink>
 
-      <div v-if="course.users" class="pt-6">
-        <div class="flex flex-row" v-if="course.users.edges.length">
-          <div class="flex flex-row pr-3" v-for="courseRelUser in course.users.edges">
-            <div class="pr-2">
-                <img class="inline-block h-8 w-8 rounded-full ring-2 ring-white"
-                     :src="courseRelUser.node.user.illustrationUrl + '?w=80&h=80&fit=crop'"
-                     alt=""
-                />
-            </div>
-            <div v-if="course.users.edges.length < 3 " class="text-xs flex-col">
-              <div>
-              {{ courseRelUser.node.user.firstname }} {{ courseRelUser.node.user.lastname }}
-              </div>
-            </div>
-          </div>
-        </div>
+        <div
+          v-if="sessionDisplayDate"
+          class="session__display-date"
+          v-text="sessionDisplayDate"
+        />
       </div>
-<!--    <q-card-actions>-->
-<!--        <q-btn-->
-<!--            type="a"-->
-<!--            :to="{ name: 'CourseHome', params: {id: course.id, course: course}}"-->
-<!--            text-color="white"-->
-<!--            color="primary"-->
-<!--            label="Go"-->
-<!--        />-->
-<!--      </q-card-actions>-->
-
-    </div>
-  </v-card>
+    </template>
+    <template #footer>
+      <BaseAvatarList :users="teachers" />
+    </template>
+  </Card>
 </template>
 
-<style scoped>
-.my-card {
-  width: 100%;
-  max-width: 370px;
-}
-</style>
-<script>
+<script setup>
+import Card from "primevue/card"
+import BaseAvatarList from "../basecomponents/BaseAvatarList.vue"
+import { computed } from "vue"
+import { isEmpty } from "lodash"
+import { useFormatDate } from "../../composables/formatDate"
+import BaseAppLink from "../basecomponents/BaseAppLink.vue"
+import { usePlatformConfig } from "../../store/platformConfig"
 
-export default {
-  name: 'CourseCard',
-  props: {
-    course: Object,
-    session: Object,
-    sessionId: {
-      type: Number,
-      required: false,
-      default: 0
-    }
+const { abbreviatedDatetime } = useFormatDate()
+
+const props = defineProps({
+  course: {
+    type: Object,
+    required: true,
   },
-  data() {
-    return {
-    };
+  session: {
+    type: Object,
+    required: false,
+    default: null,
   },
-  methods: {
+  sessionId: {
+    type: Number,
+    required: false,
+    default: 0,
+  },
+  disabled: {
+    type: Boolean,
+    required: false,
+    default: false,
+  },
+})
+
+const platformConfigStore = usePlatformConfig()
+const showCourseDuration = computed(() => "true" === platformConfigStore.getSetting("course.show_course_duration"))
+
+const teachers = computed(() => {
+  if (props.session?.courseCoachesSubscriptions) {
+    return props.session.courseCoachesSubscriptions
+      .filter((srcru) => srcru.course["@id"] === props.course["@id"])
+      .map((srcru) => srcru.user)
   }
-};
+
+  if (props.course.users && props.course.users.edges) {
+    return props.course.users.edges.map((edge) => ({
+      id: edge.node.id,
+      ...edge.node.user,
+    }))
+  }
+
+  return []
+})
+
+const sessionDisplayDate = computed(() => {
+  const dateString = []
+
+  if (props.session) {
+    if (!isEmpty(props.session.displayStartDate)) {
+      dateString.push(abbreviatedDatetime(props.session.displayStartDate))
+    }
+
+    if (!isEmpty(props.session.displayEndDate)) {
+      dateString.push(abbreviatedDatetime(props.session.displayEndDate))
+    }
+  }
+
+  return dateString.join(" — ")
+})
 </script>

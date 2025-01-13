@@ -119,13 +119,9 @@ class LearnPathItemForm
             }
 
             $editorConfig = [
-                'ToolbarSet' => 'LearningPathDocuments',
+                'ToolbarSet' => 'Basic',
                 'Width' => '100%',
                 'Height' => '500',
-                'FullPage' => true,
-                //   'CreateDocumentDir' => $relative_prefix,
-                //'CreateDocumentWebDir' => api_get_path(WEB_COURSE_PATH).api_get_course_path().'/document/',
-                //'BaseHref' => api_get_path(WEB_COURSE_PATH).api_get_course_path().'/document/'.$relative_path,
             ];
 
             if (($document && $document->getResourceNode()->hasEditableTextContent()) || 'add' === $action) {
@@ -161,7 +157,7 @@ class LearnPathItemForm
 
     public static function setItemTitle(FormValidator $form)
     {
-        if (api_get_configuration_value('save_titles_as_html')) {
+        if ('true' === api_get_setting('editor.save_titles_as_html')) {
             $form->addHtmlEditor(
                 'title',
                 get_lang('Title'),

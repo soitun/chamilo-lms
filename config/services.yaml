@@ -6,7 +6,14 @@ parameters:
     secret: '%env(APP_SECRET)%'
     locale: '%env(APP_LOCALE)%'
     installed: '%env(APP_INSTALLED)%'
-    multiple_access_url: '%env(APP_MULTIPLE_ACCESS_URL)%'
+    db_manager_enabled: '%env(bool:DB_MANAGER_ENABLED)%'
+    software_name: '%env(SOFTWARE_NAME)%'
+    software_url: '%env(SOFTWARE_URL)%'
+    deny_delete_users: '%env(bool:DENY_DELETE_USERS)%'
+    hosting_total_size_limit: '%env(int:HOSTING_TOTAL_SIZE_LIMIT)%'
+    theme_fallback: '%env(THEME_FALLBACK)%'
+    packager: '%env(PACKAGER)%'
+    default_template: '%env(DEFAULT_TEMPLATE)%'
     container.dumper.inline_factories: true
     twig:
         form:
@@ -58,9 +65,67 @@ services:
     Chamilo\CoreBundle\EventSubscriber\LocaleSubscriber:
         arguments: ['%locale%', '@Chamilo\CoreBundle\Settings\SettingsManager', '@parameter_bag']
 
+    Chamilo\CoreBundle\EventSubscriber\LoginFailureSubscriber:
+        tags:
+            - name: kernel.event_subscriber
+              dispatcher: security.event_dispatcher.main
+
+    Chamilo\CoreBundle\State\CStudentPublicationPostStateProcessor:
+        bind:
+            $persistProcessor: '@api_platform.doctrine.orm.state.persist_processor'
+
+    Chamilo\CoreBundle\State\CCalendarEventStateProcessor:
+        arguments:
+            $persistProcessor: '@api_platform.doctrine.orm.state.persist_processor'
+        tags:
+            - { name: 'api_platform.state_processor' }
+
+    Chamilo\CoreBundle\State\UsergroupPostStateProcessor:
+      arguments:
+        $processor: '@api_platform.doctrine.orm.state.persist_processor'
+        $entityManager: '@doctrine.orm.entity_manager'
+        $security: '@security.helper'
+        $requestStack: '@request_stack'
+      tags:
+        - { name: 'api_platform.state_processor' }
+
+    Chamilo\CoreBundle\State\ColorThemeStateProcessor:
+      bind:
+        $persistProcessor: '@api_platform.doctrine.orm.state.persist_processor'
+
+    Chamilo\CoreBundle\State\UserRelUserStateProcessor:
+      bind:
+        $persistProcessor: '@api_platform.doctrine.orm.state.persist_processor'
+        $removeProcessor: '@api_platform.doctrine.orm.state.remove_processor'
+
+    Chamilo\CoreBundle\State\MessageProcessor:
+        bind:
+            $persistProcessor: '@api_platform.doctrine.orm.state.persist_processor'
+            $removeProcessor: '@api_platform.doctrine.orm.state.remove_processor'
+
+    Chamilo\CoreBundle\EventSubscriber\AnonymousUserSubscriber:
+      tags:
+        - name: kernel.event_subscriber
+
+    Chamilo\CoreBundle\Security\Authorization\Voter\AnonymousVoter:
+      tags:
+        - name: security.voter
+
+    Chamilo\CoreBundle\ServiceHelper\ContainerHelper:
+        calls:
+            - setAuthorizationChecker: [ '@security.authorization_checker' ]
+            - setTokenStorage: [ '@security.token_storage' ]
+            - setKernel: [ '@kernel' ]
+            - setMessengerBus: [ '@messenger.bus.default' ]
+            - setValidator: [ '@validator' ]
+            - setSessionFactory: [ '@session.factory' ]
+
 cocur_slugify:
     lowercase: true
 
 imports:
-    - {resource: ../src/CoreBundle/Resources/config/services.yml}
-    - {resource: ../src/LtiBundle/Resources/config/services.yml}
+    - { resource: ../src/CoreBundle/Resources/config/services.yml }
+    - { resource: ../src/LtiBundle/Resources/config/services.yml }
+    - { resource: ./authentication.yaml }
+    - { resource: ./hosting_limits.yaml }
+    - { resource: ./plugin.yaml }

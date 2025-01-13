@@ -207,7 +207,7 @@ function display_move_form(
 
     $options = ['0' => get_lang('root')];
     foreach ($target as $category) {
-        $options[$category['cat_id']] = $category['cat_name'];
+        $options[$category['cat_id']] = $category['title'];
     }
     $form->addSelect('move_target', get_lang('Move file to'), $options);
     $form->addButtonMove(get_lang('Move the file'), 'do_move');
@@ -367,7 +367,7 @@ function store_addcategory()
                 WHERE
                     c_id = $course_id AND
                     user_id='".$_user['user_id']."' AND
-                    cat_name='".Database::escape_string($_POST['category_name'])."' AND
+                    title='".Database::escape_string($_POST['category_name'])."' AND
                     received='".$received."' AND
                     sent='$sent' AND
                     session_id='$session_id'";
@@ -378,7 +378,7 @@ function store_addcategory()
             $params = [
                 'cat_id' => 0,
                 'c_id' => $course_id,
-                'cat_name' => $_POST['category_name'],
+                'title' => $_POST['category_name'],
                 'received' => $received,
                 'sent' => $sent,
                 'user_id' => $_user['user_id'],
@@ -397,7 +397,7 @@ function store_addcategory()
         }
     } else {
         $params = [
-            'cat_name' => $_POST['category_name'],
+            'title' => $_POST['category_name'],
             'received' => $received,
             'sent' => $sent,
         ];
@@ -446,7 +446,7 @@ function display_addcategory_form($category_name = '', $id = 0, $action = '')
             // after an edit with an error we do not want to return to the
             // original name but the name we already modified.
             // (happens when createinrecievedfiles AND createinsentfiles are not checked)
-            $category_name = $row['cat_name'];
+            $category_name = $row['title'];
         }
         if ('1' == $row['received']) {
             $target = 'received';
@@ -1189,8 +1189,8 @@ function feedback_form($url)
         $return .= '<textarea name="feedback" class="form-control" rows="4"></textarea>';
         $return .= '</div>';
         $return .= '<div class="col-sm-3">';
-        $return .= '<div class="pull-right"><a class="btn btn-default btn-sm" href="'.$url.'"><i class="fa fa-times" aria-hidden="true"></i></a></div>';
-        $return .= '<button type="submit" class="btn btn-primary btn-sm" name="store_feedback" value="'.get_lang('Validate').'"
+        $return .= '<div class="pull-right"><a class="btn btn--plain btn-sm" href="'.$url.'"><i class="fa fa-times" aria-hidden="true"></i></a></div>';
+        $return .= '<button type="submit" class="btn btn--primary btn-sm" name="store_feedback" value="'.get_lang('Validate').'"
                     onclick="javascript: document.form_dropbox.attributes.action.value = document.location;">'.get_lang('Add/Edit a comment to').'</button>';
         $return .= '</div>';
         $return .= '</div>';

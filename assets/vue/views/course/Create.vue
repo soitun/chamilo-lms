@@ -1,46 +1,75 @@
 <template>
-  <div>
-    <CourseForm ref="createForm" :values="item" :errors="violations" />
-    <Loading :visible="isLoading" />
+  <div class="create-course-page m-10">
+    <div class="message-container mb-4">
+      <Message severity="info">
+        {{
+          t(
+            'Once you click on "Create a course", a course is created with a section for Tests, Project based learning, Assessments, Courses, Dropbox, Agenda and much more. Logging in as teacher provides you with editing privileges for this course.',
+          )
+        }}
+      </Message>
+    </div>
 
-    <Toolbar :handle-submit="onSendForm" :handle-reset="resetForm"></Toolbar>
+    <h1 class="page-title text-xl text-gray-90">{{ t("Add a new course") }}</h1>
+    <hr />
+
+    <CourseForm
+      ref="createForm"
+      :errors="violations"
+      :values="item"
+      @submit="submitCourse"
+    />
+    <Loading :visible="isLoading" />
   </div>
 </template>
 
-<script>
-import { mapActions } from 'vuex';
-import { createHelpers } from 'vuex-map-fields';
-import CourseForm from '../../components/course/Form.vue';
-import Loading from '../../components/Loading.vue';
-import Toolbar from '../../components/Toolbar.vue';
-import CreateMixin from '../../mixins/CreateMixin';
+<script setup>
+import { ref } from "vue"
+import CourseForm from "../../components/course/Form.vue"
+import Loading from "../../components/Loading.vue"
+import { useRouter } from "vue-router"
+import Message from "primevue/message"
+import courseService from "../../services/courseService"
+import { useI18n } from "vue-i18n"
+import { useNotification } from "../../composables/notification"
 
-const servicePrefix = 'Course';
+const item = ref({})
+const router = useRouter()
+const { t } = useI18n()
 
-const { mapFields } = createHelpers({
-  getterType: 'course/getField',
-  mutationType: 'course/updateField'
-});
+const isLoading = ref(false)
+const violations = ref(null)
+const { showSuccessNotification, showErrorNotification } = useNotification()
 
-export default {
-  name: 'CourseCreate',
-  servicePrefix,
-  mixins: [CreateMixin],
-  components: {
-    Loading,
-    Toolbar,
-    CourseForm
-  },
-  data() {
-    return {
-      item: {}
-    };
-  },
-  computed: {
-    ...mapFields(['error', 'isLoading', 'created', 'violations'])
-  },
-  methods: {
-    ...mapActions('course', ['create', 'reset'])
+const submitCourse = async (formData) => {
+  isLoading.value = true
+  violations.value = null
+  try {
+    const response = await courseService.createCourse(formData)
+    const courseId = response.courseId
+    const sessionId = 0
+
+    if (!courseId) {
+      throw new Error(t("Course ID is missing. Unable to navigate to the course home page."))
+    }
+
+    showSuccessNotification(t("Course created successfully."))
+    await router.push(`/course/${courseId}/home?sid=${sessionId}`)
+  } catch (error) {
+    console.error(error)
+
+    const errorMessage =
+      error.message ||
+      (error.response && error.response.data && error.response.data.message
+        ? error.response.data.message
+        : t("An unexpected error occurred."))
+    showErrorNotification(errorMessage)
+
+    if (error.response && error.response.data && error.response.data.violations) {
+      violations.value = error.response.data.violations
+    }
+  } finally {
+    isLoading.value = false
   }
-};
+}
 </script>

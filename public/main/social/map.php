@@ -11,7 +11,7 @@ require_once __DIR__.'/../inc/global.inc.php';
 
 api_block_anonymous_users();
 
-$fields = api_get_configuration_value('allow_social_map_fields');
+$fields = api_get_setting('profile.allow_social_map_fields', true);
 
 if (!$fields) {
     api_not_allowed(true);
@@ -44,19 +44,19 @@ if ($localization) {
 }
 
 $tableUser = Database::get_main_table(TABLE_MAIN_USER);
-$sql = "SELECT u.id, firstname, lastname, ev.value ville, ev2.value stage
-        FROM $tableUser u 
+$sql = "SELECT u.id, firstname, lastname, ev.field_value ville, ev2.field_value stage
+        FROM $tableUser u
         INNER JOIN extra_field_values ev
         ON ev.item_id = u.id
         INNER JOIN extra_field_values ev2
         ON ev2.item_id = u.id
-        WHERE 
-            ev.field_id = ".$infoStage['id']." AND 
-            ev2.field_id = ".$infoVille['id']." AND 
+        WHERE
+            ev.field_id = ".$infoStage['id']." AND
+            ev2.field_id = ".$infoVille['id']." AND
             u.status = ".STUDENT." AND
             u.active = 1 AND
-            (ev.value <> '' OR ev2.value <> '') AND 
-            (ev.value LIKE '%::%' OR ev2.value LIKE '%::%')            
+            (ev.field_value <> '' OR ev2.field_value <> '') AND
+            (ev.field_value LIKE '%::%' OR ev2.field_value LIKE '%::%')
 ";
 
 $cache = new \Symfony\Component\Cache\Adapter\ApcuAdapter();
@@ -121,7 +121,7 @@ $htmlHeadXtra[] = '<script type="text/javascript" src="'.api_get_path(WEB_LIBRAR
 $htmlHeadXtra[] = '<script type="text/javascript" src="'.api_get_path(WEB_LIBRARY_JS_PATH).'map/oms.min.js"></script>';
 
 $tpl = new Template(null);
-$tpl->assign('url', api_get_path(WEB_CODE_PATH).'social/profile.php');
+$tpl->assign('url', api_get_path(WEB_PATH).'social');
 $tpl->assign(
     'image_city',
     Display::return_icon(

@@ -18,8 +18,8 @@ $sessionId = api_get_session_id();
 $courseInfo = api_get_course_info();
 $statusToFilter = empty($sessionId) ? STUDENT : 0;
 
-$userList = CourseManager::get_user_list_from_course_code(
-    api_get_course_id(),
+$userList = CourseManager::getUserListFromCourseId(
+    api_get_course_int_id(),
     $sessionId,
     null,
     null,
@@ -29,14 +29,10 @@ $userList = CourseManager::get_user_list_from_course_code(
 $loadStats = [];
 if ('true' === api_get_setting('gradebook_detailed_admin_view')) {
     $loadStats = [1, 2, 3];
-} else {
-    if (false !== api_get_configuration_value('gradebook_enable_best_score')) {
-        $loadStats = [2];
-    }
 }
 
 /*Session::write('use_gradebook_cache', false);
-$useCache = api_get_configuration_value('gradebook_use_apcu_cache');
+$useCache = ('true' === api_get_setting('gradebook.gradebook_use_apcu_cache'));
 $cacheAvailable = api_get_configuration_value('apc') && $useCache;
 
 if ($cacheAvailable) {
@@ -48,24 +44,32 @@ if ($cacheAvailable) {
 switch ($action) {
     case 'export_all':
         //Session::write('use_gradebook_cache', true);
-        $cats = Category::load($cat_id, null, null, null, null, null, false);
+        $cats = Category::load(
+            $cat_id,
+            null,
+            0,
+            null,
+            null,
+            null,
+            null
+        );
         /** @var Category $cat */
         $cat = $cats[0];
         $allcat = $cat->get_subcategories(
             null,
-            api_get_course_id(),
+            api_get_course_int_id(),
             api_get_session_id()
         );
         $alleval = $cat->get_evaluations(
             null,
             true,
-            api_get_course_id(),
+            api_get_course_int_id(),
             api_get_session_id()
         );
         $alllink = $cat->get_links(
             null,
             true,
-            api_get_course_id(),
+            api_get_course_int_id(),
             api_get_session_id()
         );
 
@@ -74,7 +78,7 @@ switch ($action) {
             $allcat,
             $alleval,
             $alllink,
-            null, // params
+            [], // params
             true, // $exportToPdf
             false, // showteacher
             null,
@@ -141,7 +145,15 @@ switch ($action) {
         break;
     case 'download':
         $userId = isset($_GET['user_id']) && $_GET['user_id'] ? $_GET['user_id'] : null;
-        $cats = Category::load($cat_id, null, null, null, null, null, false);
+        $cats = Category::load(
+            $cat_id,
+            null,
+            0,
+            null,
+            null,
+            null,
+            null
+        );
         GradebookUtils::generateTable($courseInfo, $userId, $cats, false, false, $userList);
         break;
     case 'add_comment':
@@ -206,11 +218,11 @@ echo Display::page_header(get_lang('Students list report'));
 echo '<div class="btn-group">';
 if (count($userList) > 0) {
     $url = api_get_self().'?action=export_all&'.api_get_cidreq().'&selectcat='.$cat_id;
-    echo Display::url(get_lang('Export all to PDF'), $url, ['class' => 'btn btn-default']);
+    echo Display::url(get_lang('Export all to PDF'), $url, ['class' => 'btn btn--plain']);
 }
 echo '</div>';
 
-$allowSkillRelItem = api_get_configuration_value('allow_skill_rel_items');
+$allowSkillRelItem = ('true' === api_get_setting('skill.allow_skill_rel_items'));
 
 if (0 == count($userList)) {
     echo Display::return_message(get_lang('No results available'), 'warning');
@@ -223,7 +235,7 @@ if (0 == count($userList)) {
     echo '<th>';
     echo get_lang('Action');
     echo '</th></tr>';
-    $allowComments = api_get_configuration_value('allow_gradebook_comments');
+    $allowComments = ('true' === api_get_setting('gradebook.allow_gradebook_comments'));
     foreach ($userList as $index => $value) {
         $userData = api_get_person_name($value['firstname'], $value['lastname']).' ('.$value['username'].')';
         echo '<tr>
@@ -236,7 +248,7 @@ if (0 == count($userList)) {
             $link = Display::url(
                 get_lang('Skills'),
                 $url,
-                ['class' => 'btn btn-default']
+                ['class' => 'btn btn--plain']
             ).'&nbsp;';
         }
 
@@ -244,14 +256,14 @@ if (0 == count($userList)) {
         $link .= Display::url(
             get_lang('Export to PDF'),
             $url,
-            ['target' => '_blank', 'class' => 'btn btn-default']
+            ['target' => '_blank', 'class' => 'btn btn--plain']
         );
         if ($allowComments) {
             $url = api_get_self().'?'.api_get_cidreq().'&action=add_comment&user_id='.$value['user_id'].'&gradebook_id='.$cat_id;
             $link .= '&nbsp;'.Display::url(
                 get_lang('AddGradebookComment'),
                 $url,
-                ['target' => '_blank', 'class' => 'ajax btn btn-default']
+                ['target' => '_blank', 'class' => 'ajax btn btn--plain']
             );
         }
         echo $link;

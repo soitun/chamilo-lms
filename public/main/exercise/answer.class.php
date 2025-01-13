@@ -372,7 +372,7 @@ class Answer
         $rs = Database::query($sql);
 
         if (Database::num_rows($rs) > 0) {
-            return Database::fetch_array($rs, 'ASSOC');
+            return Database::fetch_assoc($rs);
         }
 
         return false;
@@ -697,7 +697,7 @@ class Answer
                     ->setAnswer($answer)
                     ->setCorrect($correct)
                     ->setComment($comment)
-                    ->setPonderation($weighting)
+                    ->setPonderation(!is_null($weighting) ? $weighting : 0.0)
                     ->setPosition($position)
                     ->setHotspotCoordinates($hotspot_coordinates)
                     ->setHotspotType($hotspot_type)
@@ -998,7 +998,10 @@ class Answer
                 $(window).on('load', function() {
                     jsPlumb.ready(function() {
                         if ($('#drag{$this->questionId}_question').length > 0) {
-                            MatchingDraggable.init('{$this->questionId}');
+                            setTimeout(function() {
+                                // Initialize MatchingDraggable
+                                MatchingDraggable.init('{$this->questionId}');
+                            }, 1000);
                         }
                     });
                 });

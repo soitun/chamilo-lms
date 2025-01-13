@@ -98,7 +98,7 @@ class CourseRestorer
         $this->set_tools_invisible_by_default = false;
         $this->skip_content = [];
 
-        $forceImport = api_get_configuration_value('allow_import_scorm_package_in_course_builder');
+        $forceImport = ('true' === api_get_setting('lp.allow_import_scorm_package_in_course_builder'));
         if ($forceImport) {
             $this->tools_to_restore[] = 'scorm_documents';
         }
@@ -376,7 +376,7 @@ class CourseRestorer
                             null,
                             false,
                             null,
-                                $session_id,
+                            $session_id,
                             0,
                             false
                         );
@@ -1885,6 +1885,7 @@ class CourseRestorer
                         'review_answers' => (int) $quiz->review_answers,
                         'propagate_neg' => (int) $quiz->propagate_neg,
                         'text_when_finished' => (string) $quiz->text_when_finished,
+                        'text_when_finished_failure' => (string) $quiz->text_when_finished_failure,
                         'expired_time' => (int) $quiz->expired_time,
                         'start_time' => $quiz->start_time,
                         'end_time' => $quiz->end_time,
@@ -1894,7 +1895,7 @@ class CourseRestorer
                         'hide_question_title' => isset($quiz->hide_question_title) ? $quiz->hide_question_title : 0,
                     ];
 
-                    $allow = api_get_configuration_value('allow_notification_setting_per_exercise');
+                    $allow = ('true' === api_get_setting('exercise.allow_notification_setting_per_exercise'));
                     if ($allow) {
                         $params['notifications'] = isset($quiz->notifications) ? $quiz->notifications : '';
                     }
@@ -2462,7 +2463,7 @@ class CourseRestorer
                                         c_id = ".$this->destination_course_id." AND
                                         survey_id='".self::DBUTF8escapestring(Database::result($result_check, 0, 0))."'";
                             $result = Database::query($sql);
-                            $survey_data = Database::fetch_array($result, 'ASSOC');
+                            $survey_data = Database::fetch_assoc($result);
 
                             // if the survey is shared => also delete the shared content
                             if (isset($survey_data['survey_share']) && is_numeric($survey_data['survey_share'])) {
@@ -2590,10 +2591,8 @@ class CourseRestorer
                 'shared_question_id' => self::DBUTF8($question->shared_question_id),
                 'max_value' => self::DBUTF8($question->max_value),
             ];
-            if (api_get_configuration_value('allow_required_survey_questions')) {
-                if (isset($question->is_required)) {
-                    $params['is_required'] = $question->is_required;
-                }
+            if (isset($question->is_required)) {
+                $params['is_required'] = $question->is_required;
             }
 
             $new_id = Database::insert($table_que, $params);
@@ -2664,7 +2663,7 @@ class CourseRestorer
                         $tblLpCategory,
                         [
                             'WHERE' => [
-                                'c_id = ? AND name = ?' => [$this->destination_course_id, $lpCategory->getName()],
+                                'c_id = ? AND name = ?' => [$this->destination_course_id, $lpCategory->getTitle()],
                             ],
                         ],
                         'first'
@@ -2675,7 +2674,7 @@ class CourseRestorer
                     } else {
                         $values = [
                             'c_id' => $this->destination_course_id,
-                            'name' => $lpCategory->getName(),
+                            'name' => $lpCategory->getTitle(),
                         ];
                         $categoryId = learnpath::createCategory($values);
                     }
@@ -2770,12 +2769,12 @@ class CourseRestorer
                     ) {
                         $lp->created_on = api_get_utc_datetime();
                         $lp->modified_on = api_get_utc_datetime();
-                        $lp->publicated_on = null;
+                        $lp->published_on = null;
                     }
                 }
 
                 $lp->expired_on = isset($lp->expired_on) && '0000-00-00 00:00:00' === $lp->expired_on ? null : $lp->expired_on;
-                $lp->publicated_on = isset($lp->publicated_on) && '0000-00-00 00:00:00' === $lp->publicated_on ? null : $lp->publicated_on;
+                $lp->published_on = isset($lp->published_on) && '0000-00-00 00:00:00' === $lp->published_on ? null : $lp->published_on;
 
                 if (isset($lp->categoryId)) {
                     $lp->categoryId = (int) $lp->categoryId;
@@ -2809,7 +2808,7 @@ class CourseRestorer
                     'autolaunch' => self::DBUTF8(isset($lp->autolaunch) ? $lp->autolaunch : ''),
                     'created_on' => empty($lp->created_on) ? api_get_utc_datetime() : self::DBUTF8($lp->created_on),
                     'modified_on' => empty($lp->modified_on) ? api_get_utc_datetime() : self::DBUTF8($lp->modified_on),
-                    'publicated_on' => empty($lp->publicated_on) ? api_get_utc_datetime() : self::DBUTF8($lp->publicated_on),
+                    'published_on' => empty($lp->published_on) ? api_get_utc_datetime() : self::DBUTF8($lp->published_on),
                     'expired_on' => self::DBUTF8($lp->expired_on),
                     'debug' => self::DBUTF8($lp->debug),
                     'theme' => '',
@@ -3497,10 +3496,10 @@ class CourseRestorer
             $resources = $this->course->resources;
             $destinationCourseCode = $this->destination_course_info['code'];
             // Delete destination gradebook
-            $cats = Category:: load(
+            $cats = Category::load(
                 null,
                 null,
-                $destinationCourseCode,
+                api_get_course_int_id($destinationCourseCode),
                 null,
                 null,
                 $sessionId
@@ -3554,8 +3553,8 @@ class CourseRestorer
                                         $type = RESOURCE_QUIZ;
 
                                         break;
-                                    /*case LINK_DROPBOX:
-                                        break;*/
+                                        /*case LINK_DROPBOX:
+                                            break;*/
                                     case LINK_STUDENTPUBLICATION:
                                         $type = RESOURCE_WORK;
 

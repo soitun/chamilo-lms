@@ -56,7 +56,7 @@ $actions = '';
 $allowCategory = true;
 if (!empty($sessionId)) {
     $allowCategory = false;
-    if (api_get_configuration_value('allow_session_lp_category')) {
+    if ('true' === api_get_setting('lp.allow_session_lp_category')) {
         $allowCategory = true;
     }
 }
@@ -99,6 +99,14 @@ if ($allowCategory) {
     foreach ($categoriesTempList as $category) {
         $categorySessionId = (int) learnpath::getCategorySessionId($category->getIid());
         if ($categorySessionId === $sessionId || 0 === $categorySessionId) {
+            if (!empty($categorySessionId)) {
+                $sessionImage = api_get_session_image(
+                    $categorySessionId,
+                    api_get_user_entity()
+                );
+                $newTitle = $category->getTitle().' '.$sessionImage;
+                $category->setTitle($newTitle);
+            }
             $newCategoryFiltered[] = $category;
         }
         if (!empty($sessionId) && empty($firstSessionCategoryId) && $categorySessionId == $sessionId) {
@@ -110,8 +118,7 @@ if ($allowCategory) {
 }
 
 $categoryTest = new CLpCategory();
-$categoryTest->setName(get_lang('Without category'));
-$categoryTest->setPosition(0);
+$categoryTest->setTitle(get_lang('Without category'));
 $categories = [$categoryTest];
 
 if (!empty($categoriesTempList)) {
@@ -130,13 +137,13 @@ if ($filteredCategoryId) {
         }
 
         $interbreadcrumb[] = ['name' => $nameTools, 'url' => api_get_self()];
-        $nameTools = strip_tags($category->getName());
+        $nameTools = strip_tags($category->getTitle());
     }
 }
 
 $test_mode = api_get_setting('server_type');
-$showBlockedPrerequisite = api_get_configuration_value('show_prerequisite_as_blocked');
-$allowLpChamiloExport = api_get_configuration_value('allow_lp_chamilo_export');
+$showBlockedPrerequisite = ('true' === api_get_setting('lp.show_prerequisite_as_blocked'));
+$allowLpChamiloExport = ('true' === api_get_setting('lp.allow_lp_chamilo_export'));
 $allowMinTime = Tracking::minimumTimeAvailable($sessionId, $courseId);
 $accumulateWorkTimeTotal = 0;
 if ($allowMinTime) {
@@ -205,7 +212,7 @@ foreach ($categories as $category) {
 
     $flat_list = $list->get_flat_list();
 
-    // Hiding categories with out LPs (only for student)
+    // Hiding categories without LPs (only for student)
     if (empty($flat_list) && !$is_allowed_to_edit) {
         continue;
     }
@@ -255,8 +262,8 @@ foreach ($categories as $category) {
 
             $start_time = $end_time = '';
             if ($is_allowed_to_edit) {
-                if (!empty($details['publicated_on'])) {
-                    $start_time = api_convert_and_format_date($details['publicated_on'], DATE_TIME_FORMAT_SHORT);
+                if (!empty($details['published_on'])) {
+                    $start_time = api_convert_and_format_date($details['published_on'], DATE_TIME_FORMAT_SHORT);
                 }
                 if (!empty($details['expired_on'])) {
                     $end_time = api_convert_and_format_date($details['expired_on'], DATE_TIME_FORMAT_SHORT);
@@ -275,8 +282,8 @@ foreach ($categories as $category) {
 
                 if ($time_limits) {
                     // Check if start time
-                    if (!empty($details['publicated_on']) && !empty($details['expired_on'])) {
-                        $start_time = api_strtotime($details['publicated_on'], 'UTC');
+                    if (!empty($details['published_on']) && !empty($details['expired_on'])) {
+                        $start_time = api_strtotime($details['published_on'], 'UTC');
                         $end_time = api_strtotime($details['expired_on'], 'UTC');
                         $is_actived_time = false;
                         if ($now > $start_time && $end_time > $now) {
@@ -626,21 +633,21 @@ foreach ($categories as $category) {
                 /*
                 if (1 == $details['lp_type']) {
                     $dsp_disk = Display::url(
-                        Display::getMdiIcon('package', 'ch-tool-icon', '', 22),
+                        Display::getMdiIcon('archive-arrow-down', 'ch-tool-icon', '', 22),
                         api_get_self()."?$cidReq&action=export&lp_id=$id",
                         ['title' => htmlentities(get_lang('Export as SCORM'))]
                     );
                 } elseif (2 == $details['lp_type']) {
                     $dsp_disk = Display::url(
-                        Display::getMdiIcon('package', 'ch-tool-icon', '', 22),
+                        Display::getMdiIcon('archive-arrow-down', 'ch-tool-icon', '', 22),
                         api_get_self()."?$cidReq&action=export&lp_id=$id&export_name="
                             .api_replace_dangerous_char($name).'.zip',
                         ['title' => htmlentities(get_lang('Export as SCORM'))]
                     );
                 } else {
-                    $dsp_disk = Display::getMdiIcon('package', 'ch-tool-icon-disabled', '', 22, get_lang('Export as SCORM'));
+                    $dsp_disk = Display::getMdiIcon('archive-arrow-down', 'ch-tool-icon-disabled', '', 22, get_lang('Export as SCORM'));
                 }*/
-                $dsp_disk = Display::getMdiIcon('package', 'ch-tool-icon-disabled', '', 22, get_lang('Export as SCORM'));
+                $dsp_disk = Display::getMdiIcon('archive-arrow-down', 'ch-tool-icon-disabled', '', 22, get_lang('Export as SCORM'));
 
                 // Copy temporarily disabled until course copy works
                 /*
@@ -677,7 +684,7 @@ foreach ($categories as $category) {
                         );
                     } else {
                         $lp_auto_launch_icon = Display::url(
-                            Display::getMdiIcon('rocket-launch', 'ch-tool-icon', '', 22),
+                            Display::getMdiIcon('rocket-launch', 'ch-tool-icon-disabled', '', 22),
                             api_get_self().'?'.$cidReq."&action=auto_launch&status=1&lp_id=$id",
                             ['title' => htmlentities(get_lang('Enable learning path auto-launch'))]
                         );
@@ -708,13 +715,15 @@ foreach ($categories as $category) {
                 /* COLUMN ORDER	 */
                 // Only active while session mode is not active
                 if (0 == $sessionId) {
-                    if (1 == $details['lp_display_order'] && 1 != $max) {
+                    if (0 == $current && 1 != $max) {
                         $dsp_order .= Display::url(
                             Display::getMdiIcon('arrow-down-bold', 'ch-tool-icon', '', 22),
                             "lp_controller.php?$cidReq&action=move_lp_down&lp_id=$id&category_id=$categoryId",
                             ['title' => htmlentities(get_lang('Move down'))]
                         );
+                        $dsp_order .= Display::getMdiIcon('arrow-up-bold', 'ch-tool-icon-disabled', '', 22, get_lang('Move up'));
                     } elseif ($current == $max - 1 && 1 != $max) {
+                        $dsp_order .= Display::getMdiIcon('arrow-down-bold', 'ch-tool-icon-disabled', '', 22, get_lang('Move down'));
                         $dsp_order .= Display::url(
                             Display::getMdiIcon('arrow-up-bold', 'ch-tool-icon', '', 22),
                             "lp_controller.php?$cidReq&action=move_lp_up&lp_id=$id&category_id=$categoryId",
@@ -806,10 +815,15 @@ foreach ($categories as $category) {
                 $user
             );
 
+            $forumSessionIcon = '';
+            if ($is_allowed_to_edit && learnpath::isForumFromBaseCourse((int) $id)) {
+                $forumSessionIcon = Display::getMdiIcon('alert-circle', 'ch-tool-icon', '', 22, get_lang('This Learningpath includes a forum from the base course, so once users in a session will participate in this forum, it will start to appear in the forum tool in the session, whereas by default forums from the base course do not appear in the session.'));
+            }
+
             $listData[] = [
                 'learnpath_icon' => $icon_learnpath,
                 'url_start' => $url_start_lp,
-                'title' => $my_title,
+                'title' => $my_title . $forumSessionIcon,
                 'session_image' => $sessionImage,
                 'extra' => $extra,
                 'start_time' => $start_time,
@@ -845,13 +859,21 @@ foreach ($categories as $category) {
     }
 
     $shortcut = false;
+    $canEditCategory = false;
     if ($category->hasResourceNode()) {
         $shortcut = $shortcutRepository->getShortcutFromResource($category);
+        $categorySession = 0;
+        $categoryLink = $category->getResourceNode()->getResourceLinks()->first();
+        if ($categoryLink && $categoryLink->getSession()) {
+            $categorySession = (int) $categoryLink->getSession()->getId();
+        }
+        $canEditCategory = api_get_session_id() === $categorySession;
     }
 
     $data[] = [
         'category' => $category,
         'category_visibility' => $visibility,
+        'can_edit_category' => $canEditCategory,
         'category_is_published' => $shortcut ? 1 : 0,
         'lp_list' => $listData,
     ];
@@ -870,8 +892,8 @@ learnpath::generate_learning_path_folder($courseInfo);
 //DocumentManager::removeGeneratedAudioTempFile();
 
 $downloadFileAfterFinish = '';
-if ($ending && $allLpTimeValid && api_get_configuration_value('download_files_after_all_lp_finished')) {
-    $downloadFilesSetting = api_get_configuration_value('download_files_after_all_lp_finished');
+if ($ending && $allLpTimeValid && api_get_setting('lp.download_files_after_all_lp_finished', true)) {
+    $downloadFilesSetting = api_get_setting('lp.download_files_after_all_lp_finished', true);
     $courseCode = $courseInfo['code'];
     $downloadFinishId = isset($_REQUEST['download_finished']) ? (int) $_REQUEST['download_finished'] : 0;
     if (isset($downloadFilesSetting['courses'][$courseCode])) {
@@ -883,7 +905,7 @@ if ($ending && $allLpTimeValid && api_get_configuration_value('download_files_af
                 $downloadFileAfterFinish .= Display::url(
                     get_lang('Download').': '.$documentData['title'],
                     api_get_self().'?'.api_get_cidreq().'&download_finished='.$documentId,
-                    ['class' => 'btn btn-primary']
+                    ['class' => 'btn btn--primary']
                 );
                 if ($downloadFinishId === $documentId) {
                     $docUrl = $documentData['path'];

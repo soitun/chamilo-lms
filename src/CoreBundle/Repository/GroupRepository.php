@@ -33,7 +33,7 @@ class GroupRepository extends ServiceEntityRepository
     public function getAdmins()
     {
         $criteria = [
-            'name' => 'admins',
+            'title' => 'admins',
         ];
 
         /** @var Group|null $group */
@@ -66,7 +66,7 @@ class GroupRepository extends ServiceEntityRepository
             [
                 'code' => 'RRHH',
                 'title' => 'Human resources manager',
-                'roles' => ['ROLE_RRHH'],
+                'roles' => ['ROLE_HR'],
             ],
             [
                 'code' => 'SESSION_MANAGER',
@@ -91,7 +91,7 @@ class GroupRepository extends ServiceEntityRepository
         ];
     }
 
-    public function createDefaultGroups(AccessGroupFixtures $accessGroupFixtures = null): void
+    public function createDefaultGroups(?AccessGroupFixtures $accessGroupFixtures = null): void
     {
         $em = $this->getEntityManager();
         $groups = $this->getDefaultGroups();

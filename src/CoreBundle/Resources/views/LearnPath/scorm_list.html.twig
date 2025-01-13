@@ -1,44 +1,29 @@
 {% autoescape false %}
     {% macro processItem(item, lp_current_item_id, status_list) %}
-    {% import _self as self %}
-        {% set itemClass = '' %}
+        {% import _self as self %}
+        {% set itemClass = ' ' %}
         {% if 'dir' == item.itemType %}
-            {% set itemClass = 'scorm_item_section' %}
+            {% set itemClass = itemClass ~ 'scorm_item_section ' %}
         {% endif %}
 
         {% if lp_current_item_id == item.iid %}
-            {% set itemClass = 'scorm_highlight' %}
+            {% set itemClass = itemClass ~ 'scorm_highlight ' %}
         {% endif %}
 
         {% set itemLevel = 'level_' ~ (item.lvl - 1) %}
         {% set itemStatusClass = status_list[item.iid] %}
-        {% set accordionClass = '' %}
-        {% if item.itemType == 'dir' %}
-            {% set accordionClass = 'accordion' %}
-        {% endif %}
-        <div
-            id="toc_{{ item.iid }}"
-            class=" scorm_item_normal {{ itemStatusClass }} {{ itemClass }} item-{{ item.itemType }} {{ accordionClass }}"
-        >
+        {% set accordionClass = item.itemType == 'dir' and 'true' == chamilo_settings_get('lp.lp_view_accordion') ? 'accordion' : '' %}
+        <div id="toc_{{ item.iid }}"
+             class=" scorm_item_normal {{ itemStatusClass }} {{ itemClass }} item-{{ item.itemType }} {{ accordionClass }}">
             {% if item.itemType == 'dir' %}
-                <div
-                    class="section {{ itemLevel }}"
-                    title="{{ item.description | striptags | e('html') }}"
-                >
+                <div class="section {{ itemLevel }}" title="{{ item.description | striptags | e('html') }}">
                     {{ item.title | raw }}
                 </div>
             {% else %}
-                <div
-                    class="item {{ itemLevel }}"
-                    title="{{ item.description | striptags | e('html') }}"
-                >
+                <div class="item {{ itemLevel }}" title="{{ item.description | striptags | e('html') }}">
                     <a name="atoc_{{ item.iid }}"></a>
-                    <a
-                        data-type="type-{{ item.itemType }}"
-                        class="items-list"
-                        href="#"
-                        onclick="switch_item('{{ lp_current_item_id }}','{{ item.iid }}'); return false;"
-                    >
+                    <a data-type="type-{{ item.itemType }}" class="items-list" href="#"
+                       onclick="switch_item('{{ lp_current_item_id }}','{{ item.iid }}'); return false;">
                         {{ item.title | raw }}
                     </a>
                 </div>
@@ -48,9 +33,9 @@
         {% if item.itemType == 'dir' %}
             {% if item.__children|length %}
                 <div class="item-children">
-                {% for child in item.__children %}
-                    {{ self.processItem(child, lp_current_item_id, status_list) }}
-                {% endfor %}
+                    {% for child in item.__children %}
+                        {{ self.processItem(child, lp_current_item_id, status_list) }}
+                    {% endfor %}
                 </div>
             {% endif %}
         {% endif %}
@@ -72,31 +57,30 @@
     {% if data_panel is not empty %}
         <div id="learning_path_toc">
             <div class="scorm-title">
-                <h4>
-                    {{ lp_title_scorm }}
-                </h4>
+                <h4>{{ lp_title_scorm }}</h4>
             </div>
 
             {% macro tree(item) %}
                 {% import _self as self %}
+                {% set isCurrentItem = item.id == lp_current_item_id %}
                 <div id="toc_{{ item.id }}"
                      class="panel panel-default
-                    {{ item.parent_id ? 'child_item':'root_item' }}
-                    lp_item_type_{{ item.type|replace({' ': '_'}) }}
-                    {{ item.status_css_class_name }}
-                    {{ item.is_current ? 'current_item scorm_highlight' : '' }}
-                    {{ item.is_parent_of_current ? 'parent_of_current_item' : '' }}
-                    {{ item.is_chapter ? 'chapter' : '' }}
-                    "
-                     data-lp-id="{{ item.id }}"
-                >
+                        {{ item.parent_id ? 'child_item':'root_item' }}
+                        lp_item_type_{{ item.type|replace({' ': '_'}) }}
+                        {{ item.status_css_class_name }}
+                        {{ item.is_current ? 'current_item scorm_highlight' : '' }}
+                        {{ item.is_parent_of_current ? 'parent_of_current_item' : '' }}
+                        {{ item.is_chapter ? 'chapter' : '' }}
+                     "
+                     data-lp-id="{{ item.id }}">
                     <div class="status-heading">
-                        <div id="heading_item_{{item.id}}" class="panel-heading" role="tab">
+                        <div id="heading_item_{{ item.id }}" class="panel-heading" role="tab">
                             {% if item.children|length %}
                                 <a class="item-header" role="button"
                                    data-toggle="collapse" data-parent="#tocchildren_{{ item.parent_id }}"
                                    href="#tocchildren_{{ item.id }}"
-                                   aria-expanded="true" aria-controls="tocchildren_{{ item.id }}">
+                                   aria-expanded="{{ isCurrentItem ? 'true' : 'false' }}"
+                                   aria-controls="tocchildren_{{ item.id }}">
                                     {{ item.title | raw }}
                                 </a>
                             {% else %}
@@ -110,9 +94,9 @@
                     </div>
                     {% if item.children|length %}
                         <div id="tocchildren_{{ item.id }}"
-                             class="panel-collapse collapse {{ item.is_parent_of_current ? 'in' : '' }}"
+                             class="panel-collapse collapse {{ isCurrentItem ? 'in' : '' }}"
                              role="tabpanel"
-                             aria-labelledby="heading_item_{{item.id}}">
+                             aria-labelledby="heading_item_{{ item.id }}">
                             <div class="panel-body">
                                 {% for child in item.children %}
                                     {{ self.tree(child) }}

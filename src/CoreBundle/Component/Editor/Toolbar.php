@@ -16,8 +16,6 @@ class Toolbar
     public array $defaultPlugins = [];
 
     /**
-     * Toolbar constructor.
-     *
      * @param RouterInterface $urlGenerator
      * @param null            $toolbar
      * @param array           $config
@@ -32,14 +30,14 @@ class Toolbar
         $this->urlGenerator = $urlGenerator;
 
         if (!empty($toolbar)) {
-            $class = __NAMESPACE__.'\\'.$prefix.'\\Toolbar\\'.$toolbar;
+            $class = __NAMESPACE__.'\\'.$prefix.'\Toolbar\\'.$toolbar;
             if (class_exists($class)) {
                 $this->setConfig($config);
                 $toolbarObj = new $class($urlGenerator, $toolbar, $config);
                 $config = $toolbarObj->getConfig();
 
-                if (api_get_configuration_value('full_ckeditor_toolbar_set')) {
-                    $basicClass = __NAMESPACE__.'\\'.$prefix.'\\Toolbar\\Basic';
+                if ('true' === api_get_setting('editor.full_ckeditor_toolbar_set')) {
+                    $basicClass = __NAMESPACE__.'\\'.$prefix.'\Toolbar\Basic';
                     $basicObj = new $basicClass($urlGenerator, $toolbar, $config);
                     $basicConfig = $basicObj->getConfig();
                     if ('true' === api_get_setting('more_buttons_maximized_mode')) {

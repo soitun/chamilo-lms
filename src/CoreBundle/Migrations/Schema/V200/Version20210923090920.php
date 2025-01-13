@@ -22,14 +22,11 @@ final class Version20210923090920 extends AbstractMigrationChamilo
 
     public function up(Schema $schema): void
     {
-        $em = $this->getEntityManager();
-        $container = $this->getContainer();
-
         /** @var Kernel $kernel */
-        $kernel = $container->get('kernel');
+        $kernel = $this->container->get('kernel');
         $rootPath = $kernel->getProjectDir();
-        $illustrationRepo = $container->get(IllustrationRepository::class);
-        $q = $em->createQuery('SELECT c FROM Chamilo\CoreBundle\Entity\Course c');
+        $illustrationRepo = $this->container->get(IllustrationRepository::class);
+        $q = $this->entityManager->createQuery('SELECT c FROM Chamilo\CoreBundle\Entity\Course c');
 
         /** @var Course $course */
         foreach ($q->toIterable() as $course) {
@@ -42,8 +39,8 @@ final class Version20210923090920 extends AbstractMigrationChamilo
                 continue;
             }
 
-            $picturePath = $rootPath.'/app/courses/'.$directory.'/course-pic.png';
-
+            $picturePath = $this->getUpdateRootPath().'/app/courses/'.$directory.'/course-pic.png';
+            error_log('MIGRATIONS :: $filePath -- '.$picturePath.' ...');
             if ($this->fileExists($picturePath)) {
                 $admin = $this->getAdmin();
                 $mimeType = mime_content_type($picturePath);
@@ -53,8 +50,8 @@ final class Version20210923090920 extends AbstractMigrationChamilo
                     $admin,
                     $uploadFile
                 );
-                $em->persist($course);
-                $em->flush();
+                $this->entityManager->persist($course);
+                $this->entityManager->flush();
             }
         }
     }

@@ -55,24 +55,23 @@ class LearnpathList
         $course_id = $courseInfo['real_id'];
         $this->user_id = $user_id;
 
-        $order = ' ORDER BY lp.displayOrder ASC, lp.name ASC';
-        if (isset($order_by)) {
-            $order = Database::parse_conditions(['order' => $order_by]);
-        }
-
         $repo = Container::getLpRepository();
 
         $course = api_get_course_entity($course_id);
         $session = api_get_session_entity($session_id);
-        $qb = $repo->getResourcesByCourse($course, $session);
+        $qb = $repo->getResourcesByCourse($course, $session, null, null, true, true);
+
+        if (!empty($order_by)) {
+            $qb->addOrderBy($order_by);
+        }
 
         $now = api_get_utc_datetime();
         if ($check_publication_dates) {
             $qb->andWhere(
-                " (resource.publicatedOn IS NOT NULL AND resource.publicatedOn < '$now' AND resource.expiredOn IS NOT NULL AND resource.expiredOn > '$now') OR
-                  (resource.publicatedOn IS NOT NULL AND resource.publicatedOn < '$now' AND resource.expiredOn IS NULL) OR
-                  (resource.publicatedOn IS NULL AND resource.expiredOn IS NOT NULL AND resource.expiredOn > '$now') OR
-                  (resource.publicatedOn IS NULL AND resource.expiredOn IS NULL) "
+                " (resource.publishedOn IS NOT NULL AND resource.publishedOn < '$now' AND resource.expiredOn IS NOT NULL AND resource.expiredOn > '$now') OR
+                  (resource.publishedOn IS NOT NULL AND resource.publishedOn < '$now' AND resource.expiredOn IS NULL) OR
+                  (resource.publishedOn IS NULL AND resource.expiredOn IS NOT NULL AND resource.expiredOn > '$now') OR
+                  (resource.publishedOn IS NULL AND resource.expiredOn IS NULL) "
             );
         }
 
@@ -94,7 +93,8 @@ class LearnpathList
                     $order
                 ";*/
         //$learningPaths = Database::getManager()->createQuery($dql)->getResult();
-        $showBlockedPrerequisite = api_get_configuration_value('show_prerequisite_as_blocked');
+
+        $showBlockedPrerequisite = ('true' === api_get_setting('lp.show_prerequisite_as_blocked'));
         $names = [];
         $isAllowToEdit = api_is_allowed_to_edit();
         $learningPaths = $qb->getQuery()->getResult();
@@ -119,7 +119,7 @@ class LearnpathList
                 $lp->getId(),
                 $session_id
             );*/
-            $visibility = $lp->isVisible($course);
+            $visibility = $lp->isVisible($course, $session);
 
             // If option is not true then don't show invisible LP to user
             if (false === $ignoreLpVisibility) {
@@ -135,10 +135,13 @@ class LearnpathList
                 }
             }
 
+            $link = $lp->getFirstResourceLink();
+            $resourceNode = $lp->getResourceNode();
+
             $this->list[$lp->getIid()] = [
                 'lp_type' => $lp->getLpType(),
-                'lp_session' => 0,
-                'lp_name' => stripslashes($lp->getName()),
+                'lp_session' => $link && $link->getSession() ? (int) $link->getSession()->getId() : 0,
+                'lp_name' => stripslashes($lp->getTitle()),
                 'lp_desc' => stripslashes($lp->getDescription()),
                 'lp_path' => $lp->getPath(),
                 'lp_view_mode' => $lp->getDefaultViewMod(),
@@ -151,11 +154,10 @@ class LearnpathList
                 'lp_prevent_reinit' => $lp->getPreventReinit(),
                 'seriousgame_mode' => $lp->getSeriousgameMode(),
                 'lp_scorm_debug' => $lp->getDebug(),
-                'lp_display_order' => $lp->getDisplayOrder(),
                 'autolaunch' => $lp->getAutolaunch(),
                 'created_on' => $lp->getCreatedOn() ? $lp->getCreatedOn()->format('Y-m-d H:i:s') : null,
                 'modified_on' => $lp->getModifiedOn() ? $lp->getModifiedOn()->format('Y-m-d H:i:s') : null,
-                'publicated_on' => $lp->getPublicatedOn() ? $lp->getPublicatedOn()->format('Y-m-d H:i:s') : null,
+                'published_on' => $lp->getPublishedOn() ? $lp->getPublishedOn()->format('Y-m-d H:i:s') : null,
                 'expired_on' => $lp->getExpiredOn() ? $lp->getExpiredOn()->format('Y-m-d H:i:s') : null,
                 //'category_id'       => $lp['category_id'],
                 'subscribe_users' => $lp->getSubscribeUsers(),
@@ -164,9 +166,9 @@ class LearnpathList
                 'prerequisite' => $lp->getPrerequisite(),
                 'entity' => $lp,
             ];
-            $names[$lp->getName()] = $lp->getIid();
+            $names[$lp->getTitle()] = $lp->getIid();
         }
-        asort($names);
+        //asort($names);
         $this->alpha_list = $names;
     }
 

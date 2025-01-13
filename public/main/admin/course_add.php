@@ -3,6 +3,7 @@
 /* For licensing terms, see /license.txt */
 
 use Chamilo\CoreBundle\Entity\Course;
+use Chamilo\CoreBundle\Framework\Container;
 
 $cidReset = true;
 require_once __DIR__.'/../inc/global.inc.php';
@@ -96,7 +97,7 @@ $form->applyFilter('department_name', 'trim');
 // Department URL
 $form->addText(
     'department_url',
-    get_lang('DepartmentURL'),
+    get_lang('Department URL'),
     false,
     ['size' => '60', 'id' => 'department_url']
 );
@@ -134,7 +135,7 @@ $form->addGroup($group, '', get_lang('Subscription'));
 
 $group = [];
 $group[] = $form->createElement('radio', 'unsubscribe', get_lang('Unsubscribe'), get_lang('Users are allowed to unsubscribe from this course'), 1);
-$group[] = $form->createElement('radio', 'unsubscribe', null, get_lang('NotUsers are allowed to unsubscribe from this course'), 0);
+$group[] = $form->createElement('radio', 'unsubscribe', null, get_lang('Users are not allowed to unsubscribe from this course'), 0);
 $form->addGroup($group, '', get_lang('Unsubscribe'));
 
 $form->addElement('text', 'disk_quota', [get_lang('Disk Space'), null, get_lang('MB')], [
@@ -142,10 +143,18 @@ $form->addElement('text', 'disk_quota', [get_lang('Disk Space'), null, get_lang(
 ]);
 $form->addRule('disk_quota', get_lang('This field should be numeric'), 'numeric');
 $form->addText('video_url', get_lang('Video URL'), false);
-$form->addCheckBox('sticky', null, get_lang('Sticky'));
+$form->addCheckBox('sticky', null, get_lang('Special course'));
 
 $obj = new GradeModel();
 $obj->fill_grade_model_select_in_form($form);
+
+if ('true' === api_get_setting('course.show_course_duration')) {
+    $form->addElement('text', 'duration', get_lang('Duration (in minutes)'), [
+        'id' => 'duration',
+        'maxlength' => 10,
+    ]);
+    $form->addRule('duration', get_lang('This field should be numeric'), 'numeric');
+}
 
 //Extra fields
 $extra_field = new ExtraField('course');
@@ -164,7 +173,7 @@ $form->addButtonCreate(get_lang('Create a course'));
 
 // Set some default values.
 $values['course_language'] = api_get_setting('platformLanguage');
-$values['disk_quota'] = round(api_get_setting('default_document_quotum') / 1024 / 1024, 1);
+$values['disk_quota'] = round(api_get_setting('default_document_quotum'), 1);
 
 $default_course_visibility = api_get_setting('courses_default_creation_visibility');
 
@@ -181,23 +190,24 @@ $form->setDefaults($values);
 
 // Validate the form
 if ($form->validate()) {
-    $course = $form->exportValues();
+    $courseData = $form->exportValues();
 
-    $course_teachers = isset($course['course_teachers']) ? $course['course_teachers'] : null;
-    $course['disk_quota'] = $course['disk_quota'] * 1024 * 1024;
-    $course['exemplary_content'] = empty($course['exemplary_content']) ? false : true;
-    $course['teachers'] = $course_teachers;
-    $course['wanted_code'] = $course['visual_code'];
-    $course['gradebook_model_id'] = isset($course['gradebook_model_id']) ? $course['gradebook_model_id'] : null;
+    $course_teachers = isset($courseData['course_teachers']) ? $courseData['course_teachers'] : null;
+    $courseData['exemplary_content'] = empty($courseData['exemplary_content']) ? false : true;
+    $courseData['teachers'] = $course_teachers;
+    $courseData['wanted_code'] = $courseData['visual_code'];
+    $courseData['gradebook_model_id'] = isset($courseData['gradebook_model_id']) ? $courseData['gradebook_model_id'] : null;
 
-    include_once api_get_path(SYS_CODE_PATH).'lang/english/trad4all.inc.php';
-    $file_to_include = api_get_path(SYS_CODE_PATH).'lang/'.$course['course_language'].'/trad4all.inc.php';
-
-    if (file_exists($file_to_include)) {
-        include $file_to_include;
+    if (isset($courseData['duration'])) {
+        $courseData['duration'] = (int) $courseData['duration'] * 60; // Convert minutes to seconds
     }
 
-    $course = CourseManager::create_course($course);
+    if (!empty($courseData['course_language'])) {
+        $translator = Container::$container->get('translator');
+        $translator->setLocale($courseData['course_language']);
+    }
+
+    $course = CourseManager::create_course($courseData);
     if (null !== $course) {
         Display::addFlash(
             Display::return_message(

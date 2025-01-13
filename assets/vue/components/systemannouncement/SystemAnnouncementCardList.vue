@@ -1,25 +1,29 @@
 <template>
-  <div
+  <div v-if="announcements.length > 0">
+    <SystemAnnouncementCard
       v-for="announcement in announcements"
       :key="announcement.id"
-  >
-    <SystemAnnouncementCard
-        :announcement="announcement"
+      :announcement="announcement"
     />
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref } from "vue"
+import axios from "axios"
 
-import SystemAnnouncementCard from './SystemAnnouncementCard';
+import SystemAnnouncementCard from "./SystemAnnouncementCard.vue"
 
-export default {
-  name: 'SystemAnnouncementCardList',
-  components: {
-    SystemAnnouncementCard
-  },
-  props: {
-    announcements: Array,
-  }
-};
+const announcements = ref([])
+
+axios
+  .get("/news/list")
+  .then((response) => {
+    if (Array.isArray(response.data)) {
+      announcements.value = response.data
+    }
+  })
+  .catch(function (error) {
+    console.log(error)
+  })
 </script>

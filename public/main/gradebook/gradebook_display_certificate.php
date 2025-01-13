@@ -3,6 +3,8 @@
 /* For licensing terms, see /license.txt */
 
 use Chamilo\CoreBundle\Framework\Container;
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
 
 require_once __DIR__.'/../inc/global.inc.php';
 $current_course_tool = TOOL_GRADEBOOK;
@@ -80,7 +82,6 @@ if ('true' === $filter) {
 }
 
 $content = '';
-$courseCode = api_get_course_id();
 $allowCustomCertificate = 'true' === api_get_plugin_setting('customcertificate', 'enable_plugin_customcertificate') &&
     1 == api_get_course_setting('customcertificate_course_enable', $courseInfo);
 
@@ -169,7 +170,7 @@ switch ($action) {
         }
         exit;
     case 'generate_all_certificates':
-        $userList = CourseManager::get_user_list_from_course_code(api_get_course_id(), api_get_session_id());
+        $userList = CourseManager::getUserListFromCourseId(api_get_course_int_id(), api_get_session_id());
         if (!empty($userList)) {
             foreach ($userList as $userInfo) {
                 if (INVITEE == $userInfo['status']) {
@@ -202,7 +203,7 @@ if ('delete' === $action) {
     $check = Security::check_token('get');
     if ($check) {
         $certificate = new Certificate($_GET['certificate_id']);
-        $result = $certificate->deleteCertificate(true);
+        $result = $certificate->deleteCertificate();
         Security::clear_token();
         if (true == $result) {
             echo Display::return_message(get_lang('Certificate removed'), 'confirmation');
@@ -220,7 +221,15 @@ if (!empty($content)) {
 }
 
 //@todo replace all this code with something like get_total_weight()
-$cats = Category::load($categoryId, null, null, null, null, null, false);
+$cats = Category::load(
+    $categoryId,
+    null,
+    0,
+    null,
+    null,
+    null,
+    null
+);
 
 if (!empty($cats)) {
     //with this fix the teacher only can view 1 gradebook
@@ -233,7 +242,7 @@ if (!empty($cats)) {
     $total_weight = $cats[0]->get_weight();
     $allcat = $cats[0]->get_subcategories(
         $stud_id,
-        api_get_course_id(),
+        api_get_course_int_id(),
         api_get_session_id()
     );
     $alleval = $cats[0]->get_evaluations($stud_id);
@@ -272,11 +281,11 @@ if (!empty($cats)) {
 
 $actions = '';
 $actions .= Display::url(
-    Display::return_icon('tuning.png', get_lang('Generate certificates'), [], ICON_SIZE_MEDIUM),
+    Display::getMdiIcon(ObjectIcon::CERTIFICATE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Generate certificates')),
     $url.'&action=generate_all_certificates'
 );
 $actions .= Display::url(
-    Display::return_icon('delete.png', get_lang('Delete all certificates'), [], ICON_SIZE_MEDIUM),
+    Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Delete all certificates')),
     $url.'&action=delete_all_certificates'
 );
 
@@ -284,19 +293,19 @@ $hideCertificateExport = api_get_setting('hide_certificate_export_link');
 
 if (count($certificate_list) > 0 && 'true' !== $hideCertificateExport) {
     $actions .= Display::url(
-        Display::return_icon('pdf.png', get_lang('Export all certificates to PDF'), [], ICON_SIZE_MEDIUM),
+        Display::getMdiIcon(ActionIcon::EXPORT_PDF, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Export all certificates to PDF')),
         $url.'&action=export_all_certificates'
     );
 
     if ($allowCustomCertificate) {
         $actions .= Display::url(
-            Display::return_icon('file_zip.png', get_lang('ExportAllCertificatesToZIP'), [], ICON_SIZE_MEDIUM),
+            Display::getMdiIcon(ActionIcon::EXPORT_ARCHIVE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('ExportAllCertificatesToZIP')),
             $url.'&action=export_all_certificates_zip'
         );
     }
 
     $actions .= Display::url(
-        Display::return_icon('notification_mail.png', get_lang('Send messageCertificateNotifications'), [], ICON_SIZE_MEDIUM),
+        Display::getMdiIcon(ActionIcon::SEND_MESSAGE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Send messageCertificateNotifications')),
         $url.'&action=show_notification_form'
     );
 }
@@ -330,20 +339,20 @@ if (0 == count($certificate_list)) {
             $certificateUrl = Display::url(
                 get_lang('Certificate'),
                 $url,
-                ['target' => '_blank', 'class' => 'btn btn-default']
+                ['target' => '_blank', 'class' => 'btn btn--plain']
             );
             echo $certificateUrl.PHP_EOL;
 
             $url .= '&action=export';
             $pdf = Display::url(
-                Display::return_icon('pdf.png', get_lang('Download')),
+                Display::getMdiIcon(ActionIcon::EXPORT_PDF, 'ch-tool-icon', null, ICON_SIZE_SMALL, get_lang('Download')),
                 $url,
                 ['target' => '_blank']
             );
             echo $pdf.PHP_EOL;
 
             echo '<a onclick="return confirmation();" href="gradebook_display_certificate.php?sec_token='.$token.'&'.api_get_cidreq().'&action=delete&cat_id='.$categoryId.'&certificate_id='.$valueCertificate['id'].'">
-                    '.Display::return_icon('delete.png', get_lang('Delete')).'
+                    '.Display::getMdiIcon(ActionIcon::DELETE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Delete')).'
                   </a>'.PHP_EOL;
             echo '</td></tr>';
         }

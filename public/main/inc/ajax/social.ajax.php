@@ -55,7 +55,7 @@ switch ($action) {
                                             <a href="profile.php?u='.$friend['friend_user_id'].'">'.$user_name.'</a>
                                         </h3>
                                         <p>
-                                            <button class="btn btn-danger" onclick="delete_friend(this)" id=img_'.$friend['friend_user_id'].'>
+                                            <button class="btn btn--danger" onclick="delete_friend(this)" id=img_'.$friend['friend_user_id'].'>
                                                 '.get_lang('Delete').'
                                             </button>
                                         </p>
@@ -88,7 +88,7 @@ switch ($action) {
                 $course_code = $course->getCode();
                 $user = api_get_user_entity();
 
-                if ($course->hasUser($user)) {
+                if ($course->hasSubscriptionByUser($user)) {
                     //------Forum messages
                     $forum_result = Container::getForumPostRepository()->countUserForumPosts($user, $course);
                     $all_result_data = 0;
@@ -209,7 +209,7 @@ switch ($action) {
 
         if (
             api_is_anonymous() ||
-            !api_get_configuration_value('social_enable_messages_feedback')
+            !api_get_setting('social.social_enable_messages_feedback')
         ) {
             echo json_encode(false);
             exit;

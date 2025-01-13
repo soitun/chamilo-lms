@@ -14,6 +14,7 @@ use Chamilo\CoreBundle\Repository\CourseCategoryRepository;
 use Chamilo\CoreBundle\Repository\ExtraFieldOptionsRepository;
 use Chamilo\CoreBundle\Repository\ExtraFieldRepository;
 use Chamilo\CoreBundle\Repository\GradeBookCategoryRepository;
+use Chamilo\CoreBundle\Repository\GradebookCertificateRepository;
 use Chamilo\CoreBundle\Repository\LanguageRepository;
 use Chamilo\CoreBundle\Repository\LegalRepository;
 use Chamilo\CoreBundle\Repository\MessageRepository;
@@ -22,10 +23,12 @@ use Chamilo\CoreBundle\Repository\Node\CourseRepository;
 use Chamilo\CoreBundle\Repository\Node\IllustrationRepository;
 use Chamilo\CoreBundle\Repository\Node\MessageAttachmentRepository;
 use Chamilo\CoreBundle\Repository\Node\PersonalFileRepository;
+use Chamilo\CoreBundle\Repository\Node\SocialPostAttachmentRepository;
 use Chamilo\CoreBundle\Repository\Node\TicketMessageAttachmentRepository;
 use Chamilo\CoreBundle\Repository\Node\UsergroupRepository;
 use Chamilo\CoreBundle\Repository\Node\UserRepository;
 use Chamilo\CoreBundle\Repository\PromotionRepository;
+use Chamilo\CoreBundle\Repository\ResourceNodeRepository;
 use Chamilo\CoreBundle\Repository\SequenceRepository;
 use Chamilo\CoreBundle\Repository\SequenceResourceRepository;
 use Chamilo\CoreBundle\Repository\SessionRepository;
@@ -33,8 +36,13 @@ use Chamilo\CoreBundle\Repository\SkillRepository;
 use Chamilo\CoreBundle\Repository\SocialPostRepository;
 use Chamilo\CoreBundle\Repository\SysAnnouncementRepository;
 use Chamilo\CoreBundle\Repository\TagRepository;
+use Chamilo\CoreBundle\Repository\TrackEDownloadsRepository;
 use Chamilo\CoreBundle\Repository\TrackEExerciseRepository;
+use Chamilo\CoreBundle\Repository\TrackELoginRecordRepository;
+use Chamilo\CoreBundle\Repository\TrackELoginRepository;
 use Chamilo\CoreBundle\Serializer\UserToJsonNormalizer;
+use Chamilo\CoreBundle\ServiceHelper\ContainerHelper;
+use Chamilo\CoreBundle\ServiceHelper\ThemeHelper;
 use Chamilo\CoreBundle\Settings\SettingsManager;
 use Chamilo\CoreBundle\Tool\ToolChain;
 use Chamilo\CourseBundle\Repository\CAnnouncementAttachmentRepository;
@@ -44,7 +52,6 @@ use Chamilo\CourseBundle\Repository\CCalendarEventAttachmentRepository;
 use Chamilo\CourseBundle\Repository\CCalendarEventRepository;
 use Chamilo\CourseBundle\Repository\CCourseDescriptionRepository;
 use Chamilo\CourseBundle\Repository\CDocumentRepository;
-use Chamilo\CourseBundle\Repository\CExerciseCategoryRepository;
 use Chamilo\CourseBundle\Repository\CForumAttachmentRepository;
 use Chamilo\CourseBundle\Repository\CForumCategoryRepository;
 use Chamilo\CourseBundle\Repository\CForumPostRepository;
@@ -59,6 +66,7 @@ use Chamilo\CourseBundle\Repository\CLpCategoryRepository;
 use Chamilo\CourseBundle\Repository\CLpItemRepository;
 use Chamilo\CourseBundle\Repository\CLpRepository;
 use Chamilo\CourseBundle\Repository\CNotebookRepository;
+use Chamilo\CourseBundle\Repository\CQuizCategoryRepository;
 use Chamilo\CourseBundle\Repository\CQuizQuestionCategoryRepository;
 use Chamilo\CourseBundle\Repository\CQuizQuestionRepository;
 use Chamilo\CourseBundle\Repository\CQuizRepository;
@@ -83,13 +91,16 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Form\FormFactory;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\Session;
+use Symfony\Component\HttpFoundation\Session\SessionInterface as HttpSessionInterface;
 use Symfony\Component\Mailer\Mailer;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Router;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Security\Core\Authorization\AuthorizationChecker;
-use Symfony\Contracts\Translation\TranslatorInterface;
+use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
+use Symfony\Component\Translation\Translator;
 use Twig\Environment;
+use UnitEnum;
 
 /**
  * Symfony services for the legacy Chamilo code.
@@ -98,8 +109,10 @@ class Container
 {
     public static ?ContainerInterface $container = null;
     public static ?Request $request = null;
-    public static ?TranslatorInterface $translator = null;
+    // For legacy, to get the translator service is necessary get it by Container::$container->get('translator')
+    public static ?Translator $translator = null;
     public static Environment $twig;
+    public static ?Session $session = null;
     public static string $legacyTemplate = '@ChamiloCore/Layout/layout_one_col.html.twig';
 
     public static function setContainer(ContainerInterface $container): void
@@ -107,10 +120,7 @@ class Container
         self::$container = $container;
     }
 
-    /**
-     * @return array|bool|float|int|string|null
-     */
-    public static function getParameter(string $parameter)
+    public static function getParameter(string $parameter): array|bool|float|int|string|UnitEnum|null
     {
         if (self::$container->hasParameter($parameter)) {
             return self::$container->getParameter($parameter);
@@ -119,50 +129,46 @@ class Container
         return false;
     }
 
+    public static function getLegacyHelper(): ContainerHelper
+    {
+        return self::$container->get(ContainerHelper::class);
+    }
+
     public static function getEnvironment(): string
     {
-        return self::$container->get('kernel')->getEnvironment();
+        return self::getLegacyHelper()->getKernel()->getEnvironment();
     }
 
     public static function getLogDir(): string
     {
-        return self::$container->get('kernel')->getLogDir();
+        return self::getLegacyHelper()->getKernel()->getLogDir();
     }
 
     public static function getCacheDir(): string
     {
-        return self::$container->get('kernel')->getCacheDir().'/';
+        return self::getLegacyHelper()->getKernel()->getCacheDir().'/';
     }
 
-    /**
-     * @return string
-     */
-    public static function getProjectDir()
+    public static function getProjectDir(): string
     {
         if (null !== self::$container) {
-            return self::$container->get('kernel')->getProjectDir().'/';
+            return self::getLegacyHelper()->getKernel()->getProjectDir().'/';
         }
 
         return str_replace('\\', '/', realpath(__DIR__.'/../../../')).'/';
     }
 
-    /**
-     * @return bool
-     */
-    public static function isInstalled()
+    public static function isInstalled(): bool
     {
-        return self::$container->get('kernel')->isInstalled();
+        return self::getLegacyHelper()->getKernel()->isInstalled();
     }
 
-    public static function getMessengerBus()
+    public static function getMessengerBus(): MessageBusInterface
     {
-        return self::$container->get('messenger.bus.default');
+        return self::getLegacyHelper()->getMessengerBus();
     }
 
-    /**
-     * @return Environment
-     */
-    public static function getTwig()
+    public static function getTwig(): Environment
     {
         return self::$twig;
     }
@@ -196,46 +202,32 @@ class Container
         self::$request = $request;
     }
 
-    /**
-     * @return false|Session
-     */
-    public static function getSession()
+    public static function getSession(): bool|HttpSessionInterface|Session|null
     {
+        if (null !== self::$session) {
+            return self::$session;
+        }
+
         if (null !== self::$container) {
-            return self::$container->get('session');
+            return self::$container->get('request_stack')->getSession();
         }
 
         return false;
     }
 
-    /**
-     * @return AuthorizationChecker
-     */
-    public static function getAuthorizationChecker()
+    public static function setSession(Session $session): void
     {
-        return self::$container->get('security.authorization_checker');
+        self::$session = $session;
     }
 
-    /**
-     * @return TokenStorage|TokenStorageInterface
-     */
-    public static function getTokenStorage()
+    public static function getAuthorizationChecker(): AuthorizationCheckerInterface
     {
-        return self::$container->get('security.token_storage');
+        return self::getLegacyHelper()->getAuthorizationChecker();
     }
 
-    /**
-     * @return TranslatorInterface
-     */
-    public static function getTranslator()
+    public static function getTokenStorage(): TokenStorageInterface|TokenStorage
     {
-        if (null !== self::$translator) {
-            return self::$translator;
-        }
-
-        //if (self::$container->has('translator')) {
-        return self::$container->get('translator');
-        //}
+        return self::getLegacyHelper()->getTokenStorage();
     }
 
     public static function getMailer(): Mailer
@@ -266,6 +258,11 @@ class Container
         return self::$container->get(AssetRepository::class);
     }
 
+    public static function getResourceNodeRepository(): ResourceNodeRepository
+    {
+        return self::$container->get(ResourceNodeRepository::class);
+    }
+
     public static function getAttendanceRepository(): CAttendanceRepository
     {
         return self::$container->get(CAttendanceRepository::class);
@@ -289,6 +286,11 @@ class Container
     public static function getTicketMessageAttachmentRepository(): TicketMessageAttachmentRepository
     {
         return self::$container->get(TicketMessageAttachmentRepository::class);
+    }
+
+    public static function getSocialPostAttachmentRepository(): SocialPostAttachmentRepository
+    {
+        return self::$container->get(SocialPostAttachmentRepository::class);
     }
 
     public static function getCourseRepository(): CourseRepository
@@ -326,9 +328,9 @@ class Container
         return self::$container->get(CDocumentRepository::class);
     }
 
-    public static function getExerciseCategoryRepository(): CExerciseCategoryRepository
+    public static function getQuizCategoryRepository(): CQuizCategoryRepository
     {
-        return self::$container->get(CExerciseCategoryRepository::class);
+        return self::$container->get(CQuizCategoryRepository::class);
     }
 
     public static function getExternalToolRepository(): ExternalToolRepository
@@ -354,6 +356,11 @@ class Container
     public static function getGradeBookCategoryRepository(): GradeBookCategoryRepository
     {
         return self::$container->get(GradeBookCategoryRepository::class);
+    }
+
+    public static function getGradeBookCertificateRepository(): GradebookCertificateRepository
+    {
+        return self::$container->get(GradebookCertificateRepository::class);
     }
 
     public static function getGroupRepository(): CGroupRepository
@@ -571,6 +578,11 @@ class Container
         return self::$container->get(TrackEExerciseRepository::class);
     }
 
+    public static function getTrackEDownloadsRepository(): TrackEDownloadsRepository
+    {
+        return self::$container->get(TrackEDownloadsRepository::class);
+    }
+
     public static function getWikiRepository(): CWikiRepository
     {
         return self::$container->get(CWikiRepository::class);
@@ -591,13 +603,18 @@ class Container
         return self::$container->get('form.factory');
     }
 
-    /**
-     * @param string $type error|success|warning|danger
-     */
     public static function addFlash(string $message, string $type = 'success'): void
     {
+        $type = match ($type) {
+            'confirmation', 'confirm' => 'success',
+            default => 'info',
+        };
+
         $session = self::getSession();
-        $session->getFlashBag()->add($type, $message);
+
+        if ($session instanceof Session) {
+            $session->getFlashBag()->add($type, $message);
+        }
     }
 
     public static function getRouter(): Router
@@ -614,6 +631,7 @@ class Container
     {
         $doctrine = $container->get('doctrine');
         Database::setConnection($doctrine->getConnection());
+
         /** @var EntityManager $em */
         $em = $doctrine->getManager();
         Database::setManager($em);
@@ -622,5 +640,20 @@ class Container
     public static function getSocialPostRepository(): SocialPostRepository
     {
         return self::$container->get(SocialPostRepository::class);
+    }
+
+    public static function getTrackELoginRepository(): TrackELoginRepository
+    {
+        return self::$container->get(TrackELoginRepository::class);
+    }
+
+    public static function getTrackELoginRecordRepository(): TrackELoginRecordRepository
+    {
+        return self::$container->get(TrackELoginRecordRepository::class);
+    }
+
+    public static function getThemeHelper(): ThemeHelper
+    {
+        return self::$container->get(ThemeHelper::class);
     }
 }

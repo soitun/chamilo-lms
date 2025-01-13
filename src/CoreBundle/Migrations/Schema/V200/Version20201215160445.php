@@ -9,20 +9,15 @@ namespace Chamilo\CoreBundle\Migrations\Schema\V200;
 use Chamilo\CoreBundle\Entity\Course;
 use Chamilo\CoreBundle\Migrations\AbstractMigrationChamilo;
 use Chamilo\CoreBundle\Repository\Node\CourseRepository;
-use Chamilo\CoreBundle\Repository\Node\UserRepository;
-use Chamilo\CoreBundle\Repository\SessionRepository;
 use Chamilo\CourseBundle\Entity\CForum;
 use Chamilo\CourseBundle\Entity\CForumCategory;
 use Chamilo\CourseBundle\Entity\CForumPost;
 use Chamilo\CourseBundle\Entity\CForumThread;
-use Chamilo\CourseBundle\Repository\CForumAttachmentRepository;
 use Chamilo\CourseBundle\Repository\CForumCategoryRepository;
 use Chamilo\CourseBundle\Repository\CForumPostRepository;
 use Chamilo\CourseBundle\Repository\CForumRepository;
 use Chamilo\CourseBundle\Repository\CForumThreadRepository;
-use Chamilo\CourseBundle\Repository\CGroupRepository;
 use Chamilo\Kernel;
-use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Schema;
 
 final class Version20201215160445 extends AbstractMigrationChamilo
@@ -34,28 +29,18 @@ final class Version20201215160445 extends AbstractMigrationChamilo
 
     public function up(Schema $schema): void
     {
-        $container = $this->getContainer();
-        $doctrine = $container->get('doctrine');
-        $em = $doctrine->getManager();
-        /** @var Connection $connection */
-        $connection = $em->getConnection();
-
-        $forumCategoryRepo = $container->get(CForumCategoryRepository::class);
-        $forumRepo = $container->get(CForumRepository::class);
-        $forumAttachmentRepo = $container->get(CForumAttachmentRepository::class);
-        $forumThreadRepo = $container->get(CForumThreadRepository::class);
-        $forumPostRepo = $container->get(CForumPostRepository::class);
-
-        $courseRepo = $container->get(CourseRepository::class);
-        $sessionRepo = $container->get(SessionRepository::class);
-        $groupRepo = $container->get(CGroupRepository::class);
-        $userRepo = $container->get(UserRepository::class);
+        $forumCategoryRepo = $this->container->get(CForumCategoryRepository::class);
+        $forumRepo = $this->container->get(CForumRepository::class);
+        $forumThreadRepo = $this->container->get(CForumThreadRepository::class);
+        $forumPostRepo = $this->container->get(CForumPostRepository::class);
+        $courseRepo = $this->container->get(CourseRepository::class);
 
         /** @var Kernel $kernel */
-        $kernel = $container->get('kernel');
+        $kernel = $this->container->get('kernel');
         $rootPath = $kernel->getProjectDir();
 
-        $q = $em->createQuery('SELECT c FROM Chamilo\CoreBundle\Entity\Course c');
+        $q = $this->entityManager->createQuery('SELECT c FROM Chamilo\CoreBundle\Entity\Course c');
+
         /** @var Course $course */
         foreach ($q->toIterable() as $course) {
             $courseId = $course->getId();
@@ -66,10 +51,11 @@ final class Version20201215160445 extends AbstractMigrationChamilo
             // Categories.
             $sql = "SELECT * FROM c_forum_category WHERE c_id = {$courseId}
                     ORDER BY iid";
-            $result = $connection->executeQuery($sql);
+            $result = $this->connection->executeQuery($sql);
             $items = $result->fetchAllAssociative();
             foreach ($items as $itemData) {
                 $id = $itemData['iid'];
+
                 /** @var CForumCategory $resource */
                 $resource = $forumCategoryRepo->find($id);
                 if ($resource->hasResourceNode()) {
@@ -88,22 +74,23 @@ final class Version20201215160445 extends AbstractMigrationChamilo
                     continue;
                 }
 
-                $em->persist($resource);
-                $em->flush();
+                $this->entityManager->persist($resource);
+                $this->entityManager->flush();
             }
 
-            $em->flush();
-            $em->clear();
+            $this->entityManager->flush();
+            $this->entityManager->clear();
 
             // Forums.
             $sql = "SELECT * FROM c_forum_forum WHERE c_id = {$courseId}
                     ORDER BY iid";
-            $result = $connection->executeQuery($sql);
+            $result = $this->connection->executeQuery($sql);
             $items = $result->fetchAllAssociative();
 
             $admin = $this->getAdmin();
             foreach ($items as $itemData) {
                 $id = $itemData['iid'];
+
                 /** @var CForum $resource */
                 $resource = $forumRepo->find($id);
                 if ($resource->hasResourceNode()) {
@@ -133,12 +120,13 @@ final class Version20201215160445 extends AbstractMigrationChamilo
                     $parent
                 );
 
-                $em->persist($resource);
-                $em->flush();
+                $this->entityManager->persist($resource);
+                $this->entityManager->flush();
 
                 $forumImage = $itemData['forum_image'];
                 if (!empty($forumImage)) {
-                    $filePath = $rootPath.'/app/courses/'.$course->getDirectory().'/upload/forum/images/'.$forumImage;
+                    $filePath = $this->getUpdateRootPath().'/app/courses/'.$course->getDirectory().'/upload/forum/images/'.$forumImage;
+                    error_log('MIGRATIONS :: $filePath -- '.$filePath.' ...');
                     if ($this->fileExists($filePath)) {
                         $this->addLegacyFileToResource($filePath, $forumRepo, $resource, $id, $forumImage);
                     }
@@ -147,21 +135,22 @@ final class Version20201215160445 extends AbstractMigrationChamilo
                 if (false === $result) {
                     continue;
                 }
-                $em->persist($resource);
-                $em->flush();
+                $this->entityManager->persist($resource);
+                $this->entityManager->flush();
             }
-            $em->flush();
-            $em->clear();
+            $this->entityManager->flush();
+            $this->entityManager->clear();
 
             // Threads.
             $sql = "SELECT * FROM c_forum_thread WHERE c_id = {$courseId}
                     ORDER BY iid";
-            $result = $connection->executeQuery($sql);
+            $result = $this->connection->executeQuery($sql);
             $items = $result->fetchAllAssociative();
             $admin = $this->getAdmin();
 
             foreach ($items as $itemData) {
                 $id = (int) $itemData['iid'];
+
                 /** @var CForumThread $resource */
                 $resource = $forumThreadRepo->find($id);
                 if ($resource->hasResourceNode()) {
@@ -194,21 +183,22 @@ final class Version20201215160445 extends AbstractMigrationChamilo
                     continue;
                 }
 
-                $em->persist($resource);
-                $em->flush();
+                $this->entityManager->persist($resource);
+                $this->entityManager->flush();
             }
 
-            $em->flush();
-            $em->clear();
+            $this->entityManager->flush();
+            $this->entityManager->clear();
 
             // Posts.
             $sql = "SELECT * FROM c_forum_post WHERE c_id = {$courseId}
                     ORDER BY iid";
-            $result = $connection->executeQuery($sql);
+            $result = $this->connection->executeQuery($sql);
             $items = $result->fetchAllAssociative();
             $admin = $this->getAdmin();
             foreach ($items as $itemData) {
                 $id = (int) $itemData['iid'];
+
                 /** @var CForumPost $resource */
                 $resource = $forumPostRepo->find($id);
 
@@ -216,8 +206,8 @@ final class Version20201215160445 extends AbstractMigrationChamilo
                     continue;
                 }
 
-                if (empty(trim($resource->getPostTitle()))) {
-                    $resource->setPostTitle(sprintf('Post #%s', $resource->getIid()));
+                if (empty(trim($resource->getTitle()))) {
+                    $resource->setTitle(\sprintf('Post #%s', $resource->getIid()));
                 }
 
                 $threadId = (int) $itemData['thread_id'];
@@ -255,20 +245,19 @@ final class Version20201215160445 extends AbstractMigrationChamilo
                     continue;
                 }
 
-                $em->persist($resource);
-                $em->flush();
+                $this->entityManager->persist($resource);
+                $this->entityManager->flush();
             }
 
-            $em->flush();
-            $em->clear();
+            $this->entityManager->flush();
+            $this->entityManager->clear();
 
             // Post attachments
             $sql = "SELECT * FROM c_forum_attachment WHERE c_id = {$courseId}
                     ORDER BY iid";
-            $result = $connection->executeQuery($sql);
+            $result = $this->connection->executeQuery($sql);
             $items = $result->fetchAllAssociative();
 
-            $forumPostRepo = $container->get(CForumPostRepository::class);
             foreach ($items as $itemData) {
                 $id = $itemData['iid'];
                 $postId = (int) $itemData['post_id'];
@@ -283,16 +272,17 @@ final class Version20201215160445 extends AbstractMigrationChamilo
                 }
 
                 if (!empty($fileName) && !empty($path)) {
-                    $filePath = $rootPath.'/app/courses/'.$course->getDirectory().'/upload/forum/'.$path;
+                    $filePath = $this->getUpdateRootPath().'/app/courses/'.$course->getDirectory().'/upload/forum/'.$path;
+                    error_log('MIGRATIONS :: $filePath -- '.$filePath.' ...');
                     if ($this->fileExists($filePath)) {
                         $this->addLegacyFileToResource($filePath, $forumPostRepo, $post, $id, $fileName);
-                        $em->persist($post);
-                        $em->flush();
+                        $this->entityManager->persist($post);
+                        $this->entityManager->flush();
                     }
                 }
             }
-            $em->flush();
-            $em->clear();
+            $this->entityManager->flush();
+            $this->entityManager->clear();
         }
     }
 }

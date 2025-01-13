@@ -8,50 +8,38 @@ namespace Chamilo\CoreBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
+use Stringable;
 
 /**
  * Skill level.
- *
- * @ORM\Table(name="skill_level")
- * @ORM\Entity
  */
-class Level
+#[ORM\Table(name: 'skill_level')]
+#[ORM\Entity]
+class Level implements Stringable
 {
-    /**
-     * @ORM\Column(name="id", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     */
-    protected int $id;
+    #[ORM\Column(name: 'id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    protected ?int $id = null;
 
-    /**
-     * @ORM\Column(name="name", type="string", length=255, nullable=false)
-     */
-    protected string $name;
+    #[ORM\Column(name: 'title', type: 'string', length: 255, nullable: false)]
+    protected string $title;
 
-    /**
-     * @Gedmo\SortablePosition
-     *
-     * @ORM\Column(name="position", type="integer")
-     */
+    #[Gedmo\SortablePosition]
+    #[ORM\Column(name: 'position', type: 'integer')]
     protected int $position;
 
-    /**
-     * @ORM\Column(name="short_name", type="string", length=255, nullable=false)
-     */
-    protected string $shortName;
+    #[ORM\Column(name: 'short_title', type: 'string', length: 255, nullable: false)]
+    protected string $shortTitle;
 
-    /**
-     * @Gedmo\SortableGroup
-     *
-     * @ORM\ManyToOne(targetEntity="Chamilo\CoreBundle\Entity\Profile", inversedBy="levels")
-     * @ORM\JoinColumn(name="profile_id", referencedColumnName="id")
-     */
-    protected ?Profile $profile = null;
+    #[Gedmo\SortableGroup]
+    #[ORM\ManyToOne(targetEntity: SkillLevelProfile::class, inversedBy: 'levels')]
+    #[ORM\JoinColumn(name: 'profile_id', referencedColumnName: 'id')]
+    protected ?SkillLevelProfile $profile = null;
 
     public function __toString(): string
     {
-        return $this->getName();
+        return $this->getTitle();
     }
 
     /**
@@ -65,14 +53,14 @@ class Level
     /**
      * @return string
      */
-    public function getName()
+    public function getTitle()
     {
-        return $this->name;
+        return $this->title;
     }
 
-    public function setName(string $name): self
+    public function setTitle(string $title): self
     {
-        $this->name = $name;
+        $this->title = $title;
 
         return $this;
     }
@@ -89,27 +77,24 @@ class Level
         return $this;
     }
 
-    public function getShortName(): string
+    public function getShortTitle(): string
     {
-        return $this->shortName;
+        return $this->shortTitle;
     }
 
-    public function setShortName(string $shortName): self
+    public function setShortTitle(string $shortTitle): self
     {
-        $this->shortName = $shortName;
+        $this->shortTitle = $shortTitle;
 
         return $this;
     }
 
-    /**
-     * @return Profile
-     */
-    public function getProfile()
+    public function getProfile(): ?SkillLevelProfile
     {
         return $this->profile;
     }
 
-    public function setProfile(Profile $profile): self
+    public function setProfile(SkillLevelProfile $profile): self
     {
         $this->profile = $profile;
 

@@ -61,7 +61,7 @@ class LegalManager
             }
         }
 
-        if ($last['content'] != $content || !empty($changeList)) {
+        if ((isset($last['content']) && $last['content'] != $content) || !empty($changeList) || empty($last)) {
             $version = self::getLastVersion($language);
             $version++;
             $params = [
@@ -164,7 +164,7 @@ class LegalManager
                 ORDER BY version DESC
                 LIMIT 1 ";
         $result = Database::query($sql);
-        $result = Database::fetch_array($result, 'ASSOC');
+        $result = Database::fetch_assoc($result);
 
         if (isset($result['content'])) {
             $result['content'] = self::replaceTags($result['content']);
@@ -271,10 +271,6 @@ class LegalManager
                     </div>';
                 }
                 $preview .= get_lang('By clicking on \'Register\' below you are agreeing to the Terms and Conditions');
-                $courseInfo = api_get_course_info();
-                if ('course' === api_get_setting('load_term_conditions_section') && empty($courseInfo)) {
-                    $preview = '';
-                }
                 break;
                 // Page link
             case 1:
@@ -351,7 +347,7 @@ class LegalManager
                 FROM $table
                 ORDER BY id DESC ";
         $result = Database::query($sql);
-        $url = Database::fetch_array($result, 'ASSOC');
+        $url = Database::fetch_assoc($result);
         $result = $url['count_result'];
 
         return $result;
@@ -393,11 +389,12 @@ class LegalManager
         $link = trim(
             api_get_setting('course_validation_terms_and_conditions_url')
         );
+        $completeLink = '<a href="'.$link.'">'.$link.'</a>';
         // Note: Translated string has 3 replacement markers, not just one as the original string suggests.
         $content = sprintf(
             get_lang('Hello,<br />Your tutor sent you your terms and conditions. You can sign it following this URL: %s'),
             $studentDetails['firstname'],
-            $link,
+            $completeLink,
             $coachDetails['complete_name']
         );
         MessageManager::send_message_simple($userId, $subject, $content);
@@ -405,13 +402,13 @@ class LegalManager
 
         $extraFieldValue = new ExtraFieldValue('user');
         $value = $extraFieldValue->get_values_by_handler_and_field_variable($userId, 'termactivated');
-        if (false === $value) {
+        if (false === $value || $value['value'] != 1) {
             $extraFieldInfo = $extraFieldValue->getExtraField()->get_handler_field_info_by_field_variable('termactivated');
             if ($extraFieldInfo) {
                 $newParams = [
                     'item_id' => $userId,
                     'field_id' => $extraFieldInfo['id'],
-                    'value' => 1,
+                    'field_value' => 1,
                     'comment' => '',
                 ];
                 $extraFieldValue->save($newParams);

@@ -2,6 +2,8 @@
 
 /* For licensing terms, see /license.txt */
 
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+
 $cidReset = true;
 
 require_once __DIR__.'/../inc/global.inc.php';
@@ -98,6 +100,13 @@ $(function() {
                 break;
         }
     });
+
+    function adjustGridWidth() {
+        var gridParentWidth = $("#gbox_' . $obj->type . '_fields").parent().width();
+        $("#' . $obj->type . '_fields").jqGrid("setGridWidth", gridParentWidth, true);
+    }
+    $(window).resize(adjustGridWidth);
+    setTimeout(adjustGridWidth, 500);
 });
 </script>';
 
@@ -117,14 +126,17 @@ switch ($action) {
         if ($form->validate()) {
             $values = $form->exportValues();
             unset($values['id']);
+            $values['auto_remove'] = isset($_POST['auto_remove']) ? 1 : 0;
             $res = $obj->save($values);
             if ($res) {
-                echo Display::return_message(get_lang('Item added'), 'confirmation');
+                Display::addFlash(Display::return_message(get_lang('Item added'), 'confirmation'));
+                header('Location: '.api_get_self().'?type='.$obj->type);
+                exit;
             }
             $obj->display();
         } else {
             $actions = '<a href="'.api_get_self().'?type='.$obj->type.'">'.
-            Display::return_icon('back.png', get_lang('Back'), '', ICON_SIZE_MEDIUM).'</a>';
+            Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back')).'</a>';
             echo Display::toolbarAction('toolbar', [$actions]);
             $form->addElement('hidden', 'sec_token');
             $form->setConstants(['sec_token' => $token]);
@@ -139,16 +151,23 @@ switch ($action) {
         // The validation or display
         if ($form->validate()) {
             $values = $form->exportValues();
+            $values['auto_remove'] = isset($_POST['auto_remove']) ? 1 : 0;
             $res = $obj->update($values);
-            echo Display::return_message(
-                sprintf(get_lang('Item updated'), $values['variable']),
-                'confirmation',
-                false
-            );
+            if ($res) {
+                Display::addFlash(
+                    Display::return_message(
+                        sprintf(get_lang('Item updated'), $values['variable']),
+                        'confirmation',
+                        false
+                    )
+                );
+                header('Location: '.api_get_self().'?type='.$obj->type);
+                exit;
+            }
             $obj->display();
         } else {
             $actions = '<a href="'.api_get_self().'?type='.$obj->type.'">'.
-            Display::return_icon('back.png', get_lang('Back'), '', ICON_SIZE_MEDIUM).'</a>';
+            Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back')).'</a>';
             echo Display::toolbarAction('toolbar', [$actions]);
             $form->addElement('hidden', 'sec_token');
             $form->setConstants(['sec_token' => $token]);

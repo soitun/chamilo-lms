@@ -8,14 +8,14 @@ namespace Chamilo\CoreBundle\Tool;
 
 class Maintenance extends AbstractTool implements ToolInterface
 {
-    public function getName(): string
+    public function getTitle(): string
     {
         return 'course_maintenance';
     }
 
     public function getIcon(): string
     {
-        return 'mdi';
+        return 'mdi-wrench-cog';
     }
 
     public function getLink(): string

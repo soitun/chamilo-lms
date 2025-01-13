@@ -12,7 +12,6 @@ use Chamilo\CoreBundle\Entity\SettingsCurrent;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityRepository;
 use InvalidArgumentException;
-use Sylius\Bundle\SettingsBundle\Event\SettingsEvent;
 use Sylius\Bundle\SettingsBundle\Manager\SettingsManagerInterface;
 use Sylius\Bundle\SettingsBundle\Model\Settings;
 use Sylius\Bundle\SettingsBundle\Model\SettingsInterface;
@@ -21,8 +20,9 @@ use Sylius\Bundle\SettingsBundle\Schema\SchemaInterface;
 use Sylius\Bundle\SettingsBundle\Schema\SettingsBuilder;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\Validator\ConstraintViolationListInterface;
 use Symfony\Component\Validator\Exception\ValidatorException;
+
+use const ARRAY_FILTER_USE_KEY;
 
 /**
  * Handles the platform settings.
@@ -124,7 +124,7 @@ class SettingsManager implements SettingsManagerInterface
         $settings = $this->load($category);
 
         if (!$settings->has($name)) {
-            $message = sprintf("Parameter %s doesn't exists.", $name);
+            $message = \sprintf("Parameter %s doesn't exists.", $name);
 
             throw new InvalidArgumentException($message);
         }
@@ -133,7 +133,14 @@ class SettingsManager implements SettingsManagerInterface
         $this->update($settings);
     }
 
-    public function getSetting(string $name, bool $loadFromDb = false)
+    /**
+     * Get a specific configuration setting, getting from the previously stored
+     * PHP session data whenever possible.
+     *
+     * @param string $name       The setting name (composed if in a category, i.e. 'platform.institution')
+     * @param bool   $loadFromDb Whether to load from the database
+     */
+    public function getSetting(string $name, bool $loadFromDb = false): mixed
     {
         $name = $this->validateSetting($name);
 
@@ -141,77 +148,86 @@ class SettingsManager implements SettingsManagerInterface
 
         if ($loadFromDb) {
             $settings = $this->load($category, $name);
+            if ($settings->has($name)) {
+                return $settings->get($name);
+            }
 
-            return $settings->get($name);
+            return null;
         }
 
         $this->loadAll();
 
-        if (!empty($this->schemaList)) {
+        if (!empty($this->schemaList) && isset($this->schemaList[$category])) {
             $settings = $this->schemaList[$category];
+            if ($settings->has($name)) {
+                return $settings->get($name);
+            }
+            error_log("Attempted to access undefined setting '$name' in category '$category'.");
 
-            return $settings->get($name);
+            return null;
         }
 
-        throw new InvalidArgumentException(sprintf('Category %s not found', $category));
-        /*exit;
-
-        $settings = $this->load($category, $name);
-
-        if (!$settings) {
-            throw new \InvalidArgumentException(sprintf("Parameter '$name' not found in category '$category'"));
-        }
-
-        $this->settings = $settings;
-
-        return $settings->get($name);*/
+        throw new InvalidArgumentException(\sprintf('Category %s not found', $category));
     }
 
     public function loadAll(): void
     {
         $session = null;
+
         if ($this->request->getCurrentRequest()) {
             $session = $this->request->getCurrentRequest()->getSession();
             $schemaList = $session->get('schemas');
-            $this->schemaList = $schemaList;
+            if (!empty($schemaList)) {
+                $this->schemaList = $schemaList;
+
+                return;
+            }
         }
 
-        if (empty($this->schemaList)) {
-            $schemas = array_keys($this->getSchemas());
-            $schemaList = [];
-            $settingsBuilder = new SettingsBuilder();
-            $all = $this->getAllParametersByCategory();
+        $schemas = array_keys($this->getSchemas());
+        $schemaList = [];
+        $settingsBuilder = new SettingsBuilder();
+        $all = $this->getAllParametersByCategory();
 
-            foreach ($schemas as $schema) {
-                $schemaRegister = $this->schemaRegistry->get($schema);
-                $schemaRegister->buildSettings($settingsBuilder);
-                $name = $this->convertServiceToNameSpace($schema);
-                $settings = new Settings();
-                $parameters = $all[$name] ?? [];
-                $transformers = $settingsBuilder->getTransformers();
-                foreach ($transformers as $parameter => $transformer) {
-                    if (\array_key_exists($parameter, $parameters)) {
-                        if ('course_creation_use_template' === $parameter) {
-                            if (empty($parameters[$parameter])) {
-                                $parameters[$parameter] = null;
-                            }
-                        } else {
-                            $parameters[$parameter] = $transformer->reverseTransform($parameters[$parameter]);
+        foreach ($schemas as $schema) {
+            $schemaRegister = $this->schemaRegistry->get($schema);
+            $schemaRegister->buildSettings($settingsBuilder);
+            $name = $this->convertServiceToNameSpace($schema);
+            $settings = new Settings();
+
+            /** @var array<string, mixed> $parameters */
+            $parameters = $all[$name] ?? [];
+
+            $knownParameters = array_filter(
+                $parameters,
+                fn ($key): bool => $settingsBuilder->isDefined($key),
+                ARRAY_FILTER_USE_KEY
+            );
+
+            $transformers = $settingsBuilder->getTransformers();
+            foreach ($transformers as $parameter => $transformer) {
+                if (\array_key_exists($parameter, $knownParameters)) {
+                    if ('course_creation_use_template' === $parameter) {
+                        if (empty($knownParameters[$parameter])) {
+                            $knownParameters[$parameter] = null;
                         }
+                    } else {
+                        $knownParameters[$parameter] = $transformer->reverseTransform($knownParameters[$parameter]);
                     }
                 }
-                $parameters = $settingsBuilder->resolve($parameters);
-                $settings->setParameters($parameters);
-                $schemaList[$name] = $settings;
             }
-            $this->schemaList = $schemaList;
-            if ($session && $this->request->getCurrentRequest()) {
-                $session->set('schemas', $schemaList);
-            }
+
+            $parameters = $settingsBuilder->resolve($knownParameters);
+            $settings->setParameters($parameters);
+            $schemaList[$name] = $settings;
+        }
+        $this->schemaList = $schemaList;
+        if ($session && $this->request->getCurrentRequest()) {
+            $session->set('schemas', $schemaList);
         }
     }
 
-    public function load(string $schemaAlias, string $namespace = null, bool $ignoreUnknown = true): SettingsInterface
+    public function load(string $schemaAlias, ?string $namespace = null, bool $ignoreUnknown = true): SettingsInterface
     {
         $settings = new Settings();
         $schemaAliasNoPrefix = $schemaAlias;
@@ -241,13 +257,7 @@ class SettingsManager implements SettingsManagerInterface
 
         foreach ($settingsBuilder->getTransformers() as $parameter => $transformer) {
             if (\array_key_exists($parameter, $parameters)) {
-                if ('course_creation_use_template' === $parameter) {
-                    if (empty($parameters[$parameter])) {
-                        $parameters[$parameter] = null;
-                    }
-                } else {
-                    $parameters[$parameter] = $transformer->reverseTransform($parameters[$parameter]);
-                }
+                $parameters[$parameter] = $transformer->reverseTransform($parameters[$parameter]);
             }
         }
 
@@ -272,10 +282,8 @@ class SettingsManager implements SettingsManagerInterface
         // 2. Is defined as an array in class DocumentSettingsSchema
         // 3. Add transformer for that variable "ArrayToIdentifierTransformer"
         // 4. Here we recover the transformer and convert the array to string
-        foreach ($settingsBuilder->getTransformers() as $parameter => $transformer) {
-            if (\array_key_exists($parameter, $parameters)) {
-                $parameters[$parameter] = $transformer->transform($parameters[$parameter]);
-            }
+        foreach ($parameters as $parameter => $value) {
+            $parameters[$parameter] = $this->transformToString($value);
         }
 
         $settings->setParameters($parameters);
@@ -285,6 +293,7 @@ class SettingsManager implements SettingsManagerInterface
         ]);
 
         $persistedParametersMap = [];
+
         /** @var SettingsCurrent $parameter */
         foreach ($persistedParameters as $parameter) {
             $persistedParametersMap[$parameter->getVariable()] = $parameter;
@@ -310,11 +319,6 @@ class SettingsManager implements SettingsManagerInterface
                     ->setAccessUrlLocked(1)
                 ;
 
-                // @var ConstraintViolationListInterface $errors
-                /*$errors = $this->validator->validate($parameter);
-                if (0 < $errors->count()) {
-                    throw new ValidatorException($errors->get(0)->getMessage());
-                }*/
                 $this->manager->persist($parameter);
             }
         }
@@ -340,10 +344,8 @@ class SettingsManager implements SettingsManagerInterface
         // 2. Is defined as an array in class DocumentSettingsSchema
         // 3. Add transformer for that variable "ArrayToIdentifierTransformer"
         // 4. Here we recover the transformer and convert the array to string
-        foreach ($settingsBuilder->getTransformers() as $parameter => $transformer) {
-            if (\array_key_exists($parameter, $parameters)) {
-                $parameters[$parameter] = $transformer->transform($parameters[$parameter]);
-            }
+        foreach ($parameters as $parameter => $value) {
+            $parameters[$parameter] = $this->transformToString($value);
         }
         $settings->setParameters($parameters);
         $persistedParameters = $this->repository->findBy([
@@ -351,14 +353,8 @@ class SettingsManager implements SettingsManagerInterface
         ]);
         $persistedParametersMap = [];
         foreach ($persistedParameters as $parameter) {
-            $persistedParametersMap[$parameter->getTitle()] = $parameter;
+            $persistedParametersMap[$parameter->getVariable()] = $parameter;
         }
-
-        // @var SettingsEvent $event
-        /*$event = $this->eventDispatcher->dispatch(
-            SettingsEvent::PRE_SAVE,
-            new SettingsEvent($settings, $parameters)
-        );*/
 
         $url = $this->getUrl();
         $simpleCategoryName = str_replace('chamilo_core.settings.', '', $namespace);
@@ -378,80 +374,11 @@ class SettingsManager implements SettingsManagerInterface
                     ->setAccessUrlLocked(1)
                 ;
 
-                // @var ConstraintViolationListInterface $errors
-                /*$errors = $this->validator->validate($parameter);
-                if (0 < $errors->count()) {
-                    throw new ValidatorException($errors->get(0)->getMessage());
-                }*/
                 $this->manager->persist($parameter);
             }
-            $this->manager->persist($parameter);
         }
 
         $this->manager->flush();
-
-//        $schemaAlias = $settings->getSchemaAlias();
-//        $schemaAliasChamilo = str_replace('chamilo_core.settings.', '', $schemaAlias);
-//
-//        $schema = $this->schemaRegistry->get($schemaAlias);
-//
-//        $settingsBuilder = new SettingsBuilder();
-//        $schema->buildSettings($settingsBuilder);
-//
-//        $parameters = $settingsBuilder->resolve($settings->getParameters());
-//
-//        foreach ($settingsBuilder->getTransformers() as $parameter => $transformer) {
-//            if (array_key_exists($parameter, $parameters)) {
-//                $parameters[$parameter] = $transformer->transform($parameters[$parameter]);
-//            }
-//        }
-//
-//        /** @var \Sylius\Bundle\SettingsBundle\Event\SettingsEvent $event */
-//        $event = $this->eventDispatcher->dispatch(
-//            SettingsEvent::PRE_SAVE,
-//            new SettingsEvent($settings)
-//        );
-//
-//        /** @var SettingsCurrent $url */
-//        $url = $event->getSettings()->getAccessUrl();
-//
-//        foreach ($parameters as $name => $value) {
-//            if (isset($persistedParametersMap[$name])) {
-//                if ($value instanceof Course) {
-//                    $value = $value->getId();
-//                }
-//                $persistedParametersMap[$name]->setValue($value);
-//            } else {
-//                $setting = new Settings();
-//                $setting->setSchemaAlias($schemaAlias);
-//
-//                $setting
-//                    ->setNamespace($schemaAliasChamilo)
-//                    ->setName($name)
-//                    ->setValue($value)
-//                    ->setUrl($url)
-//                    ->setAccessUrlLocked(0)
-//                    ->setAccessUrlChangeable(1)
-//                ;
-//
-//                /** @var ConstraintViolationListInterface $errors */
-//                /*$errors = $this->->validate($parameter);
-//                if (0 < $errors->count()) {
-//                    throw new ValidatorException($errors->get(0)->getMessage());
-//                }*/
-//                $this->manager->persist($setting);
-//                $this->manager->flush();
-//            }
-//        }
-        /*$parameters = $settingsBuilder->resolve($settings->getParameters());
-        $settings->setParameters($parameters);
-
-        $this->eventDispatcher->dispatch(SettingsEvent::PRE_SAVE, new SettingsEvent($settings));
-
-        $this->manager->persist($settings);
-        $this->manager->flush();
-
-        $this->eventDispatcher->dispatch(SettingsEvent::POST_SAVE, new SettingsEvent($settings));*/
     }
 
     /**
@@ -465,6 +392,7 @@ class SettingsManager implements SettingsManagerInterface
         ;
         $parametersFromDb = $query->getQuery()->getResult();
         $parameters = [];
+
         /** @var SettingsCurrent $parameter */
         foreach ($parametersFromDb as $parameter) {
             $parameters[$parameter->getCategory()][] = $parameter;
@@ -499,6 +427,7 @@ class SettingsManager implements SettingsManagerInterface
             return $parametersFromDb;
         }
         $parameters = [];
+
         /** @var SettingsCurrent $parameter */
         foreach ($parametersFromDb as $parameter) {
             $parameters[$parameter->getVariable()] = $parameter->getSelectedValue();
@@ -510,7 +439,7 @@ class SettingsManager implements SettingsManagerInterface
     private function validateSetting(string $name): string
     {
         if (!str_contains($name, '.')) {
-            //throw new \InvalidArgumentException(sprintf('Parameter must be in format "namespace.name", "%s" given.', $name));
+            // throw new \InvalidArgumentException(sprintf('Parameter must be in format "namespace.name", "%s" given.', $name));
 
             // This code allows the possibility of calling
             // api_get_setting('allow_skills_tool') instead of
@@ -526,7 +455,7 @@ class SettingsManager implements SettingsManagerInterface
                 );
                 $name = $category.'.'.$name;
             } else {
-                $message = sprintf('Parameter must be in format "category.name", "%s" given.', $name);
+                $message = \sprintf('Parameter must be in format "category.name", "%s" given.', $name);
 
                 throw new InvalidArgumentException($message);
             }
@@ -546,6 +475,7 @@ class SettingsManager implements SettingsManagerInterface
     {
         $parameters = [];
         $category = $this->repository->findBy(['category' => $namespace]);
+
         /** @var SettingsCurrent $parameter */
         foreach ($category as $parameter) {
             $parameters[$parameter->getVariable()] = $parameter->getSelectedValue();
@@ -558,6 +488,7 @@ class SettingsManager implements SettingsManagerInterface
     {
         $parameters = [];
         $all = $this->repository->findAll();
+
         /** @var SettingsCurrent $parameter */
         foreach ($all as $parameter) {
             $parameters[$parameter->getCategory()][$parameter->getVariable()] = $parameter->getSelectedValue();
@@ -567,17 +498,15 @@ class SettingsManager implements SettingsManagerInterface
     }
 
     /*private function transformParameters(SettingsBuilder $settingsBuilder, array $parameters)
-    {
-        $transformedParameters = $parameters;
-
-        foreach ($settingsBuilder->getTransformers() as $parameter => $transformer) {
-            if (array_key_exists($parameter, $parameters)) {
-                $transformedParameters[$parameter] = $transformer->reverseTransform($parameters[$parameter]);
-            }
-        }
-
-        return $transformedParameters;
-    }*/
+     * {
+     * $transformedParameters = $parameters;
+     * foreach ($settingsBuilder->getTransformers() as $parameter => $transformer) {
+     * if (array_key_exists($parameter, $parameters)) {
+     * $transformedParameters[$parameter] = $transformer->reverseTransform($parameters[$parameter]);
+     * }
+     * }
+     * return $transformedParameters;
+     * }*/
 
     /**
      * Get variables and categories as in 1.11.x.
@@ -590,14 +519,13 @@ class SettingsManager implements SettingsManagerInterface
             'siteName' => 'Platform',
             'site_name' => 'Platform',
             'emailAdministrator' => 'admin',
-            //'emailAdministrator' => 'Platform',
+            // 'emailAdministrator' => 'Platform',
             'administratorSurname' => 'admin',
             'administratorTelephone' => 'admin',
             'administratorName' => 'admin',
             'show_administrator_data' => 'Platform',
             'show_tutor_data' => 'Session',
             'show_teacher_data' => 'Platform',
-            'homepage_view' => 'Course',
             'show_toolshortcuts' => 'Course',
             'allow_group_categories' => 'Course',
             'server_type' => 'Platform',
@@ -632,11 +560,10 @@ class SettingsManager implements SettingsManagerInterface
             'account_valid_duration' => 'Platform',
             'use_session_mode' => 'Session',
             'allow_email_editor' => 'Tools',
-            //'registered' => null',
-            //'donotlistcampus' =>'null',
+            // 'registered' => null',
+            // 'donotlistcampus' =>'null',
             'show_email_addresses' => 'Platform',
             'service_ppt2lp' => 'NULL',
-            'stylesheets' => 'stylesheets',
             'upload_extensions_list_type' => 'Security',
             'upload_extensions_blacklist' => 'Security',
             'upload_extensions_whitelist' => 'Security',
@@ -700,14 +627,14 @@ class SettingsManager implements SettingsManagerInterface
             'allow_send_message_to_all_platform_users' => 'Message',
             'message_max_upload_filesize' => 'Tools',
             'use_users_timezone' => 'profile',
-            //'use_users_timezone' => 'Timezones',
+            // 'use_users_timezone' => 'Timezones',
             'timezone_value' => 'platform',
-            //'timezone_value' => 'Timezones',
+            // 'timezone_value' => 'Timezones',
             'allow_user_course_subscription_by_course_admin' => 'Security',
             'show_link_bug_notification' => 'Platform',
             'show_link_ticket_notification' => 'Platform',
             'course_validation' => 'course',
-            //'course_validation' => 'Platform',
+            // 'course_validation' => 'Platform',
             'course_validation_terms_and_conditions_url' => 'Platform',
             'enabled_wiris' => 'Editor',
             'allow_spellcheck' => 'Editor',
@@ -876,9 +803,8 @@ class SettingsManager implements SettingsManagerInterface
             'exercise_invisible_in_session' => 'exercise',
             'configure_exercise_visibility_in_course' => 'exercise',
             'allow_download_documents_by_api_key' => 'Webservices',
-            'ProfilingFilterAddingUsers' => 'profile',
+            'profiling_filter_adding_users' => 'profile',
             'donotlistcampus' => 'platform',
-            'gradebook_show_percentage_in_reports' => 'gradebook',
             'course_creation_splash_screen' => 'Course',
             'translate_html' => 'Editor',
             'enable_bootstrap_in_documents_html' => 'Course',
@@ -899,14 +825,12 @@ class SettingsManager implements SettingsManagerInterface
             'siteName' => 'site_name',
             'InstitutionUrl' => 'institution_url',
             'registration' => 'required_profile_fields',
-            'stylesheets' => 'theme',
             'platformLanguage' => 'platform_language',
             'languagePriority1' => 'language_priority_1',
             'languagePriority2' => 'language_priority_2',
             'languagePriority3' => 'language_priority_3',
             'languagePriority4' => 'language_priority_4',
             'gradebook_score_display_coloring' => 'my_display_coloring',
-            'document_if_file_exists_option' => 'if_file_exists_option',
             'ProfilingFilterAddingUsers' => 'profiling_filter_adding_users',
             'course_create_active_tools' => 'active_tools_on_create',
             'emailAdministrator' => 'administrator_email',
@@ -1049,12 +973,11 @@ class SettingsManager implements SettingsManagerInterface
             'upload_extensions_skip' => 'document',
             'changeable_options' => 'profile',
             'users_copy_files' => 'document',
-            'if_file_exists_option' => 'document',
+            'document_if_file_exists_option' => 'document',
             'permissions_for_new_files' => 'document',
             'extended_profile' => 'profile',
             'split_users_upload_directory' => 'profile',
             'show_documents_preview' => 'document',
-            'decode_utf8' => 'webservice',
             'messaging_allow_send_push_notification' => 'webservice',
             'messaging_gdc_project_number' => 'webservice',
             'messaging_gdc_api_key' => 'webservice',
@@ -1065,5 +988,26 @@ class SettingsManager implements SettingsManagerInterface
         ];
 
         return $settings[$variable] ?? $defaultCategory;
+    }
+
+    private function transformToString($value): string
+    {
+        if (\is_array($value)) {
+            return implode(',', $value);
+        }
+
+        if ($value instanceof Course) {
+            return (string) $value->getId();
+        }
+
+        if (\is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if (null === $value) {
+            return '';
+        }
+
+        return (string) $value;
     }
 }

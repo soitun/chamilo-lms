@@ -24,40 +24,35 @@ final class Version20210930130343 extends AbstractMigrationChamilo
 
     public function up(Schema $schema): void
     {
-        $container = $this->getContainer();
-        $em = $this->getEntityManager();
-        $connection = $em->getConnection();
+        $introRepo = $this->container->get(CToolIntroRepository::class);
+        $cToolRepo = $this->container->get(CToolRepository::class);
+        $toolRepo = $this->container->get(ToolRepository::class);
+        $sessionRepo = $this->container->get(SessionRepository::class);
+        $courseRepo = $this->container->get(CourseRepository::class);
 
-        $introRepo = $container->get(CToolIntroRepository::class);
-        $cToolRepo = $container->get(CToolRepository::class);
-        $toolRepo = $container->get(ToolRepository::class);
-
-        $sessionRepo = $container->get(SessionRepository::class);
-        $courseRepo = $container->get(CourseRepository::class);
-
-        $q = $em->createQuery('SELECT c FROM Chamilo\CoreBundle\Entity\Course c');
+        $q = $this->entityManager->createQuery('SELECT c FROM Chamilo\CoreBundle\Entity\Course c');
 
         /** @var Course $course */
         foreach ($q->toIterable() as $course) {
             $courseId = $course->getId();
             $sql = "SELECT * FROM c_tool_intro WHERE c_id = {$courseId}
                     ORDER BY iid";
-            $result = $connection->executeQuery($sql);
+            $result = $this->connection->executeQuery($sql);
             $items = $result->fetchAllAssociative();
 
             if (empty($items)) {
                 $admin = $this->getAdmin();
-                $tool = $toolRepo->findOneBy(['name' => 'course_homepage']);
+                $tool = $toolRepo->findOneBy(['title' => 'course_homepage']);
                 $cTool = (new CTool())
-                    ->setName('course_homepage')
+                    ->setTitle('course_homepage')
                     ->setCourse($course)
                     ->setTool($tool)
                     ->setCreator($admin)
                     ->setParent($course)
                     ->addCourseLink($course)
                 ;
-                $em->persist($cTool);
-                $em->flush();
+                $this->entityManager->persist($cTool);
+                $this->entityManager->flush();
 
                 continue;
             }
@@ -83,7 +78,7 @@ final class Version20210930130343 extends AbstractMigrationChamilo
 
                 $cTool = null;
                 if ('course_homepage' === $toolName) {
-                    $tool = $toolRepo->findOneBy(['name' => $toolName]);
+                    $tool = $toolRepo->findOneBy(['title' => $toolName]);
 
                     if (null === $tool) {
                         continue;
@@ -92,7 +87,7 @@ final class Version20210930130343 extends AbstractMigrationChamilo
                     $course = $courseRepo->find($courseId);
 
                     $cTool = (new CTool())
-                        ->setName('course_homepage')
+                        ->setTitle('course_homepage')
                         ->setCourse($course)
                         ->setSession($session)
                         ->setTool($tool)
@@ -100,7 +95,7 @@ final class Version20210930130343 extends AbstractMigrationChamilo
                         ->setParent($course)
                         ->addCourseLink($course, $session)
                     ;
-                    $em->persist($cTool);
+                    $this->entityManager->persist($cTool);
                 } else {
                     $cTool = $cToolRepo->findCourseResourceByTitle($toolName, $course->getResourceNode(), $course, $session);
                 }
@@ -116,16 +111,14 @@ final class Version20210930130343 extends AbstractMigrationChamilo
                 $introRepo->addResourceNode($intro, $admin, $course);
                 $intro->addCourseLink($course, $session);
 
-                $em->persist($intro);
-                $em->flush();
+                $this->entityManager->persist($intro);
+                $this->entityManager->flush();
             }
 
-            $em->flush();
-            $em->clear();
+            $this->entityManager->flush();
+            $this->entityManager->clear();
         }
     }
 
-    public function down(Schema $schema): void
-    {
-    }
+    public function down(Schema $schema): void {}
 }

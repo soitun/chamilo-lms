@@ -22,7 +22,7 @@ if (is_object($objQuestion)) {
     // FORM CREATION
     $form = new FormValidator('question_admin_form', 'post', $action);
 
-    $class = 'btn btn-default';
+    $class = 'btn btn--plain';
     if (isset($_GET['editQuestion'])) {
         $text = get_lang('Save the question');
         $type = isset($_GET['type']) ? Security::remove_XSS($_GET['type']) : null;
@@ -75,8 +75,8 @@ if (is_object($objQuestion)) {
             } else {
                 // New question
                 $page = 1;
-                $length = api_get_configuration_value('question_pagination_length');
-                if (!empty($length)) {
+                $length = (int) api_get_setting('exercise.question_pagination_length');
+                if ($length > 0) {
                     $page = round($objExercise->getQuestionCount() / $length);
                 }
                 Display::addFlash(Display::return_message(get_lang('Item added')));

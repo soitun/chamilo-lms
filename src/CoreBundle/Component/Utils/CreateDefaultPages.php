@@ -46,6 +46,20 @@ class CreateDefaultPages
         ;
         $this->pageCategoryRepository->update($indexCategory);
 
+        $indexCategory = (new PageCategory())
+            ->setTitle('faq')
+            ->setType('grid')
+            ->setCreator($user)
+        ;
+        $this->pageCategoryRepository->update($indexCategory);
+
+        $indexCategory = (new PageCategory())
+            ->setTitle('demo')
+            ->setType('grid')
+            ->setCreator($user)
+        ;
+        $this->pageCategoryRepository->update($indexCategory);
+
         $page = (new Page())
             ->setTitle('Welcome')
             ->setContent('Welcome to Chamilo')
@@ -69,6 +83,56 @@ class CreateDefaultPages
         ;
         $this->pageRepository->update($indexPage);
 
+        $footerPublicCategory = (new PageCategory())
+            ->setTitle('footer_public')
+            ->setType('grid')
+            ->setCreator($user)
+        ;
+
+        $this->pageCategoryRepository->update($footerPublicCategory);
+
+        $footerPrivateCategory = (new PageCategory())
+            ->setTitle('footer_private')
+            ->setType('grid')
+            ->setCreator($user)
+        ;
+
+        $this->pageCategoryRepository->update($footerPrivateCategory);
+
+        // Categories for extra content in admin blocks
+
+        foreach (self::getCategoriesForAdminBlocks() as $nameBlock) {
+            $usersAdminBlock = (new PageCategory())
+                ->setTitle($nameBlock)
+                ->setType('grid')
+                ->setCreator($user)
+            ;
+            $this->pageCategoryRepository->update($usersAdminBlock);
+        }
+
+        $publicCategory = (new PageCategory())
+            ->setTitle('public')
+            ->setType('grid')
+            ->setCreator($user)
+        ;
+
+        $this->pageCategoryRepository->update($publicCategory);
+
         return true;
+    }
+
+    public static function getCategoriesForAdminBlocks(): array
+    {
+        return [
+            'block-admin-users',
+            'block-admin-courses',
+            'block-admin-sessions',
+            'block-admin-gradebook',
+            'block-admin-skills',
+            'block-admin-privacy',
+            'block-admin-settings',
+            'block-admin-platform',
+            'block-admin-chamilo',
+        ];
     }
 }

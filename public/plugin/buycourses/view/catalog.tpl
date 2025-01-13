@@ -56,12 +56,12 @@
                                                 </div>
                                             {% elseif course.enrolled == "NO" %}
                                                 <div class="toolbar">
-                                                    <a class="ajax btn btn-info btn-block btn-sm" title=""
+                                                    <a class="ajax btn btn--info btn-block btn-sm" title=""
                                                        href="{{ course_description_url }}"
                                                        data-title="{{ course.title }}">
                                                         <em class="fa fa-file-text"></em> {{ 'SeeDescription'|get_plugin_lang('BuyCoursesPlugin') }}
                                                     </a>
-                                                    <a class="btn btn-success btn-block btn-sm" title=""
+                                                    <a class="btn btn--success btn-block btn-sm" title=""
                                                        href="{{ _p.web_plugin ~ 'buycourses/src/process.php?' ~ {'i': course.id, 't': 1}|url_encode() }}">
                                                         <em class="fa fa-shopping-cart"></em> {{ 'Buy'|get_plugin_lang('BuyCoursesPlugin') }}
                                                     </a>
@@ -80,12 +80,12 @@
                                 <div class="col-md-4 col-sm-6">
                                     <article class="items-course">
                                         <div class="items-course-image">
-                                            <img alt="{{ session.name }}" class="img-responsive"
+                                            <img alt="{{ session.title }}" class="img-responsive"
                                                  src="{{ session.image ? session.image : 'session_default.png'|icon() }}">
                                         </div>
                                         <div class="items-course-info">
                                             <h4 class="title">
-                                                <a href="{{ _p.web ~ 'session/' ~ session.id ~ '/about/' }}">{{ session.name }}</a>
+                                                <a href="{{ _p.web ~ 'session/' ~ session.id ~ '/about/' }}">{{ session.title }}</a>
                                             </h4>
                                             {% if 'show_session_coach'|api_get_setting == 'true' %}
                                                 {% for coach in session.coaches %}
@@ -118,7 +118,7 @@
                                                 </div>
                                             {% elseif session.enrolled == "NO" %}
                                                 <div class="toolbar">
-                                                    <a class="btn btn-success btn-block btn-sm"
+                                                    <a class="btn btn--success btn-block btn-sm"
                                                        href="{{ _p.web_plugin ~ 'buycourses/src/process.php?' ~ {'i': session.id, 't': 2}|url_encode() }}">
                                                         <em class="fa fa-shopping-cart"></em> {{ 'Buy'|get_plugin_lang('BuyCoursesPlugin') }}
                                                     </a>
@@ -138,15 +138,15 @@
                                     <div class="items-course">
                                         <div class="items-course-image">
                                             <a href="{{ _p.web }}service/{{ service.id }}">
-                                                <img alt="{{ service.name }}"
+                                                <img alt="{{ service.title }}"
                                                     class="img-responsive"
                                                     src="{{ service.image ? service.image : 'session_default.png'|icon() }}"></a>
                                         </div>
                                         <div class="items-course-info">
                                             <h4 class="title">
-                                                <a title="{{ service.name }}"
+                                                <a title="{{ service.title }}"
                                                    href="{{ _p.web }}service/{{ service.id }}">
-                                                    {{ service.name }}
+                                                    {{ service.title }}
                                                 </a>
                                             </h4>
                                             <ul class="list-unstyled">
@@ -183,11 +183,11 @@
                                                 </span>
                                             </p>
                                             <div class="toolbar">
-                                                <a class="btn btn-info btn-block btn-sm" title=""
+                                                <a class="btn btn--info btn-block btn-sm" title=""
                                                    href="{{ _p.web }}service/{{ service.id }}">
                                                     <em class="fa fa-info-circle"></em> {{ 'ServiceInformation'|get_plugin_lang('BuyCoursesPlugin') }}
                                                 </a>
-                                                <a class="btn btn-success btn-block btn-sm" title=""
+                                                <a class="btn btn--success btn-block btn-sm" title=""
                                                    href="{{ _p.web_plugin ~ 'buycourses/src/service_process.php?' ~ {'i': service.id, 't': service.applies_to}|url_encode() }}">
                                                     <em class="fa fa-shopping-cart"></em> {{ 'Buy'|get_plugin_lang('BuyCoursesPlugin') }}
                                                 </a>

@@ -2,9 +2,14 @@
 
 /* For licensing terms, see /license.txt */
 
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+use Chamilo\CoreBundle\Component\Utils\ObjectIcon;
+use Chamilo\CoreBundle\Component\Utils\StateIcon;
+use Chamilo\CoreBundle\Component\Utils\ToolIcon;
 use Chamilo\CoreBundle\Entity\ExtraField;
 use Chamilo\CoreBundle\Entity\ExtraFieldValues;
 use Chamilo\CoreBundle\Framework\Container;
+use Chamilo\CoreBundle\ServiceHelper\ThemeHelper;
 use ChamiloSession as Session;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -139,7 +144,7 @@ class Display
         }
 
         $params['legacy_javascript'] = $htmlHeadXtra;
-        $params['legacy_breadcrumb'] = json_encode($interbreadcrumb);
+        $params['legacy_breadcrumb'] = json_encode(array_values($interbreadcrumb));
 
         Template::setVueParams($params);
         $content = Container::getTwig()->render($tpl, $params);
@@ -449,11 +454,11 @@ class Display
      *
      * @param string $message
      * @param string $type    Example: confirm, normal, warning, error
-     * @param bool   $filter  Whether to XSS-filter or not
+     * @param bool $filter  Whether to XSS-filter or not
      *
      * @return string Message wrapped into an HTML div
      */
-    public static function return_message($message, $type = 'normal', $filter = true)
+    public static function return_message(string $message, string $type = 'normal', bool $filter = true): string
     {
         if (empty($message)) {
             return '';
@@ -524,7 +529,7 @@ class Display
             $hmail .= '&#'.ord($email[$i]).';';
         }
 
-        $value = api_get_configuration_value('add_user_course_information_in_mailto');
+        $value = ('true' === api_get_setting('profile.add_user_course_information_in_mailto'));
 
         if ($value) {
             if ('false' === api_get_setting('allow_email_editor')) {
@@ -649,13 +654,13 @@ class Display
      * @version Feb 2011
      */
     public static function return_icon(
-        $image,
-        $alt_text = '',
-        $additional_attributes = [],
-        $size = ICON_SIZE_SMALL,
-        $show_text = true,
-        $return_only_path = false,
-        $loadThemeIcon = true
+        string $image,
+        ?string $alt_text = '',
+        ?array $additional_attributes = [],
+        ?int $size = ICON_SIZE_SMALL,
+        ?bool $show_text = true,
+        ?bool $return_only_path = false,
+        ?bool $loadThemeIcon = true
     ) {
         $code_path = api_get_path(SYS_PUBLIC_PATH);
         $w_code_path = api_get_path(WEB_PUBLIC_PATH);
@@ -690,7 +695,7 @@ class Display
             if (is_file($alternateCssPath.$theme.$image)) {
                 $icon = $alternateWebCssPath.$theme.$image;
             }
-            // Checking the theme icons folder example: app/Resources/public/css/themes/chamilo/icons/XXX
+            // Checking the theme icons folder example: var/themes/chamilo/icons/XXX
             if (is_file($alternateCssPath.$theme.$size_extra.$image)) {
                 $icon = $alternateWebCssPath.$theme.$size_extra.$image;
             } elseif (is_file($code_path.'img/icons/'.$size_extra.$image)) {
@@ -878,45 +883,23 @@ class Display
     }
 
     /**
-     * @param $name
-     * @param $value
-     * @param array $attributes
-     *
-     * @return string
-     */
-    public static function button($name, $value, $attributes = [])
-    {
-        if (!empty($name)) {
-            $attributes['name'] = $name;
-        }
-
-        return self::tag('button', $value, $attributes);
-    }
-
-    /**
      * Displays an HTML select tag.
-     *
-     * @param string $name
-     * @param array  $values
-     * @param int    $default
-     * @param array  $extra_attributes
-     * @param bool   $show_blank_item
-     * @param string $blank_item_text
-     *
-     * @return string
      */
     public static function select(
-        $name,
-        $values,
-        $default = -1,
-        $extra_attributes = [],
-        $show_blank_item = true,
-        $blank_item_text = ''
-    ) {
+        string $name,
+        array $values,
+        mixed $default = -1,
+        array $extra_attributes = [],
+        bool $show_blank_item = true,
+        string $blank_item_text = ''
+    ): string {
         $html = '';
         $extra = '';
         $default_id = 'id="'.$name.'" ';
-        $extra_attributes = array_merge(['class' => 'form-control'], $extra_attributes);
+        $extra_attributes = array_merge(
+            ['class' => 'p-dropdown p-component p-inputwrapper p-inputwrapper-filled'],
+            $extra_attributes
+        );
         foreach ($extra_attributes as $key => $parameter) {
             if ('id' == $key) {
                 $default_id = '';
@@ -963,6 +946,22 @@ class Display
         $html .= '</select>';
 
         return $html;
+    }
+
+    /**
+     * @param $name
+     * @param $value
+     * @param array $attributes
+     *
+     * @return string
+     */
+    public static function button($name, $value, $attributes = [])
+    {
+        if (!empty($name)) {
+            $attributes['name'] = $name;
+        }
+
+        return self::tag('button', $value, $attributes);
     }
 
     /**
@@ -1201,18 +1200,20 @@ class Display
 
         // Default row quantity
         if (!isset($extra_params['rowList'])) {
-            $extra_params['rowList'] = [20, 50, 100, 500, 1000, $all_value];
-            $rowList = api_get_configuration_value('table_row_list');
-            if (!empty($rowList) && isset($rowList['options'])) {
+            $defaultRowList = [20, 50, 100, 500, 1000, $all_value];
+            $rowList = api_get_setting('platform.table_row_list', true);
+            if (is_array($rowList) && isset($rowList['options']) && is_array($rowList['options'])) {
                 $rowList = $rowList['options'];
                 $rowList[] = $all_value;
+            } else {
+                $rowList = $defaultRowList;
             }
             $extra_params['rowList'] = $rowList;
         }
 
-        $defaultRow = api_get_configuration_value('table_default_row');
-        if (!empty($defaultRow)) {
-            $obj->rowNum = (int) $defaultRow;
+        $defaultRow = (int) api_get_setting('platform.table_default_row');
+        if ($defaultRow > 0) {
+            $obj->rowNum = $defaultRow;
         }
 
         $json = '';
@@ -1322,7 +1323,7 @@ class Display
         $json_encode = str_replace('"formatter":"extra_formatter"', 'formatter:extra_formatter', $json_encode);
         $json_encode = str_replace(['{"first":"first",', '"end":"end"}'], '', $json_encode);
 
-        if (api_get_configuration_value('allow_compilatio_tool') &&
+        if (('true' === api_get_setting('document.allow_compilatio_tool')) &&
             (false !== strpos($_SERVER['REQUEST_URI'], 'work/work.php') ||
              false != strpos($_SERVER['REQUEST_URI'], 'work/work_list_all.php')
             )
@@ -1334,6 +1335,7 @@ class Display
         }
         // Creating the jqgrid element.
         $json .= '$("#'.$div_id.'").jqGrid({';
+        $json .= "autowidth: true,";
         //$json .= $beforeSelectRow;
         $json .= $gridComplete;
         $json .= $beforeProcessing;
@@ -1472,7 +1474,7 @@ class Display
                     'variable' => $value->getField()->getVariable(),
                     'display_text' => $value->getField()->getDisplayText(),
                 ],
-                'value' => $value->getValue(),
+                'value' => $value->getFieldValue(),
             ];
         }
 
@@ -1555,7 +1557,7 @@ class Display
             $title .= "<small> $second_title</small>";
         }
 
-        return '<'.$size.' class="page-header">'.$title.'</'.$size.'>';
+        return '<div class="page-header section-header"><'.$size.' class="section-header__title">'.$title.'</'.$size.'></div>';
     }
 
     public static function page_header_and_translate($title, $second_title = null)
@@ -1746,6 +1748,7 @@ class Display
                 class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500"
                 aria-expanded="false"
                 aria-haspopup="true"
+                onclick="document.querySelector(\'#'.$id.'_menu\').classList.toggle(\'hidden\')"
             >
               '.$title.'
               <svg class="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -1770,6 +1773,7 @@ class Display
                         'role' => 'menuitem',
                         'onclick' => $item['onclick'] ?? '',
                         'data-action' => $item['data-action'] ?? '',
+                        'data-confirm' => $item['data-confirm'] ?? '',
                     ]
                 );
         }
@@ -1777,19 +1781,7 @@ class Display
             </div>
             </div>
             </div>
-            <script>
-             document.addEventListener("DOMContentLoaded", function() {
-                const button = document.querySelector("#'.$id.'");
-                    button.addEventListener("click", (e) => {
-                    let menu = document.querySelector("#'.$id.'_menu");
-                    if (menu.classList.contains("hidden")) {
-                        menu.classList.remove("hidden");
-                    } else {
-                        menu.classList.add("hidden");
-                    }
-                });
-            });
-            </script>';
+        ';
 
         return $html;
     }
@@ -2148,9 +2140,9 @@ class Display
         array $attributes = [],
         $includeText = true
     ) {
-        $buttonClass = "btn btn-outline-secondary";
+        $buttonClass = "btn btn--secondary-outline";
         if (!empty($type)) {
-            $buttonClass = "btn btn-$type";
+            $buttonClass = "btn btn--$type";
         }
         //$icon = self::tag('i', null, ['class' => "fa fa-$icon fa-fw", 'aria-hidden' => 'true']);
         $icon = self::getMdiIcon($icon);
@@ -2164,27 +2156,157 @@ class Display
         return self::url("$icon $text", $url, $attributes);
     }
 
+    /**
+     * Generate an HTML "p-toolbar" div element with the given id attribute.
+     * @param string $id The HTML div's "id" attribute to set
+     * @param array  $contentList Array of left-center-right elements for the toolbar. If only 2 elements are defined, this becomes left-right (no center)
+     * @return string HTML div for the toolbar
+     */
     public static function toolbarAction(string $id, array $contentList): string
     {
-        $contentList = array_filter($contentList);
+        $contentListPurged = array_filter($contentList);
 
-        if (empty($contentList)) {
+        if (empty($contentListPurged)) {
             return '';
         }
 
-        $col = count($contentList);
-        $html = ' <div id="'.$id.'" class="q-card p-2 mb-4">';
-        $html .= ' <div class="flex justify-between '.$col.'">';
-        foreach ($contentList as $item) {
-            $html .= '<div class="flex p-2 gap-2 ">'.$item.'</div>';
+        $count = count($contentList);
+
+        $start = $contentList[0];
+        $center = '';
+        $end = '';
+
+        if (2 === $count) {
+            $end = $contentList[1];
+        } elseif (3 === $count) {
+            $center = $contentList[1];
+            $end = $contentList[2];
         }
-        $html .= '</div>';
+
+
+        return '<div id="'.$id.'" class="toolbar-action p-toolbar p-component flex items-center justify-between flex-wrap" role="toolbar">
+                <div class="p-toolbar-group-start p-toolbar-group-left">'.$start.'</div>
+                <div class="p-toolbar-group-center">'.$center.'</div>
+                <div class="p-toolbar-group-end p-toolbar-group-right">'.$end.'</div>
+            </div>
+        ';
+    }
+
+    /**
+     * @param array  $content
+     * @param array  $colsWidth Optional. Columns width
+     *
+     * @return string
+     */
+    public static function toolbarGradeAction($content, $colsWidth = [])
+    {
+        $col = count($content);
+
+        if (!$colsWidth) {
+            $width = 8 / $col;
+            array_walk($content, function () use ($width, &$colsWidth) {
+                $colsWidth[] = $width;
+            });
+        }
+
+        $html = '<div id="grade" class="p-toolbar p-component flex items-center justify-between flex-wrap" role="toolbar">';
+        for ($i = 0; $i < $col; $i++) {
+            $class = 'col-sm-'.$colsWidth[$i];
+            if ($col > 1) {
+                if ($i > 0 && $i < count($content) - 1) {
+                    $class .= ' text-center';
+                } elseif ($i === count($content) - 1) {
+                    $class .= ' text-right';
+                }
+            }
+            $html .= '<div class="'.$class.'">'.$content[$i].'</div>';
+        }
         $html .= '</div>';
 
         return $html;
     }
 
-    public static function getMdiIcon(string $name, string $additionalClass = null, string $style = null, int $pixelSize = null, string $title = null, array $additionalAttributes = null): string
+    /**
+     * The auto-translated title version of getMdiIconSimple()
+     * Shortcut method to getMdiIcon, to be used from Twig (see ChamiloExtension.php)
+     * using acceptable default values
+     * @param string $name The icon name or a string representing the icon in our *Icon Enums
+     * @param int|null $size The icon size
+     * @param string|null $additionalClass Additional CSS class to add to the icon
+     * @param string|null $title A title for the icon
+     * @return string
+     * @throws InvalidArgumentException
+     * @throws ReflectionException
+     */
+    public static function getMdiIconTranslate(
+        string $name,
+        ?int $size = ICON_SIZE_SMALL,
+        ?string $additionalClass = 'ch-tool-icon',
+        ?string $title = null
+    ): string
+    {
+        if (!empty($title)) {
+            $title = get_lang($title);
+        }
+
+        return self::getMdiIconSimple($name, $size, $additionalClass, $title);
+    }
+    /**
+     * Shortcut method to getMdiIcon, to be used from Twig (see ChamiloExtension.php)
+     * using acceptable default values
+     * @param string $name The icon name or a string representing the icon in our *Icon Enums
+     * @param int|null $size The icon size
+     * @param string|null $additionalClass Additional CSS class to add to the icon
+     * @param string|null $title A title for the icon
+     * @return string
+     * @throws InvalidArgumentException
+     * @throws ReflectionException
+     */
+    public static function getMdiIconSimple(
+        string $name,
+        ?int $size = ICON_SIZE_SMALL,
+        ?string $additionalClass = 'ch-tool-icon',
+        ?string $title = null
+    ): string
+    {
+        // If the string contains '::', we assume it is a reference to one of the icon Enum classes in src/CoreBundle/Component/Utils/
+        $matches = [];
+        if (preg_match('/(\w*)::(\w*)/', $name, $matches)) {
+            if (count($matches) != 3) {
+                throw new InvalidArgumentException('Invalid enum case string format. Expected format is "EnumClass::CASE".');
+            }
+            $enum = $matches[1];
+            $case = $matches[2];
+            if (!class_exists('Chamilo\CoreBundle\Component\Utils\\'.$enum)) {
+                throw new InvalidArgumentException("Class {$enum} does not exist.");
+            }
+            $reflection = new ReflectionEnum('Chamilo\CoreBundle\Component\Utils\\'.$enum);
+            // Check if the case exists in the Enum class
+            if (!$reflection->hasCase($case)) {
+                throw new InvalidArgumentException("Case {$case} does not exist in enum class {$enum}.");
+            }
+            // Get the Enum case
+            /* @var ReflectionEnumUnitCase $enumUnitCaseObject */
+            $enumUnitCaseObject = $reflection->getCase($case);
+            $enumValue = $enumUnitCaseObject->getValue();
+            $name = $enumValue->value;
+
+        }
+
+        return self::getMdiIcon($name, $additionalClass, null, $size, $title);
+    }
+
+    /**
+     * Get a full HTML <i> tag for an icon from the Material Design Icons set
+     * @param string|ActionIcon|ToolIcon|ObjectIcon|StateIcon $name
+     * @param string|null                                     $additionalClass
+     * @param string|null                                     $style
+     * @param int|null                                        $pixelSize
+     * @param string|null                                     $title
+     * @param array|null                                      $additionalAttributes
+     * @return string
+     */
+    public static function getMdiIcon(string|ActionIcon|ToolIcon|ObjectIcon|StateIcon $name, string $additionalClass = null, string $style = null, int $pixelSize = null, string $title = null, array $additionalAttributes = null): string
     {
         $sizeString = '';
         if (!empty($pixelSize)) {
@@ -2193,9 +2315,21 @@ class Display
         if (empty($style)) {
             $style = '';
         }
-        $additionalAttributes['class'] = "mdi-$name mdi v-icon notranslate v-icon--size-default $additionalClass";
+
+        $additionalAttributes['class'] = 'mdi mdi-';
+
+        if ($name instanceof ActionIcon
+            || $name instanceof ToolIcon
+            || $name instanceof ObjectIcon
+            || $name instanceof StateIcon
+        ) {
+            $additionalAttributes['class'] .= $name->value;
+        } else {
+            $additionalAttributes['class'] .= $name;
+        }
+
+        $additionalAttributes['class'] .= " $additionalClass";
         $additionalAttributes['style'] = $sizeString.$style;
-        $additionalAttributes['medium'] = '';
         $additionalAttributes['aria-hidden'] = 'true';
 
         if (!empty($title)) {
@@ -2255,6 +2389,31 @@ class Display
         return "$icon ";
     }
 
+    public static function returnPrimeIcon(
+        $name,
+        $size = '',
+        $fixWidth = false,
+        $additionalClass = ''
+    ) {
+        $className = "pi pi-$name";
+
+        if ($fixWidth) {
+            $className .= ' pi-fw';
+        }
+
+        if ($size) {
+            $className .= " pi-$size";
+        }
+
+        if (!empty($additionalClass)) {
+            $className .= " $additionalClass";
+        }
+
+        $icon = self::tag('i', null, ['class' => $className]);
+
+        return "$icon ";
+    }
+
     /**
      * @param string     $title
      * @param string     $content
@@ -2279,21 +2438,51 @@ class Display
         $open = true,
         $fullClickable = false
     ) {
+        $javascript = '';
         if (!empty($idAccordion)) {
-            $headerClass = $fullClickable ? 'center-block ' : '';
-            $headerClass .= $open ? '' : 'collapsed';
-            $contentClass = 'panel-collapse collapse ';
-            $contentClass .= $open ? 'in' : '';
-            $ariaExpanded = $open ? 'true' : 'false';
+            $javascript = '
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const buttons = document.querySelectorAll("#card_'.$idAccordion.' a");
+                const menus = document.querySelectorAll("#collapse_'.$idAccordion.'");
+                buttons.forEach((button, index) => {
+                    button.addEventListener("click", function() {
+                        menus.forEach((menu, menuIndex) => {
+                            if (index === menuIndex) {
+                                button.setAttribute("aria-expanded", "true" === button.getAttribute("aria-expanded") ? "false" : "true")
+                                button.classList.toggle("mdi-chevron-down")
+                                button.classList.toggle("mdi-chevron-up")
+                                menu.classList.toggle("active");
+                            } else {
+                                menu.classList.remove("active");
+                            }
+                        });
+                    });
+                });
+            });
+        </script>';
+            $html = '
+        <div class="display-panel-collapse mb-2">
+            <div class="display-panel-collapse__header" id="card_'.$idAccordion.'">
+                <a role="button"
+                    class="mdi mdi-chevron-down"
+                    data-toggle="collapse"
+                    data-target="#collapse_'.$idAccordion.'"
+                    aria-expanded="'.(($open) ? 'true' : 'false').'"
+                    aria-controls="collapse_'.$idAccordion.'"
+                >
+                    '.$title.'
+                </a>
+            </div>
+            <div
+                id="collapse_'.$idAccordion.'"
+                class="display-panel-collapse__collapsible '.(($open) ? 'active' : '').'"
+            >
+                <div id="collapse_contant_'.$idAccordion.'">';
 
-            $html = <<<HTML
-                <div class="v-card bg-white mx-2" id="$id">
-                    <div class="v-card-header text-xl my-2">
-                        $title
-                    </div>
-                    <div class="v-card-text">$content</div>
-                </div>
-HTML;
+            $html .= $content;
+            $html .= '</div></div></div>';
+
         } else {
             if (!empty($id)) {
                 $params['id'] = $id;
@@ -2301,23 +2490,25 @@ HTML;
             $params['class'] = 'v-card bg-white mx-2';
             $html = '';
             if (!empty($title)) {
-                $html .= '<div class="v-card-header text-xl my-2">'.$title.'</div>'.PHP_EOL;
+                $html .= '<div class="v-card-header text-h5 my-2">'.$title.'</div>'.PHP_EOL;
             }
             $html .= '<div class="v-card-text">'.$content.'</div>'.PHP_EOL;
             $html = self::div($html, $params);
         }
 
-        return $html;
+        return $javascript.$html;
     }
 
     /**
      * Returns the string "1 day ago" with a link showing the exact date time.
      *
-     * @param string $dateTime in UTC or a DateTime in UTC
+     * @param string|DateTime $dateTime in UTC or a DateTime in UTC
+     *
+     * @throws Exception
      *
      * @return string
      */
-    public static function dateToStringAgoAndLongDate($dateTime)
+    public static function dateToStringAgoAndLongDate(string|DateTime $dateTime): string
     {
         if (empty($dateTime) || '0000-00-00 00:00:00' === $dateTime) {
             return '';
@@ -2455,7 +2646,7 @@ HTML;
         $content .= self::url(
             '<em class="fa fa-plus"></em> '.$buttonTitle,
             $url,
-            ['class' => 'btn btn-primary']
+            ['class' => 'btn btn--primary']
         );
         $content .= '</div>';
         $content .= '</div>';
@@ -2472,5 +2663,35 @@ HTML;
                 </div>
             </div>
             ";
+    }
+
+    public static function getFrameReadyBlock(
+        string $frameName,
+        string $itemType = '',
+        string $jsConditionalFunction = 'function () { return false; }'
+    ): string {
+
+        if (in_array($itemType, ['link', 'sco', 'xapi', 'quiz', 'h5p', 'forum'])) {
+            return false;
+        }
+
+        $themeHelper = Container::$container->get(ThemeHelper::class);
+
+        $themeColorsUrl = $themeHelper->getThemeAssetUrl('colors.css');
+
+        $colorThemeItem = $themeColorsUrl
+            ? '{ type: "stylesheet", src: "'.$themeColorsUrl.'" },'
+            : '';
+
+        return '$.frameReady(function() {},
+            "'.$frameName.'",
+            [
+                { type: "script", src: "/build/runtime.js" },
+                { type: "script", src: "/build/legacy_framereadyloader.js" },
+                { type: "stylesheet", src: "/build/legacy_framereadyloader.css" },
+                '.$colorThemeItem.'
+            ],
+            '.$jsConditionalFunction
+            .');';
     }
 }

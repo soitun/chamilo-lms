@@ -15,16 +15,14 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/assets')]
 class AssetController
 {
     use ControllerTrait;
 
-    /**
-     * @Route("/{category}/{path}", methods={"GET"}, requirements={"path"=".+"}, name="chamilo_core_asset_showfile")
-     */
+    #[Route(path: '/{category}/{path}', methods: ['GET'], requirements: ['path' => '.+'], name: 'chamilo_core_asset_showfile')]
     public function showFile(
         string $category,
         string $path,
@@ -52,7 +50,7 @@ class AssetController
 
                 // The image was cropped manually by the user, so we force to render this version,
                 // no matter other crop parameters.
-                //$crop = $resourceFile->getCrop();
+                // $crop = $resourceFile->getCrop();
                 /*if (!empty($crop)) {
                     $params['crop'] = $crop;
                 }*/
@@ -60,11 +58,15 @@ class AssetController
                 return $server->getImageResponse($filePath, $params);
             }
 
-            $stream = $assetRepository->getFileSystem()->readStream($filePath);
-
             $response = new StreamedResponse(
-                function () use ($stream): void {
-                    stream_copy_to_stream($stream, fopen('php://output', 'wb'));
+                function () use ($assetRepository, $filePath): void {
+                    $outputStream = fopen('php://output', 'wb');
+                    $stream = $assetRepository->getFileSystem()->readStream($filePath);
+
+                    stream_copy_to_stream($stream, $outputStream);
+
+                    fclose($outputStream);
+                    fclose($fileStream);
                 }
             );
             $disposition = $response->headers->makeDisposition(
@@ -72,12 +74,11 @@ class AssetController
                 $fileName
             );
             $response->headers->set('Content-Disposition', $disposition);
-
-            //$response->headers->set('Content-Type', $mimeType ?: 'application/octet-stream');
+            $response->headers->set('Content-Type', $mimeType ?: 'application/octet-stream');
 
             return $response;
         }
 
-        throw new FileNotFoundException(sprintf('File not found: %s', $path));
+        throw new FileNotFoundException(\sprintf('File not found: %s', $path));
     }
 }

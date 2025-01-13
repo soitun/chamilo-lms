@@ -27,43 +27,36 @@ trait CourseControllerTrait
 
     /**
      * Gets the current Chamilo course based in the "_real_cid" session variable.
-     *
-     * @return Course
      */
     /*public function getCourse()
-    {
-        $request = $this->getRequest();
-        if ($request) {
-            $courseId = $request->getSession()->get('cid', 0);
-        }
-
-        if (empty($courseId)) {
-            return null;
-        }
-
-        return $this->getDoctrine()->getManager()->find('ChamiloCoreBundle:Course', $courseId);
-    }
-    */
+     * {
+     * $request = $this->getRequest();
+     * if ($request) {
+     * $courseId = $request->getSession()->get('cid', 0);
+     * }
+     * if (empty($courseId)) {
+     * return null;
+     * }
+     * return $this->getDoctrine()->getManager()->find('ChamiloCoreBundle:Course', $courseId);
+     * }.
+     */
 
     /*public function hasCourse()
-    {
-        $request = $this->getRequest();
-        if ($request) {
-            $courseId = $request->getSession()->get('cid', 0);
-            if (!empty($courseId)) {
-                return true;
-            }
-        }
-
-        return false;
-    }*/
+     * {
+     * $request = $this->getRequest();
+     * if ($request) {
+     * $courseId = $request->getSession()->get('cid', 0);
+     * if (!empty($courseId)) {
+     * return true;
+     * }
+     * }
+     * return false;
+     * }*/
 
     /**
      * Gets the current Chamilo session based in the "sid" $_SESSION variable.
-     *
-     * @return Session|null
      */
-    public function getCourseSession()
+    public function getCourseSession(): ?Session
     {
         $request = $this->getRequest();
 
@@ -156,7 +149,7 @@ trait CourseControllerTrait
         return $this->session;
     }
 
-    public function setSession(Session $session = null): void
+    public function setSession(?Session $session = null): void
     {
         $this->session = $session;
     }

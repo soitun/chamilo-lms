@@ -6,42 +6,36 @@ declare(strict_types=1);
 
 namespace Chamilo\CoreBundle\Entity;
 
+use Chamilo\CoreBundle\Repository\SystemTemplateRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * SystemTemplate.
- *
- * @ORM\Table(name="system_template")
- * @ORM\Entity
  */
+#[ORM\Table(name: 'system_template')]
+#[ORM\Entity(repositoryClass: SystemTemplateRepository::class)]
 class SystemTemplate
 {
-    /**
-     * @ORM\Column(name="id", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue()
-     */
-    protected int $id;
+    #[ORM\Column(name: 'id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    protected ?int $id = null;
 
-    /**
-     * @ORM\Column(name="title", type="string", length=250, nullable=false)
-     */
+    #[ORM\Column(name: 'title', type: 'string', length: 250, nullable: false)]
     protected string $title;
 
-    /**
-     * @ORM\Column(name="comment", type="text", nullable=false)
-     */
+    #[ORM\Column(name: 'comment', type: 'text', nullable: false)]
     protected string $comment;
 
-    /**
-     * @ORM\Column(name="image", type="string", length=250, nullable=false)
-     */
-    protected string $image;
+    #[ORM\ManyToOne(targetEntity: Asset::class, cascade: ['persist'])]
+    #[ORM\JoinColumn(name: 'image_id', referencedColumnName: 'id', onDelete: 'SET NULL')]
+    protected ?Asset $image = null;
 
-    /**
-     * @ORM\Column(name="content", type="text", nullable=false)
-     */
+    #[ORM\Column(name: 'content', type: 'text', nullable: false)]
     protected string $content;
+
+    #[ORM\Column(name: 'language', type: 'string', length: 40, nullable: true)]
+    protected string $language;
 
     public function __construct()
     {
@@ -82,21 +76,21 @@ class SystemTemplate
         return $this->comment;
     }
 
-    public function setImage(string $image): self
+    public function getImage(): ?Asset
+    {
+        return $this->image;
+    }
+
+    public function setImage(?Asset $image): self
     {
         $this->image = $image;
 
         return $this;
     }
 
-    /**
-     * Get image.
-     *
-     * @return string
-     */
-    public function getImage()
+    public function hasImage(): bool
     {
-        return $this->image;
+        return null !== $this->image;
     }
 
     public function setContent(string $content): self
@@ -124,5 +118,17 @@ class SystemTemplate
     public function getId()
     {
         return $this->id;
+    }
+
+    public function getLanguage(): string
+    {
+        return $this->language;
+    }
+
+    public function setLanguage(string $language): self
+    {
+        $this->language = $language;
+
+        return $this;
     }
 }

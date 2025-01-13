@@ -1,10 +1,10 @@
-{% set group_courses = 'view_grid_courses_grouped_categories_in_sessions'| api_get_configuration_value %}
+{% set group_courses = chamilo_settings_get('course.view_grid_courses') == 'true' %}
 
 {% macro course_block(course, show_category) %}
     <div class="col-xs-12 col-sm-6 col-md-4">
         <div class="items items-sessions">
             <div class="image">
-                <a title="{{ course.name }}" href="{{ course.link }}">
+                <a title="{{ course.title }}" href="{{ course.link }}">
                     <img src="{{ course.image }}" class="img-responsive">
                 </a>
                 {% if course.category != '' and show_category %}
@@ -14,12 +14,12 @@
                 {% if course.edit_actions %}
                     <div class="admin-actions">
                         {% if course.document == '' %}
-                            <a class="btn btn-default btn-sm" href="{{ course.edit_actions }}">
+                            <a class="btn btn--plain btn-sm" href="{{ course.edit_actions }}">
                                 <i class="fas fa-pencil-alt" aria-hidden="true"></i>
                             </a>
                         {% else %}
                             <div class="btn-group" role="group">
-                                <a class="btn btn-default btn-sm" href="{{ course.edit_actions }}">
+                                <a class="btn btn--plain btn-sm" href="{{ course.edit_actions }}">
                                     <i class="fas fa-pencil-alt" aria-hidden="true"></i>
                                 </a>
                                 {{ course.document }}
@@ -45,9 +45,9 @@
                             id="plist"
                             data-trigger="focus"
                             tabindex="0" role="button"
-                            class="btn btn-default panel_popover"
+                            class="btn btn--plain panel_popover"
                             data-toggle="popover"
-                            title="{{ 'CourseTeachers' | get_lang }}"
+                            title="{{ 'Teachers' | get_lang }}"
                             data-html="true"
                         >
                             <i class="fa fa-graduation-cap" aria-hidden="true"></i>
@@ -79,7 +79,7 @@
                                       {{ teacher.firstname }} {{ teacher.lastname }}
                                   </a>
                               </h5>
-                              <p>{{ "Teacher"|get_lang }}</p>
+                              <p>{{ 'Trainer'|get_lang }}</p>
                           </div>
                         {% endif %}
                     {% endfor %}
@@ -97,13 +97,13 @@
                         <div class="course-student-info">
                             <div class="student-info">
                                 {% if (item.student_info.progress is not null) %}
-                                    {{ "StudentCourseProgressX" | get_lang | format(item.student_info.progress) }}
+                                    {{ 'Progress: %s %%' | get_lang | format(item.student_info.progress) }}
                                 {% endif %}
                                 {% if (item.student_info.score is not null) %}
-                                    {{ "StudentCourseScoreX" | get_lang | format(item.student_info.score) }}
+                                    {{ 'Score: %s %%' | get_lang | format(item.student_info.score) }}
                                 {% endif %}
                                 {% if (item.student_info.certificate is not null) %}
-                                    {{ "StudentCourseCertificateX" | get_lang | format(item.student_info.certificate) }}
+                                    {{ 'Certificate: %s' | get_lang | format(item.student_info.certificate) }}
                                 {% endif %}
                             </div>
                         </div>
@@ -117,7 +117,7 @@
 
 {% import _self as blocks %}
 
-{% set session_image = 'window_list.png'|icon(32, row.title) %}
+{% set session_image = 'ObjectIcon::SESSION'|mdi_icon(32, 'ch-tool-icon', row.title) %}
 
 {% for row in session %}
     {% set collapsable = '' %}
@@ -154,8 +154,7 @@
                 {% if row.show_actions %}
                     <div class="pull-right">
                         <a href="{{ url('legacy_main', { 'name' : 'session/resume_session.php', 'id_session' : row.id }) }}">
-                            <img src="{{ "edit.png"|icon(22) }}" width="22" height="22" alt="{{ "Edit"|get_lang }}"
-                                 title="{{ "Edit"|get_lang }}">
+                            {{ 'ActionIcon::EDIT'|mdi_icon_t(22, 'ch-tool-icon', 'Edit') }}
                         </a>
                     </div>
                 {% endif %}

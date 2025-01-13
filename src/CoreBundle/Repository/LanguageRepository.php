@@ -11,15 +11,18 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 
 class LanguageRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly ParameterBagInterface $parameterBag,
+    ) {
         parent::__construct($registry, Language::class);
     }
 
-    public function getAllAvailable(): QueryBuilder
+    public function getAllAvailable($excludeDefaultLocale = false): QueryBuilder
     {
         $qb = $this->createQueryBuilder('l');
         $qb
@@ -31,6 +34,13 @@ class LanguageRepository extends ServiceEntityRepository
             )*/
         ;
 
+        if ($excludeDefaultLocale) {
+            $qb
+                ->andWhere($qb->expr()->neq('l.isocode', ':iso_en'))
+                ->setParameter('iso_en', $this->parameterBag->get('locale'))
+            ;
+        }
+
         return $qb;
     }
 
@@ -39,6 +49,7 @@ class LanguageRepository extends ServiceEntityRepository
         $languages = $this->getAllAvailable()->getQuery()->getResult();
 
         $list = [];
+
         /** @var Language $language */
         foreach ($languages as $language) {
             $list[$language->getIsocode()] = $language->getOriginalName();
@@ -65,5 +76,16 @@ class LanguageRepository extends ServiceEntityRepository
         ;
 
         return $qb->getQuery()->getResult();
+    }
+
+    public function findByIsoCode(string $isoCode): ?Language
+    {
+        $qb = $this->createQueryBuilder('l');
+        $qb->where('l.isocode = :isoCode')
+            ->setParameter('isoCode', $isoCode)
+            ->setMaxResults(1)
+        ;
+
+        return $qb->getQuery()->getSingleResult();
     }
 }

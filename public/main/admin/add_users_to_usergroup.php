@@ -2,6 +2,8 @@
 
 /* For licensing terms, see /license.txt */
 
+use Chamilo\CoreBundle\Component\Utils\ActionIcon;
+
 // resetting the course id
 use Chamilo\CoreBundle\Entity\Usergroup;
 
@@ -141,7 +143,7 @@ if (isset($_GET['action']) && 'export' === $_GET['action']) {
             ['UserName', 'ClassName'],
         ];
         foreach ($users as $user) {
-            $data[] = [$user['username'], $groupInfo['name']];
+            $data[] = [$user['username'], $groupInfo['title']];
         }
         $filename = 'export_user_class_'.api_get_local_time();
         Export::arrayToCsv($data, $filename);
@@ -323,7 +325,7 @@ if (!empty($user_list)) {
 Display::display_header($tool_name);
 
 $actions = '<a href="usergroups.php">'.
-    Display::return_icon('back.png', get_lang('Back'), [], ICON_SIZE_MEDIUM).'</a>';
+    Display::getMdiIcon(ActionIcon::BACK, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Back')).'</a>';
 
 $actions .= Display::url(
     get_lang('Advanced search'),
@@ -332,10 +334,10 @@ $actions .= Display::url(
 );
 
 $actions .= '<a href="usergroup_user_import.php">'.
-    Display::return_icon('import_csv.png', get_lang('Import'), [], ICON_SIZE_MEDIUM).'</a>';
+    Display::getMdiIcon(ActionIcon::IMPORT_ARCHIVE, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Import')).'</a>';
 
 $actions .= '<a href="'.api_get_self().'?id='.$id.'&action=export">'.
-    Display::return_icon('export_csv.png', get_lang('Export'), [], ICON_SIZE_MEDIUM).
+    Display::getMdiIcon(ActionIcon::EXPORT_CSV, 'ch-tool-icon', null, ICON_SIZE_MEDIUM, get_lang('Export')).
     '</a>';
 
 echo Display::toolbarAction('add_users', [$actions]);
@@ -343,7 +345,7 @@ echo Display::toolbarAction('add_users', [$actions]);
 echo '<div id="advanced_search_options" style="display:none">';
 $searchForm->display();
 echo '</div>';
-echo Display::page_header($tool_name.': '.$data['name']);
+echo Display::page_header($tool_name.': '.$data['title']);
 
 ?>
 <form name="formulaire" method="post" action="<?php echo api_get_self(); ?>?id=<?php echo $id; if (!empty($_GET['add'])) {
@@ -380,93 +382,101 @@ echo Display::input('hidden', 'form_sent', '1');
 echo Display::input('hidden', 'add_type', null);
 
 ?>
-<div class="row">
-    <div class="col-md-5">
-        <?php if (Usergroup::SOCIAL_CLASS == $data['group_type']) {
-    ?>
-        <select name="relation" id="relation">
-            <option value=""><?php echo get_lang('Relation type selection'); ?></option>
-            <option value="<?php echo GROUP_USER_PERMISSION_ADMIN; ?>" <?php echo isset($relation) && GROUP_USER_PERMISSION_ADMIN == $relation ? 'selected=selected' : ''; ?> >
-                <?php echo get_lang('Admin'); ?></option>
-            <option value="<?php echo GROUP_USER_PERMISSION_READER; ?>" <?php echo isset($relation) && GROUP_USER_PERMISSION_READER == $relation ? 'selected=selected' : ''; ?> >
-                <?php echo get_lang('Reader'); ?></option>
-            <option value="<?php echo GROUP_USER_PERMISSION_PENDING_INVITATION; ?>" <?php echo isset($relation) && GROUP_USER_PERMISSION_PENDING_INVITATION == $relation ? 'selected=selected' : ''; ?> >
-                <?php echo get_lang('Pending invitation'); ?></option>
-            <option value="<?php echo GROUP_USER_PERMISSION_MODERATOR; ?>" <?php echo isset($relation) && GROUP_USER_PERMISSION_MODERATOR == $relation ? 'selected=selected' : ''; ?> >
-                <?php echo get_lang('Moderator'); ?></option>
-            <option value="<?php echo GROUP_USER_PERMISSION_HRM; ?>" <?php echo isset($relation) && GROUP_USER_PERMISSION_HRM == $relation ? 'selected=selected' : ''; ?> >
-                <?php echo get_lang('Human Resources Manager'); ?></option>
-        </select>
-        <?php
-} ?>
+<table border="0" cellpadding="5" cellspacing="0" width="100%">
+    <tbody>
+        <tr>
+            <td width="40%" align="center">
+                <?php if (Usergroup::SOCIAL_CLASS == $data['group_type']) {
+                    ?>
+                    <select name="relation" id="relation">
+                        <option value=""><?php echo get_lang('Relation type selection'); ?></option>
+                        <option value="<?php echo GROUP_USER_PERMISSION_ADMIN; ?>" <?php echo isset($relation) && GROUP_USER_PERMISSION_ADMIN == $relation ? 'selected=selected' : ''; ?> >
+                            <?php echo get_lang('Admin'); ?></option>
+                        <option value="<?php echo GROUP_USER_PERMISSION_READER; ?>" <?php echo isset($relation) && GROUP_USER_PERMISSION_READER == $relation ? 'selected=selected' : ''; ?> >
+                            <?php echo get_lang('Reader'); ?></option>
+                        <option value="<?php echo GROUP_USER_PERMISSION_PENDING_INVITATION; ?>" <?php echo isset($relation) && GROUP_USER_PERMISSION_PENDING_INVITATION == $relation ? 'selected=selected' : ''; ?> >
+                            <?php echo get_lang('Pending invitation'); ?></option>
+                        <option value="<?php echo GROUP_USER_PERMISSION_MODERATOR; ?>" <?php echo isset($relation) && GROUP_USER_PERMISSION_MODERATOR == $relation ? 'selected=selected' : ''; ?> >
+                            <?php echo get_lang('Moderator'); ?></option>
+                        <option value="<?php echo GROUP_USER_PERMISSION_HRM; ?>" <?php echo isset($relation) && GROUP_USER_PERMISSION_HRM == $relation ? 'selected=selected' : ''; ?> >
+                            <?php echo get_lang('Human Resources Manager'); ?></option>
+                    </select>
+                    <?php
+                } ?>
 
-        <div class="multiple_select_header">
-        <b><?php echo get_lang('Users on platform'); ?> :</b>
-        <?php echo get_lang('First letter (last name)'); ?> :
-        <select id="first_letter_user" name="firstLetterUser" onchange="change_select();">
-            <option value = "%">--</option>
-            <?php
-            echo Display :: get_alphabet_options($first_letter_user);
-            ?>
-        </select>
-        </div>
-    <?php
-    echo Display::select(
-        'elements_not_in_name',
-        $elements_not_in,
-        '',
-        [
-            'class' => 'form-control',
-            'multiple' => 'multiple',
-            'id' => 'elements_not_in',
-            'size' => '15px',
-        ],
-        false
-    );
-    ?>
-    <br />
-      <label class="control-label">
-          <input type="checkbox" <?php if ($user_with_any_group) {
-        echo 'checked="checked"';
-    } ?> onchange="checked_in_no_group(this.checked);" name="user_with_any_group" id="user_with_any_group_id">
-          <?php echo get_lang('Users registered in any group'); ?>
-      </label>
-    </div>
-    <div class="col-md-2">
-        <div style="padding-top:54px;width:auto;text-align: center;">
-        <button class="btn btn-default" type="button" onclick="moveItem(document.getElementById('elements_not_in'), document.getElementById('elements_in'))" onclick="moveItem(document.getElementById('elements_not_in'), document.getElementById('elements_in'))">
-            <em class="fa fa-arrow-right"></em>
-        </button>
-        <br /><br />
-        <button class="btn btn-default" type="button" onclick="moveItem(document.getElementById('elements_in'), document.getElementById('elements_not_in'))" onclick="moveItem(document.getElementById('elements_in'), document.getElementById('elements_not_in'))">
-            <em class="fa fa-arrow-left"></em>
-        </button>
-        </div>
-    </div>
-    <div class="col-md-5">
-        <div class="multiple_select_header">
-            <b><?php echo get_lang('Users in group'); ?> :</b>
-        </div>
-    <?php
-        echo Display::select(
-            'elements_in_name[]',
-            $elements_in,
-            '',
-            [
-                'class' => 'form-control',
-                'multiple' => 'multiple',
-                'id' => 'elements_in',
-                'size' => '15px',
-            ],
-            false
-        );
-    ?>
-    </div>
-</div>
-<?php
-    echo '<button class="btn btn-primary" type="button" value="" onclick="valide()" ><em class="fa fa-check"></em>'.
-        get_lang('Subscribe users to class').'</button>';
-?>
+                <div class="multiple_select_header">
+                    <b><?php echo get_lang('Users on platform'); ?> :</b>
+                    <?php echo get_lang('First letter (last name)'); ?> :
+                    <select id="first_letter_user" name="firstLetterUser" onchange="change_select();" class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <option value = "%">--</option>
+                        <?php
+                        echo Display :: get_alphabet_options($first_letter_user);
+                        ?>
+                    </select>
+                </div>
+                <?php
+                echo Display::select(
+                    'elements_not_in_name',
+                    $elements_not_in,
+                    '',
+                    [
+                        'class' => 'form-multiselect block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm',
+                        'multiple' => 'multiple',
+                        'id' => 'elements_not_in',
+                        'size' => '15px',
+                    ],
+                    false
+                );
+                ?>
+                <br />
+                <label class="control-label">
+                    <input type="checkbox" <?php if ($user_with_any_group) {
+                        echo 'checked="checked"';
+                    } ?> onchange="checked_in_no_group(this.checked);" name="user_with_any_group" id="user_with_any_group_id">
+                    <?php echo get_lang('Users registered in any group'); ?>
+                </label>
+            </td>
+            <td width="20%" align="center">
+                <div style="padding-top:54px;width:auto;text-align: center;">
+                    <button class="btn btn--plain" type="button" onclick="moveItem(document.getElementById('elements_not_in'), document.getElementById('elements_in'))" onclick="moveItem(document.getElementById('elements_not_in'), document.getElementById('elements_in'))">
+                        <i class="mdi mdi-fast-forward-outline ch-tool-icon"></i>
+                    </button>
+                    <br /><br />
+                    <button class="btn btn--plain" type="button" onclick="moveItem(document.getElementById('elements_in'), document.getElementById('elements_not_in'))" onclick="moveItem(document.getElementById('elements_in'), document.getElementById('elements_not_in'))">
+                        <i class="mdi mdi-rewind-outline ch-tool-icon"></i>
+                    </button>
+                </div>
+            </td>
+            <td width="40%" align="center">
+                <div class="multiple_select_header">
+                    <b><?php echo get_lang('Users in group'); ?> :</b>
+                </div>
+                <?php
+                echo Display::select(
+                    'elements_in_name[]',
+                    $elements_in,
+                    '',
+                    [
+                        'class' => 'form-multiselect block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm',
+                        'multiple' => 'multiple',
+                        'id' => 'elements_in',
+                        'size' => '15px',
+                    ],
+                    false
+                );
+                ?>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="3" align="center">
+                <?php
+                echo '<button class="btn btn--primary" type="button" value="" onclick="valide()" ><em class="fa fa-check"></em>'.
+                    get_lang('Subscribe users to class').'</button>';
+                ?>
+            </td>
+        </tr>
+    </tbody>
+</table>
 </form>
 <script>
 function moveItem(origin , destination) {

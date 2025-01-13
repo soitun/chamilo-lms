@@ -12,7 +12,7 @@ $this_section = SECTION_PLATFORM_ADMIN;
 api_protect_admin_script();
 $interbreadcrumb[] = ['url' => 'index.php', 'name' => get_lang('Administration')];
 // Database Table Definitions
-$tbl_settings_current = Database::get_main_table(TABLE_MAIN_SETTINGS_CURRENT);
+$tbl_settings_current = Database::get_main_table(TABLE_MAIN_SETTINGS);
 $message = '';
 
 if (isset($_POST['activeExtension'])) {
@@ -181,7 +181,7 @@ Display::display_header($nameTool);
                                 WHERE variable = "service_ppt2lp"
                                 AND subkey <> "active"';
                         $rs = Database::query($sql);
-                        while ($row = Database::fetch_array($rs, 'ASSOC')) {
+                        while ($row = Database::fetch_assoc($rs)) {
                             $defaults[$row['subkey']] = $row['selected_value'];
                         }
                         $form->addButtonSave(get_lang('Reconfigure extension'), 'activeExtension');

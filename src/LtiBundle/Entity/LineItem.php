@@ -11,45 +11,27 @@ use DateTime;
 use DateTimeInterface;
 use Doctrine\ORM\Mapping as ORM;
 
-/**
- * Class LineItem.
- *
- * @ORM\Table(name="lti_lineitem")
- * @ORM\Entity
- */
+#[ORM\Table(name: 'lti_lineitem')]
+#[ORM\Entity]
 class LineItem
 {
-    /**
-     * @ORM\Column(name="id", type="integer")
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     */
-    protected int $id;
-    /**
-     * @ORM\ManyToOne(targetEntity="Chamilo\LtiBundle\Entity\ExternalTool", inversedBy="lineItems")
-     * @ORM\JoinColumn(name="tool_id", referencedColumnName="id", nullable=false, onDelete="CASCADE")
-     */
+    #[ORM\Column(name: 'id', type: 'integer')]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    protected ?int $id = null;
+    #[ORM\ManyToOne(targetEntity: ExternalTool::class, inversedBy: 'lineItems')]
+    #[ORM\JoinColumn(name: 'tool_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private ExternalTool $tool;
-    /**
-     * @ORM\OneToOne(targetEntity="Chamilo\CoreBundle\Entity\GradebookEvaluation")
-     * @ORM\JoinColumn(name="evaluation", referencedColumnName="id", nullable=false, onDelete="CASCADE")
-     */
+    #[ORM\OneToOne(targetEntity: GradebookEvaluation::class)]
+    #[ORM\JoinColumn(name: 'evaluation', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private GradebookEvaluation $evaluation;
-    /**
-     * @ORM\Column(name="resource_id", type="string", nullable=true)
-     */
+    #[ORM\Column(name: 'resource_id', type: 'string', nullable: true)]
     private string $resourceId;
-    /**
-     * @ORM\Column(name="tag", type="string", nullable=true)
-     */
+    #[ORM\Column(name: 'tag', type: 'string', nullable: true)]
     private string $tag;
-    /**
-     * @ORM\Column(name="start_date", type="datetime", nullable=true)
-     */
+    #[ORM\Column(name: 'start_date', type: 'datetime', nullable: true)]
     private DateTime $startDate;
-    /**
-     * @ORM\Column(name="end_date", type="datetime", nullable=true)
-     */
+    #[ORM\Column(name: 'end_date', type: 'datetime', nullable: true)]
     private DateTime $endDate;
 
     public function getId(): int
@@ -135,7 +117,7 @@ class LineItem
 
         $data = [
             'scoreMaximum' => $this->evaluation->getMax(),
-            'label' => $this->evaluation->getName(),
+            'label' => $this->evaluation->getTitle(),
             'tag' => $this->tag,
             'resourceLinkId' => (string) $baseTool->getId(),
             'resourceId' => $this->resourceId,

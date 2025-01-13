@@ -12,6 +12,7 @@ use Chamilo\CoreBundle\Entity\Course;
 use Chamilo\CoreBundle\Entity\ExtraField;
 use Chamilo\CoreBundle\Entity\ResourceLink;
 use Chamilo\CoreBundle\Migrations\AbstractMigrationChamilo;
+use Chamilo\CoreBundle\Repository\Node\AccessUrlRepository;
 use Chamilo\CoreBundle\Repository\Node\CourseRepository;
 use Chamilo\CoreBundle\Repository\Node\UserRepository;
 use Chamilo\CoreBundle\Repository\SessionRepository;
@@ -28,15 +29,11 @@ final class Version20201212195011 extends AbstractMigrationChamilo
 
     public function up(Schema $schema): void
     {
-        $container = $this->getContainer();
-        $em = $this->getEntityManager();
-        $connection = $em->getConnection();
-
-        $courseRepo = $container->get(CourseRepository::class);
-        $sessionRepo = $container->get(SessionRepository::class);
-        $toolRepo = $container->get(CToolRepository::class);
-        $urlRepo = $em->getRepository(AccessUrl::class);
-        $userRepo = $container->get(UserRepository::class);
+        $courseRepo = $this->container->get(CourseRepository::class);
+        $sessionRepo = $this->container->get(SessionRepository::class);
+        $toolRepo = $this->container->get(CToolRepository::class);
+        $urlRepo = $this->container->get(AccessUrlRepository::class);
+        $userRepo = $this->container->get(UserRepository::class);
 
         $batchSize = self::BATCH_SIZE;
         $admin = $this->getAdmin();
@@ -48,9 +45,11 @@ final class Version20201212195011 extends AbstractMigrationChamilo
         /** @var AccessUrl $url */
         foreach ($urls as $url) {
             $counter = 1;
+
             /** @var AccessUrl $urlEntity */
             $urlEntity = $urlRepo->find($url->getId());
             $accessUrlRelCourses = $urlEntity->getCourses();
+
             /** @var AccessUrlRelCourse $accessUrlRelCourse */
             foreach ($accessUrlRelCourses as $accessUrlRelCourse) {
                 $course = $accessUrlRelCourse->getCourse();
@@ -61,26 +60,26 @@ final class Version20201212195011 extends AbstractMigrationChamilo
                 $urlEntity = $urlRepo->find($url->getId());
                 $adminEntity = $userRepo->find($adminId);
                 $courseRepo->addResourceNode($course, $adminEntity, $urlEntity);
-                $em->persist($course);
+                $this->entityManager->persist($course);
 
                 // Add groups.
-                //$course = $course->getGroups();
+                // $course = $course->getGroups();
                 if (($counter % $batchSize) === 0) {
-                    $em->flush();
-                    $em->clear(); // Detaches all objects from Doctrine!
+                    $this->entityManager->flush();
+                    $this->entityManager->clear(); // Detaches all objects from Doctrine!
                 }
                 $counter++;
             }
         }
 
-        $em->flush();
-        $em->clear();
+        $this->entityManager->flush();
+        $this->entityManager->clear();
 
         // Special course.
         $extraFieldType = ExtraField::COURSE_FIELD_TYPE;
         $sql = "SELECT id FROM extra_field
-                WHERE extra_field_type = $extraFieldType AND variable = 'special_course'";
-        $result = $connection->executeQuery($sql);
+                WHERE item_type = $extraFieldType AND variable = 'special_course'";
+        $result = $this->connection->executeQuery($sql);
         $extraFieldId = $result->fetchOne();
 
         $specialCourses = [];
@@ -88,8 +87,8 @@ final class Version20201212195011 extends AbstractMigrationChamilo
             $extraFieldId = (int) $extraFieldId;
             $sql = "SELECT DISTINCT(item_id)
                     FROM extra_field_values
-                    WHERE field_id = $extraFieldId AND value = 1 ";
-            $result = $connection->executeQuery($sql);
+                    WHERE field_id = $extraFieldId AND field_value= 1 ";
+            $result = $this->connection->executeQuery($sql);
             $specialCourses = $result->fetchAllAssociative();
             if (!empty($specialCourses)) {
                 $specialCourses = array_map('intval', array_column($specialCourses, 'item_id'));
@@ -97,7 +96,8 @@ final class Version20201212195011 extends AbstractMigrationChamilo
         }
 
         // Migrating c_tool.
-        $q = $em->createQuery('SELECT c FROM Chamilo\CoreBundle\Entity\Course c');
+        $q = $this->entityManager->createQuery('SELECT c FROM Chamilo\CoreBundle\Entity\Course c');
+
         /** @var Course $course */
         foreach ($q->toIterable() as $course) {
             $counter = 1;
@@ -108,7 +108,7 @@ final class Version20201212195011 extends AbstractMigrationChamilo
 
             $sql = "SELECT * FROM c_tool
                     WHERE c_id = {$courseId} ";
-            $result = $connection->executeQuery($sql);
+            $result = $this->connection->executeQuery($sql);
             $tools = $result->fetchAllAssociative();
 
             foreach ($tools as $toolData) {
@@ -127,17 +127,17 @@ final class Version20201212195011 extends AbstractMigrationChamilo
                 $admin = $this->getAdmin();
                 $tool->setParent($course);
                 $toolRepo->addResourceNode($tool, $admin, $course);
-                $newVisibility = 1 === (int) $toolData['visibility'] ? ResourceLink::VISIBILITY_PUBLISHED : ResourceLink::VISIBILITY_PENDING;
+                $newVisibility = 1 === (int) $toolData['visibility'] ? ResourceLink::VISIBILITY_PUBLISHED : ResourceLink::VISIBILITY_DRAFT;
                 $tool->addCourseLink($course, $session, null, $newVisibility);
-                $em->persist($tool);
+                $this->entityManager->persist($tool);
                 if (($counter % $batchSize) === 0) {
-                    $em->flush();
-                    $em->clear(); // Detaches all objects from Doctrine!
+                    $this->entityManager->flush();
+                    $this->entityManager->clear(); // Detaches all objects from Doctrine!
                 }
                 $counter++;
             }
         }
-        $em->flush();
-        $em->clear();
+        $this->entityManager->flush();
+        $this->entityManager->clear();
     }
 }

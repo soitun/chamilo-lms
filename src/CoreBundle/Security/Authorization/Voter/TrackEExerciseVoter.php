@@ -6,19 +6,21 @@ namespace Chamilo\CoreBundle\Security\Authorization\Voter;
 
 use Chamilo\CoreBundle\Entity\TrackEExercise;
 use Chamilo\CoreBundle\Entity\User;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
-use Symfony\Component\Security\Core\Security;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+/**
+ * @extends Voter<'VIEW', TrackEExercise>
+ */
 class TrackEExerciseVoter extends Voter
 {
     public const VIEW = 'VIEW';
 
     public function __construct(
         private Security $security
-    ) {
-    }
+    ) {}
 
     protected function supports(string $attribute, $subject): bool
     {
@@ -61,7 +63,7 @@ class TrackEExerciseVoter extends Voter
                 return true;
             }
         } else {
-            if ($course->hasTeacher($user)) {
+            if ($course->hasUserAsTeacher($user)) {
                 return true;
             }
         }
