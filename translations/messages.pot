@@ -10165,7 +10165,7 @@ msgstr ""
 msgid "Make invisible"
 msgstr ""
 
-msgid "Make Visible"
+msgid "Make visible"
 msgstr ""
 
 msgid "Image"
@@ -30373,4 +30373,7 @@ msgid "This e-mail address has already been used by the maximum number of allowe
 msgstr ""
 
 msgid "Could not write to %s"
+msgstr ""
+
+msgid "Account disabled"
 msgstr ""
