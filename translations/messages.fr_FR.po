@@ -35800,3 +35800,6 @@ msgstr "Masquer les enseignants"
 
 msgid "Delete exercise attempts"
 msgstr "Supprimer les tentatives d'exercice"
+
+msgid "Message sent successfully."
+msgstr "Message envoyé avec succès."

@@ -1893,5 +1893,8 @@
     "Mark as": "Mark as",
     "No results found": "No results found",
     "Attempting to login as %s (id %d)": "Attempting to login as {0} (id {1})",
-    "Login successful. Go to %s": "Login successful. Go to {0}"
+    "Login successful. Go to %s": "Login successful. Go to {0}",
+    "Message sent successfully.": "Message sent successfully.",
+    "Reply to this message": "Reply to this message",
+    "Reply to all": "Reply to all"
 }

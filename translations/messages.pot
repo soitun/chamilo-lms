@@ -33833,3 +33833,6 @@ msgstr ""
 
 msgid "Delete exercise attempts"
 msgstr ""
+
+msgid "Message sent successfully."
+msgstr ""

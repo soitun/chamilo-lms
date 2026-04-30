@@ -35477,3 +35477,6 @@ msgstr "Titel Z–A"
 
 msgid "Send test email"
 msgstr "Senden"
+
+msgid "Message sent successfully."
+msgstr "Nachricht erfolgreich gesendet."

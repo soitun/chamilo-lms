@@ -33916,3 +33916,6 @@ msgstr "Hide teachers"
 
 msgid "Delete exercise attempts"
 msgstr "Delete exercise attempts"
+
+msgid "Message sent successfully."
+msgstr "Message sent successfully."
