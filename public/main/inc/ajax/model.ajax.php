@@ -132,7 +132,14 @@ if ($isDiagnosisLoadSearch) {
 } elseif (in_array($action, $courseActions, true)) {
     api_protect_course_script();
 
-    if (!api_is_allowed_to_edit(null, true)) {
+    $studentAllowedActions = [
+        'get_course_announcements',
+    ];
+
+    if (
+        !in_array($action, $studentAllowedActions, true)
+        && !api_is_allowed_to_edit(null, true)
+    ) {
         api_not_allowed(true);
     }
 } elseif (in_array($action, $adminActions, true)) {
