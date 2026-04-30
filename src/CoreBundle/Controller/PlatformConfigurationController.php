@@ -199,6 +199,7 @@ class PlatformConfigurationController extends AbstractController
                 'lp.lp_start_and_end_date_visible_in_student_view',
                 'lp.lp_allow_export_to_students',
                 'course.enable_tool_introduction',
+                'course.show_toolshortcuts',
             ];
 
             foreach ($variables as $variable) {
