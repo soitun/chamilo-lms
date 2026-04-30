@@ -35480,3 +35480,9 @@ msgstr "Senden"
 
 msgid "Message sent successfully."
 msgstr "Nachricht erfolgreich gesendet."
+ 
+msgid "Select a file to insert into the editor."
+msgstr "Eine Datei auswählen, die in den Editor eingefügt werden soll."
+
+msgid "File manager"
+msgstr "Dateimanager"

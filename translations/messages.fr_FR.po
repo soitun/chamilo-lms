@@ -9963,6 +9963,9 @@ msgstr "Résultats de la recherche de :"
 msgid "Select a file"
 msgstr "Selectionnez un document"
 
+msgid "Select a file to insert into the editor."
+msgstr "Sélectionnez un fichier à insérer dans l'éditeur."
+
 msgid "Warning - The FAQ file, located in the /home/ directory of your portal, is not writable. Your text will not be saved until the file permissions are changed."
 msgstr "Attention - Le fichier de FAQ situé dans le répertoire /home/ de votre campus n'est pas inscriptible. Le texte que vous venez d'entrer ne pourra pas être sauvé tant que les permissions n'auront pas été modifiées."
 
@@ -34051,6 +34054,9 @@ msgstr "Devoir"
 
 msgid "Allowed file formats: %s"
 msgstr "Formats de fichiers autorisés : %s"
+
+msgid "File manager"
+msgstr "Gestionnaire de fichiers"
 
 msgid "File type not allowed. Allowed extensions: %s"
 msgstr "Type de fichier non autorisé. Extensions autorisées : %s"

@@ -9731,6 +9731,9 @@ msgstr "Search results for:"
 msgid "Select a file"
 msgstr "Select a file"
 
+msgid "Select a file to insert into the editor."
+msgstr "Select a file to insert into the editor."
+
 msgid "Warning - The FAQ file, located in the /home/ directory of your portal, is not writable. Your text will not be saved until the file permissions are changed."
 msgstr "Warning - The FAQ file, located in the /home/ directory of your portal, is not writable. Your text will not be saved until the file permissions are changed."
 
@@ -32170,6 +32173,9 @@ msgstr "Assignment"
 
 msgid "Allowed file formats: %s"
 msgstr "Allowed file formats: %s"
+
+msgid "File manager"
+msgstr "File manager"
 
 msgid "File type not allowed. Allowed extensions: %s"
 msgstr "File type not allowed. Allowed extensions: %s"

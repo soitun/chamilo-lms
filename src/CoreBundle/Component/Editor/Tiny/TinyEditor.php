@@ -306,7 +306,7 @@ class TinyEditor extends Editor
                 }
 
                 tinymce.activeEditor.windowManager.openUrl({
-                    title: "File Manager",
+                    title: "'.addslashes($this->translator->trans('File manager')).'",
                     url: fileManagerUrl,
                     width: 980,
                     height: 600,
