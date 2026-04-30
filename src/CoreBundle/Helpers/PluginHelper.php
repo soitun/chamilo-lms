@@ -80,26 +80,10 @@ final class PluginHelper
 
     public function loadLegacyPlugin(string $pluginName): ?object
     {
-        $projectDir = $this->parameterBag->get('kernel.project_dir');
+        $name = $this->resolveTitle($pluginName) ?? $pluginName;
 
-        $cands = array_unique([
-            $pluginName,
-            implode('', array_map('ucfirst', preg_split('/[^a-z0-9]+/i', $pluginName))),
-        ]);
-
-        foreach ($cands as $cand) {
-            $pluginPath = $projectDir.'/public/plugin/'.$cand.'/src/'.$cand.'.php';
-            $pluginClass = $cand;
-
-            if (!file_exists($pluginPath)) {
-                continue;
-            }
-            if (!class_exists($pluginClass)) {
-                require_once $pluginPath;
-            }
-            if (class_exists($pluginClass) && method_exists($pluginClass, 'create')) {
-                return $pluginClass::create();
-            }
+        if (class_exists($name) && method_exists($name, 'create')) {
+            return $name::create();
         }
 
         return null;
