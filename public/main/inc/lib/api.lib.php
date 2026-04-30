@@ -2922,15 +2922,12 @@ function api_get_plugin_setting($plugin, $variable)
         return $helper->isPluginEnabled((string) $plugin) ? 'true' : 'false';
     }
 
-    $value = $helper->getPluginConfigValue((string) $plugin, (string) $variable, null);
+    $value = $helper->getPluginSetting((string) $plugin, (string) $variable);
 
-    // BC: many legacy callers expect strings; normalize booleans to 'true'/'false'
     if (\is_bool($value)) {
         return $value ? 'true' : 'false';
     }
 
-    // If the value is serialized in old code paths, keep it as-is.
-    // For arrays/objects coming from JSON config, return them directly.
     return $value;
 }
 

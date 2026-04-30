@@ -7,6 +7,7 @@ declare(strict_types=1);
 namespace Chamilo\CoreBundle\Controller;
 
 use Bbb;
+use BuyCoursesPlugin;
 use Chamilo\CoreBundle\Helpers\AuthenticationConfigHelper;
 use Chamilo\CoreBundle\Helpers\PluginHelper;
 use Chamilo\CoreBundle\Helpers\ThemeHelper;
@@ -18,12 +19,14 @@ use Chamilo\CoreBundle\Traits\ControllerTrait;
 use Chamilo\CourseBundle\Entity\CCourseSetting;
 use Chamilo\CourseBundle\Settings\SettingsCourseManager;
 use Doctrine\ORM\EntityManagerInterface;
+use OnlyofficePlugin;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Tour;
 
 #[Route('/platform-config')]
 class PlatformConfigurationController extends AbstractController
@@ -381,23 +384,10 @@ class PlatformConfigurationController extends AbstractController
     {
         $enabled = $this->pluginHelper->isPluginEnabled('Onlyoffice');
 
-        $documentServerUrl = (string) $this->pluginHelper->getPluginConfigValue(
-            'Onlyoffice',
-            'document_server_url',
-            ''
-        );
-
-        $jwtSecret = (string) $this->pluginHelper->getPluginConfigValue(
-            'Onlyoffice',
-            'jwt_secret',
-            ''
-        );
-
-        $demoData = $this->pluginHelper->getPluginConfigValue(
-            'Onlyoffice',
-            'onlyoffice_connect_demo_data',
-            null
-        );
+        $onlyoffice = OnlyofficePlugin::create();
+        $documentServerUrl = (string) ($onlyoffice->get('document_server_url') ?? '');
+        $jwtSecret = (string) ($onlyoffice->get('jwt_secret') ?? '');
+        $demoData = $onlyoffice->get('onlyoffice_connect_demo_data');
 
         $demoEnabled = false;
 
@@ -426,72 +416,55 @@ class PlatformConfigurationController extends AbstractController
     {
         $enabled = $this->pluginHelper->isPluginEnabled('Tour');
 
-        $showTour = $enabled && $this->normalizePluginBoolean(
-            $this->pluginHelper->getPluginConfigValue('Tour', 'show_tour', true)
-        );
+        $config = [
+            'enabled' => $enabled,
+        ];
 
-        $theme = trim((string) $this->pluginHelper->getPluginConfigValue('Tour', 'theme', ''));
-        $themeCssPath = null;
+        if ($enabled) {
+            $tour = Tour::create();
 
-        if ('' !== $theme) {
-            $themeCssPath = '/plugin/Tour/intro.js/introjs-'.$theme.'.css';
+            $theme = trim((string) ($tour->get('theme') ?? ''));
+            $themeCssPath = null;
+
+            if ('' !== $theme) {
+                $themeCssPath = '/plugin/Tour/intro.js/introjs-'.$theme.'.css';
+            }
+
+            $config['showTour'] = $tour->get('show_tour');
+            $config['theme'] = $theme;
+            $config['introCss'] = '/plugin/Tour/intro.js/introjs.min.css';
+            $config['introThemeCss'] = $themeCssPath;
+            $config['introJs'] = '/plugin/Tour/intro.js/intro.min.js';
+            $config['stepsAjax'] = '/plugin/Tour/ajax/steps.ajax.php';
+            $config['saveAjax'] = '/plugin/Tour/ajax/save.ajax.php';
         }
 
-        return [
-            'enabled' => $enabled,
-            'showTour' => $showTour,
-            'theme' => $theme,
-            'introCss' => '/plugin/Tour/intro.js/introjs.min.css',
-            'introThemeCss' => $themeCssPath,
-            'introJs' => '/plugin/Tour/intro.js/intro.min.js',
-            'stepsAjax' => '/plugin/Tour/ajax/steps.ajax.php',
-            'saveAjax' => '/plugin/Tour/ajax/save.ajax.php',
-        ];
+        return $config;
     }
 
     private function getBuyCoursesFrontendConfig(): array
     {
         $enabled = $this->pluginHelper->isPluginEnabled('BuyCourses');
 
-        $showMainMenuTab = $enabled && $this->normalizePluginBoolean(
-            $this->pluginHelper->getPluginConfigValue('BuyCourses', 'show_main_menu_tab', false)
-        );
-
-        $publicMainMenuTab = $enabled && $this->normalizePluginBoolean(
-            $this->pluginHelper->getPluginConfigValue('BuyCourses', 'public_main_menu_tab', false)
-        );
-
-        $allowAnonymousUsers = $enabled && $this->normalizePluginBoolean(
-            $this->pluginHelper->getPluginConfigValue('BuyCourses', 'unregistered_users_enable', false)
-        );
-
-        return [
+        $config = [
             'enabled' => $enabled,
-            'showMainMenuTab' => $showMainMenuTab,
-            'publicMainMenuTab' => $publicMainMenuTab,
-            'allowAnonymousUsers' => $allowAnonymousUsers,
-            'visibleForAuthenticatedUsers' => $enabled && $showMainMenuTab,
-            'visibleForAnonymousUsers' => $enabled && $showMainMenuTab && $publicMainMenuTab,
-            'indexPath' => '/plugin/BuyCourses/index.php',
         ];
-    }
 
-    private function normalizePluginBoolean(mixed $value): bool
-    {
-        if (\is_bool($value)) {
-            return $value;
+        if ($enabled) {
+            $buyCourses = BuyCoursesPlugin::create();
+
+            $showMainMenuTab = $buyCourses->get('show_main_menu_tab');
+            $publicMainMenuTab = $buyCourses->get('public_main_menu_tab');
+            $allowAnonymousUsers = $buyCourses->get('unregistered_users_enable');
+
+            $config['showMainMenuTab'] = $showMainMenuTab;
+            $config['publicMainMenuTab'] = $publicMainMenuTab;
+            $config['allowAnonymousUsers'] = $allowAnonymousUsers;
+            $config['visibleForAuthenticatedUsers'] = $showMainMenuTab;
+            $config['visibleForAnonymousUsers'] = $showMainMenuTab && $publicMainMenuTab;
+            $config['indexPath'] = '/plugin/BuyCourses/index.php';
         }
 
-        if (\is_int($value)) {
-            return 1 === $value;
-        }
-
-        if (\is_string($value)) {
-            $normalized = strtolower(trim($value));
-
-            return \in_array($normalized, ['1', 'true', 'yes', 'on'], true);
-        }
-
-        return false;
+        return $config;
     }
 }
