@@ -165,6 +165,27 @@ final class PluginHelper
         return empty($results);
     }
 
+    public function getPluginOverrides(string $pluginName): array
+    {
+        if (!$this->parameterBag->has('plugin_settings')) {
+            return [];
+        }
+
+        $pluginSettings = $this->parameterBag->get('plugin_settings');
+
+        $defaults = \is_array($pluginSettings['default'][$pluginName] ?? null)
+            ? $pluginSettings['default'][$pluginName]
+            : [];
+
+        $accessUrl = $this->accessUrlHelper->getCurrent();
+
+        $urlSpecific = $accessUrl && \is_array($pluginSettings[$accessUrl->getId()][$pluginName] ?? null)
+            ? $pluginSettings[$accessUrl->getId()][$pluginName]
+            : [];
+
+        return array_merge($defaults, $urlSpecific);
+    }
+
     /**
      * Return the whole configuration array for a plugin in the current Access URL,
      * or null if not found.
