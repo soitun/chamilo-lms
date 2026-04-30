@@ -863,9 +863,58 @@ class CourseController extends ToolBaseController
         return \count($results) > 0 ? $results[0] : null;
     }
 
+    private function findCourseTool(Course $course, string $toolTitle, ?Session $session, EntityManagerInterface $em): ?CTool
+    {
+        return $em->getRepository(CTool::class)->findOneBy([
+            'title' => $toolTitle,
+            'course' => $course,
+            'session' => $session,
+        ]);
+    }
+
+    private function ensureCourseTool(
+        Course $course,
+        string $toolTitle,
+        ?Session $session,
+        EntityManagerInterface $em
+    ): ?CTool {
+        $existing = $this->findCourseTool($course, $toolTitle, $session, $em);
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $toolEntity = $em->getRepository(Tool::class)->findOneBy(['title' => $toolTitle]);
+
+        if (!$toolEntity) {
+            return null;
+        }
+
+        $ctool = (new CTool())
+            ->setTool($toolEntity)
+            ->setTitle($toolTitle)
+            ->setCourse($course)
+            ->setPosition(1)
+            ->setParent($course)
+            ->setCreator($course->getCreator())
+            ->setSession($session)
+            ->addCourseLink($course)
+        ;
+
+        $em->persist($ctool);
+        $em->flush();
+
+        return $ctool;
+    }
+
     #[Route('/{id}/getToolIntro', name: 'chamilo_core_course_gettoolintro')]
     public function getToolIntro(Request $request, Course $course, EntityManagerInterface $em): Response
     {
+        $toolTitle = trim((string) $request->query->get('tool', 'course_homepage'));
+        if ('' === $toolTitle) {
+            $toolTitle = 'course_homepage';
+        }
+
         $sessionId = (int) $request->query->get('sid', 0);
 
         $session = null;
@@ -873,14 +922,11 @@ class CourseController extends ToolBaseController
             $session = $em->getRepository(Session::class)->find($sessionId);
         }
 
-        $ctoolRepo = $em->getRepository(CTool::class);
         $ctoolintroRepo = $em->getRepository(CToolIntro::class);
 
-        // Base tool + base intro (course context, no session).
-        $baseTool = $this->findIntroOfCourse($course);
+        $baseTool = $this->findCourseTool($course, $toolTitle, null, $em);
         if (!$baseTool) {
-            // ensure the base tool exists (should rarely happen).
-            $baseTool = $this->ensureCourseHomepageTool($course, null, $em);
+            $baseTool = $this->ensureCourseTool($course, $toolTitle, null, $em);
         }
 
         $baseIntro = null;
@@ -896,18 +942,12 @@ class CourseController extends ToolBaseController
         $createInSession = false;
 
         if ($session) {
-            // Ensure the session tool exists so the frontend can create the intro in the right context.
-            $sessionTool = $ctoolRepo->findOneBy([
-                'title' => 'course_homepage',
-                'course' => $course,
-                'session' => $session,
-            ]);
+            $sessionTool = $this->findCourseTool($course, $toolTitle, $session, $em);
 
             if (!$sessionTool) {
-                $sessionTool = $this->ensureCourseHomepageTool($course, $session, $em);
+                $sessionTool = $this->ensureCourseTool($course, $toolTitle, $session, $em);
             }
 
-            // Use session tool for editing/creation in session context.
             if ($sessionTool) {
                 $activeTool = $sessionTool;
 
@@ -917,19 +957,12 @@ class CourseController extends ToolBaseController
                 );
 
                 if ($sessionIntro) {
-                    // Session-specific intro exists: show it.
                     $activeIntro = $sessionIntro;
                     $createInSession = false;
                 } else {
-                    // No session-specific intro yet: show base intro (if any), but allow creating in session.
                     $activeIntro = $baseIntro;
                     $createInSession = true;
                 }
-            } else {
-                // If session tool cannot be created, fallback to base (display only).
-                $activeTool = $baseTool;
-                $activeIntro = $baseIntro;
-                $createInSession = false;
             }
         }
 
@@ -957,36 +990,29 @@ class CourseController extends ToolBaseController
     public function addToolIntro(Request $request, Course $course, EntityManagerInterface $em): Response
     {
         $data = json_decode($request->getContent());
+
+        $toolTitle = trim((string) ($data->tool ?? 'course_homepage'));
+        if ('' === $toolTitle) {
+            $toolTitle = 'course_homepage';
+        }
+
         $sessionId = $data->sid ?? ($data->resourceLinkList[0]->sid ?? 0);
         $introText = $data->introText ?? null;
 
         $session = $sessionId ? $em->getRepository(Session::class)->find($sessionId) : null;
-        $ctoolRepo = $em->getRepository(CTool::class);
         $ctoolintroRepo = $em->getRepository(CToolIntro::class);
 
-        $ctoolSession = $ctoolRepo->findOneBy([
-            'title' => 'course_homepage',
-            'course' => $course,
-            'session' => $session,
-        ]);
+        $ctoolSession = $this->findCourseTool($course, $toolTitle, $session, $em);
 
         if (!$ctoolSession) {
-            $toolEntity = $em->getRepository(Tool::class)->findOneBy(['title' => 'course_homepage']);
-            if ($toolEntity) {
-                $ctoolSession = (new CTool())
-                    ->setTool($toolEntity)
-                    ->setTitle('course_homepage')
-                    ->setCourse($course)
-                    ->setPosition(1)
-                    ->setParent($course)
-                    ->setCreator($course->getCreator())
-                    ->setSession($session)
-                    ->addCourseLink($course)
-                ;
+            $ctoolSession = $this->ensureCourseTool($course, $toolTitle, $session, $em);
+        }
 
-                $em->persist($ctoolSession);
-                $em->flush();
-            }
+        if (!$ctoolSession) {
+            return new JsonResponse([
+                'status' => 'error',
+                'message' => 'Course tool not found.',
+            ], Response::HTTP_NOT_FOUND);
         }
 
         $ctoolIntro = $ctoolintroRepo->findOneBy(['courseTool' => $ctoolSession]);

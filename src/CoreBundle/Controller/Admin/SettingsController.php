@@ -737,18 +737,13 @@ class SettingsController extends BaseController
     {
         return [
             'ai_helpers.course_analyser',
-            'course.enable_tool_introduction',
             'course.show_toolshortcuts',
             'document.default_group_quotum',
             'editor.video_context_menu_hidden',
             'exercise.my_courses_show_pending_exercise_attempts',
             'exercise.quiz_keep_alive_ping_interval',
             'exercise.show_exercise_attempts_in_all_user_sessions',
-            'lp.lp_allow_export_to_students',
             'lp.lp_enable_flow',
-            'lp.lp_item_prerequisite_dates',
-            'lp.student_follow_page_hide_lp_tests_average',
-            'lp.student_follow_page_include_not_subscribed_lp_students',
             'profile.enable_profile_user_address_geolocalization',
             'security.security_session_cookie_samesite_none',
             'session.assignment_base_course_teacher_access_to_all_session',
