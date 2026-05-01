@@ -203,6 +203,7 @@ class PlatformConfigurationController extends AbstractController
                 'lp.lp_allow_export_to_students',
                 'course.enable_tool_introduction',
                 'course.show_toolshortcuts',
+                'work.my_courses_show_pending_work',
             ];
 
             foreach ($variables as $variable) {
