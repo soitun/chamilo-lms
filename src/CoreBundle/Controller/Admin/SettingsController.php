@@ -778,7 +778,6 @@ class SettingsController extends BaseController
             'profile.enable_profile_user_address_geolocalization',
             'security.security_session_cookie_samesite_none',
             'session.assignment_base_course_teacher_access_to_all_session',
-            'work.my_courses_show_pending_work',
         ];
     }
 }
