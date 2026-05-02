@@ -776,7 +776,6 @@ class SettingsController extends BaseController
             'exercise.show_exercise_attempts_in_all_user_sessions',
             'lp.lp_enable_flow',
             'profile.enable_profile_user_address_geolocalization',
-            'security.security_session_cookie_samesite_none',
             'session.assignment_base_course_teacher_access_to_all_session',
         ];
     }
