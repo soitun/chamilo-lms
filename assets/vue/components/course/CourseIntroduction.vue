@@ -44,7 +44,12 @@ const platformConfigStore = usePlatformConfig()
 const intro = ref(null)
 const isLoading = ref(false)
 
+const isCourseHomepage = computed(() => props.tool === "course_homepage")
 const isEnabled = computed(() => {
+  if (isCourseHomepage.value) {
+    return true
+  }
+
   const value = platformConfigStore.getSetting("course.enable_tool_introduction")
 
   return value === true || value === "true" || value === 1 || value === "1"
