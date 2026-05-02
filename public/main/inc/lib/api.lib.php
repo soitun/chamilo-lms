@@ -7916,3 +7916,34 @@ function api_apply_samesite_none_session_cookie_setting(): void
     });
 }
 
+function api_get_video_context_menu_hidden_script(): string
+{
+    if ('true' !== api_get_setting('editor.video_context_menu_hidden')) {
+        return '';
+    }
+
+    return <<<HTML
+    <script>
+    (function () {
+        if (window.chamiloVideoContextMenuHiddenInitialized) {
+            return;
+        }
+
+        window.chamiloVideoContextMenuHiddenInitialized = true;
+
+        document.addEventListener('contextmenu', function (event) {
+            var target = event.target;
+
+            if (!target || !target.closest) {
+                return;
+            }
+
+            if (target.closest('video:not(.skip), .mejs__container')) {
+                event.preventDefault();
+            }
+        });
+    })();
+    </script>
+    HTML;
+}
+

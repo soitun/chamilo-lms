@@ -2839,6 +2839,7 @@ HTML;
                 $content = '<video style="width: 400px; height:100%;" src="'.$fileUrl.'"></video>';
                 // Allows video to play when loading during an ajax call
                 $content .= "<script>jQuery('video:not(.skip), audio:not(.skip)').mediaelementplayer();</script>";
+                $content .= api_get_video_context_menu_hidden_script();
                 break;
             case 'jpg':
             case 'jpeg':
