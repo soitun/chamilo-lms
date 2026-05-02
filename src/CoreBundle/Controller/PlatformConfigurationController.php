@@ -204,6 +204,7 @@ class PlatformConfigurationController extends AbstractController
                 'course.enable_tool_introduction',
                 'course.show_toolshortcuts',
                 'work.my_courses_show_pending_work',
+                'exercise.my_courses_show_pending_exercise_attempts',
             ];
 
             foreach ($variables as $variable) {

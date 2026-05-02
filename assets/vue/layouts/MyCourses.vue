@@ -7,6 +7,13 @@
       to-url="/main/work/pending.php"
       type="primary"
     />
+    <BaseButton
+      v-if="showPendingExerciseAttemptsLink"
+      :label="t('Pending tests')"
+      icon="quiz"
+      to-url="/main/exercise/pending.php"
+      type="primary"
+    />
   </SectionHeader>
 
   <router-view />
@@ -24,13 +31,13 @@ const { t } = useI18n()
 const platformConfigStore = usePlatformConfig()
 const securityStore = useSecurityStore()
 
-const showPendingAssignmentsSetting = computed(() => {
-  const value = platformConfigStore.getSetting("work.my_courses_show_pending_work")
+function isSettingEnabled(name) {
+  const value = platformConfigStore.getSetting(name)
 
   return value === true || value === "true" || value === 1 || value === "1"
-})
+}
 
-const canReviewAssignments = computed(() => {
+const canReviewCourseItems = computed(() => {
   return Boolean(
     securityStore.isAdmin ||
     securityStore.isTeacher ||
@@ -39,7 +46,19 @@ const canReviewAssignments = computed(() => {
   )
 })
 
+const showPendingAssignmentsSetting = computed(() => {
+  return isSettingEnabled("work.my_courses_show_pending_work")
+})
+
 const showPendingAssignmentsLink = computed(() => {
-  return showPendingAssignmentsSetting.value && canReviewAssignments.value
+  return showPendingAssignmentsSetting.value && canReviewCourseItems.value
+})
+
+const showPendingExerciseAttemptsSetting = computed(() => {
+  return isSettingEnabled("exercise.my_courses_show_pending_exercise_attempts")
+})
+
+const showPendingExerciseAttemptsLink = computed(() => {
+  return showPendingExerciseAttemptsSetting.value && canReviewCourseItems.value
 })
 </script>
