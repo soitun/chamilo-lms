@@ -770,7 +770,6 @@ class SettingsController extends BaseController
         return [
             'ai_helpers.course_analyser',
             'document.default_group_quotum',
-            'editor.video_context_menu_hidden',
             'exercise.my_courses_show_pending_exercise_attempts',
             'exercise.quiz_keep_alive_ping_interval',
             'exercise.show_exercise_attempts_in_all_user_sessions',

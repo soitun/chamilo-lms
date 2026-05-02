@@ -586,6 +586,7 @@ class ScormApi
                         $('video:not(.skip), audio:not(.skip)').mediaelementplayer();
                     });
                 </script>";
+                $return .= api_get_video_context_menu_hidden_script();
             }
         }
 
