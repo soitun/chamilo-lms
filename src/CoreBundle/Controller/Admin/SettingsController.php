@@ -770,7 +770,6 @@ class SettingsController extends BaseController
         return [
             'ai_helpers.course_analyser',
             'document.default_group_quotum',
-            'exercise.quiz_keep_alive_ping_interval',
             'exercise.show_exercise_attempts_in_all_user_sessions',
             'lp.lp_enable_flow',
             'session.assignment_base_course_teacher_access_to_all_session',
