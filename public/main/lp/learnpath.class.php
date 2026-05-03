@@ -1328,6 +1328,69 @@ class learnpath
         }
     }
 
+    public static function getFlowNextLpOptions(int $lpId): array
+    {
+        $lpId = (int) $lpId;
+
+        if ($lpId <= 0) {
+            return [];
+        }
+
+        $lpTable = Database::get_course_table(TABLE_LP_MAIN);
+        $resourceNodeTable = 'resource_node';
+
+        $sql = "
+            SELECT DISTINCT candidate_lp.iid, candidate_lp.title
+            FROM $lpTable current_lp
+            INNER JOIN $resourceNodeTable current_rn
+                ON current_rn.id = current_lp.resource_node_id
+            INNER JOIN $resourceNodeTable candidate_rn
+                ON candidate_rn.parent_id = current_rn.parent_id
+            INNER JOIN $lpTable candidate_lp
+                ON candidate_lp.resource_node_id = candidate_rn.id
+            WHERE current_lp.iid = $lpId
+                AND candidate_lp.iid <> $lpId
+            ORDER BY candidate_lp.title ASC
+        ";
+
+        $result = Database::query($sql);
+        $options = [];
+
+        while ($row = Database::fetch_assoc($result)) {
+            $options[(int) $row['iid']] = $row['title'];
+        }
+
+        return $options;
+    }
+
+    public static function isValidFlowNextLp(int $currentLpId, int $nextLpId): bool
+    {
+        $currentLpId = (int) $currentLpId;
+        $nextLpId = (int) $nextLpId;
+
+        if ($currentLpId <= 0 || $nextLpId <= 0 || $currentLpId === $nextLpId) {
+            return false;
+        }
+
+        $options = self::getFlowNextLpOptions($currentLpId);
+
+        return isset($options[$nextLpId]);
+    }
+
+    public static function getFlowNextLpInfo(int $currentLpId, int $nextLpId): array
+    {
+        if (!self::isValidFlowNextLp($currentLpId, $nextLpId)) {
+            return [];
+        }
+
+        $options = self::getFlowNextLpOptions($currentLpId);
+
+        return [
+            'iid' => $nextLpId,
+            'title' => $options[$nextLpId],
+        ];
+    }
+
     /**
      * Gets the navigation bar for the learnpath display screen.
      *
