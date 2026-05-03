@@ -94,9 +94,9 @@ function pending_exercise_get_courses_for_select(int $userId, bool $includeSessi
     return $options;
 }
 
-$showAttemptsInSessions = (bool) api_get_configuration_value('show_exercise_attempts_in_all_user_sessions');
+$showAttemptsInSessions = pending_exercise_setting_is_enabled('exercise.show_exercise_attempts_in_all_user_sessions');
+$currentSessionId = api_get_session_id();
 $allowedCourseIds = pending_exercise_get_allowed_course_ids($userId, $showAttemptsInSessions);
-
 $action = $_GET['a'] ?? null;
 $courseId = isset($_GET['course_id']) ? (int) $_GET['course_id'] : 0;
 
@@ -207,8 +207,8 @@ $qualificationDateSelect = "
     ), '')
 ";
 
-$officialCodeInList = pending_exercise_setting_is_enabled('show_official_code_exercise_result_list');
-$showUsername = (bool) api_get_configuration_value('exercise_attempts_report_show_username');
+$officialCodeInList = pending_exercise_setting_is_enabled('exercise.show_official_code_exercise_result_list');
+$showUsername = pending_exercise_setting_is_enabled('exercise.exercise_attempts_report_show_username');
 
 $where = [];
 
@@ -216,6 +216,14 @@ if (!api_is_platform_admin()) {
     $where[] = empty($allowedCourseIds)
         ? '1 = 0'
         : 'te.c_id IN ('.implode(',', array_map('intval', $allowedCourseIds)).')';
+}
+
+if (!$showAttemptsInSessions) {
+    if ($currentSessionId > 0) {
+        $where[] = 'te.session_id = '.(int) $currentSessionId;
+    } else {
+        $where[] = '(te.session_id IS NULL OR te.session_id = 0)';
+    }
 }
 
 if ($courseId > 0) {
