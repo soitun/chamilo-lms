@@ -769,7 +769,6 @@ class SettingsController extends BaseController
     {
         return [
             'ai_helpers.course_analyser',
-            'document.default_group_quotum',
         ];
     }
 }

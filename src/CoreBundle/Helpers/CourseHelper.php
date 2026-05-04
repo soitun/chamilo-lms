@@ -1255,6 +1255,45 @@ class CourseHelper
         return 0;
     }
 
+    private function resolveDefaultGroupDocumentQuotaMb(): int
+    {
+        $candidates = [
+            'document.default_group_quotum',
+            'default_group_quotum',
+        ];
+
+        foreach ($candidates as $key) {
+            $raw = $this->settingsManager->getSetting($key, true);
+
+            if (null !== $raw && '' !== (string) $raw) {
+                $mb = $this->parseQuotaRawToMb((string) $raw);
+
+                if ($mb > 0) {
+                    return $mb;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    private function isGroupDocumentContext(): bool
+    {
+        $request = $this->requestStack->getCurrentRequest();
+
+        if (null === $request) {
+            return api_get_group_id() > 0;
+        }
+
+        $groupId = $request->query->getInt('gid');
+
+        if ($groupId <= 0) {
+            $groupId = $request->request->getInt('gid');
+        }
+
+        return $groupId > 0 || api_get_group_id() > 0;
+    }
+
     /**
      * Returns used bytes for Documents in a course.
      *
@@ -1771,6 +1810,14 @@ class CourseHelper
 
     public function resolveDocumentsToolQuotaMbForCourse(Course $course): int
     {
+        if ($this->isGroupDocumentContext()) {
+            $groupQuotaMb = $this->resolveDefaultGroupDocumentQuotaMb();
+
+            if ($groupQuotaMb > 0) {
+                return $groupQuotaMb;
+            }
+        }
+
         $owner = $this->getCourseOwnerForQuota($course);
         if ($owner instanceof User) {
             return $this->resolveEffectiveDocumentQuotaMbForUser($owner);
