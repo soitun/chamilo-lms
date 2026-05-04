@@ -1934,14 +1934,42 @@ class CourseController extends ToolBaseController
 
             $status = $plugin->getCourseCreationCapabilityStatus($userId);
 
+            $canCreate = (bool) ($status['canCreate'] ?? true);
+            $currentCount = (int) ($status['currentCount'] ?? 0);
+            $effectiveLimit = (int) ($status['effectiveLimit'] ?? 0);
+            $limitSource = (string) ($status['limitSource'] ?? 'unlimited');
+
+            $message = '';
+            if (!$canCreate) {
+                if ($effectiveLimit <= 0) {
+                    $message = $translator->trans('You cannot create more courses at this time.');
+                } elseif ('service' === $limitSource) {
+                    $message = \sprintf(
+                        $translator->trans(
+                            'You already manage %d courses and your active service allows up to %d. To create another course, you need a higher service limit or reduce your current active courses.'
+                        ),
+                        $currentCount,
+                        $effectiveLimit
+                    );
+                } else {
+                    $message = \sprintf(
+                        $translator->trans(
+                            'You already manage %d courses and the platform currently allows up to %d for your account. You cannot create more courses right now.'
+                        ),
+                        $currentCount,
+                        $effectiveLimit
+                    );
+                }
+            }
+
             return [
-                'canCreate' => (bool) ($status['canCreate'] ?? true),
-                'currentCount' => (int) ($status['currentCount'] ?? 0),
-                'effectiveLimit' => (int) ($status['effectiveLimit'] ?? 0),
+                'canCreate' => $canCreate,
+                'currentCount' => $currentCount,
+                'effectiveLimit' => $effectiveLimit,
                 'serviceLimit' => isset($status['serviceLimit']) ? (int) $status['serviceLimit'] : null,
                 'globalLimit' => (int) ($status['globalLimit'] ?? 0),
-                'limitSource' => (string) ($status['limitSource'] ?? 'unlimited'),
-                'message' => (string) ($status['message'] ?? ''),
+                'limitSource' => $limitSource,
+                'message' => $message,
             ];
         } catch (Throwable $exception) {
             error_log('[BuyCourses] Failed to resolve course creation capability: '.$exception->getMessage());

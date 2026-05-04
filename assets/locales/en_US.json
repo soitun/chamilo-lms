@@ -1900,6 +1900,9 @@
     "Attempting to login as %s (id %d)": "Attempting to login as {0} (id {1})",
     "Login successful. Go to %s": "Login successful. Go to {0}",
     "Message sent successfully.": "Message sent successfully.",
+    "You cannot create a new course right now.": "You cannot create a new course right now.",
+    "Unable to verify whether you can create a new course right now.": "Unable to verify whether you can create a new course right now.",
+    "Please try again later or contact the administrator.": "Please try again later or contact the administrator.",
     "Reply to this message": "Reply to this message",
     "Reply to all": "Reply to all"
 }
