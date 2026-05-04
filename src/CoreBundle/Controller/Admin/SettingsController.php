@@ -770,7 +770,6 @@ class SettingsController extends BaseController
         return [
             'ai_helpers.course_analyser',
             'document.default_group_quotum',
-            'session.assignment_base_course_teacher_access_to_all_session',
         ];
     }
 }

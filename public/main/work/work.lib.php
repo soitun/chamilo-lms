@@ -3033,6 +3033,9 @@ function getPendingWorkList(
     if (!$isPlatformAdmin) {
         $teacherCourses = CourseManager::get_courses_list_by_user_id($userId, false, false, false);
         $contextConditions = [];
+        $showAllSessionAssignmentsFromBaseCourse = 'true' === api_get_setting(
+                'session.assignment_base_course_teacher_access_to_all_session'
+            );
 
         foreach ($teacherCourses as $teacherCourse) {
             $teacherCourseId = (int) ($teacherCourse['real_id'] ?? $teacherCourse['id'] ?? $teacherCourse['c_id'] ?? 0);
@@ -3043,6 +3046,12 @@ function getPendingWorkList(
             }
 
             if (null !== $courseId && $teacherCourseId !== $courseId) {
+                continue;
+            }
+
+            if (0 === $teacherSessionId && $showAllSessionAssignmentsFromBaseCourse) {
+                $contextConditions[] = '(rl.c_id = '.$teacherCourseId.')';
+
                 continue;
             }
 

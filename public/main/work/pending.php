@@ -269,6 +269,15 @@ $extra_params = [
 ];
 
 $url = api_get_path(WEB_AJAX_PATH).'model.ajax.php?a=get_work_pending_list&type='.$type;
+$showAllSessionAssignments = (
+    'true' === api_get_setting('session.assignment_base_course_teacher_access_to_all_session') &&
+    !$isPlatformAdmin &&
+    api_is_teacher()
+);
+
+if ($showAllSessionAssignments) {
+    $url .= '&include_all_sessions=1';
+}
 
 if ($selectedCourseId > 0) {
     $url .= '&course='.$selectedCourseId;
