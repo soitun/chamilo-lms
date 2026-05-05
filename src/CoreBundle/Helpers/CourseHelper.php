@@ -167,6 +167,8 @@ class CourseHelper
             $params['categories'] = $normalizeCategoryValues($params['categories']);
         }
 
+        $this->assertCanCreateCourse($params);
+
         if (empty($params['wanted_code'])) {
             $params['wanted_code'] = $this->generateCourseCode($params['title']);
             $this->debugLog('createCourse:generatedWantedCode', ['wanted_code' => $params['wanted_code']]);
@@ -1753,43 +1755,58 @@ class CourseHelper
             }
         }
 
-        $limit = $this->resolveMaxCoursesForUser($ownerUser);
-        if ($limit <= 0) {
-            $this->debugLog('createCourse:limit:unlimited', [
+        if ($this->security->isGranted('ROLE_ADMIN') && empty($params['user_id'])) {
+            $this->debugLog('createCourse:limit:adminBypass', [
                 'userId' => $ownerUser->getId(),
             ]);
 
             return;
         }
 
-        $count = $this->countTeacherCoursesForUser($ownerUser);
+        $status = $this->resolveCourseCreationCapabilityForUser($ownerUser);
 
-        $this->debugLog('createCourse:limit:check', [
-            'userId' => $ownerUser->getId(),
-            'currentCourses' => $count,
-            'limit' => $limit,
-        ]);
-
-        if ($count >= $limit) {
-            throw new RuntimeException(\sprintf('You have reached the maximum number of courses allowed (%d).', $limit));
+        if (true === (bool) $status['canCreate']) {
+            return;
         }
+
+        throw new RuntimeException(
+            \sprintf(
+                $this->translator->trans('You have reached the maximum number of courses allowed (%d).'),
+                (int) $status['effectiveLimit']
+            )
+        );
+    }
+
+    public function resolveCourseCreationCapabilityForUser(User $user): array
+    {
+        $globalLimit = $this->resolveBaseMaxCoursesPerUser();
+        $serviceLimit = $this->resolveValidBuyCoursesMaxCoursesForUser($user);
+
+        $effectiveLimit = $serviceLimit ?? $globalLimit;
+        $currentCount = $this->countTeacherCoursesForUser($user);
+
+        $limitSource = 'unlimited';
+        if (null !== $serviceLimit) {
+            $limitSource = 'service';
+        } elseif ($globalLimit > 0) {
+            $limitSource = 'global';
+        }
+
+        return [
+            'canCreate' => $effectiveLimit <= 0 || $currentCount < $effectiveLimit,
+            'currentCount' => $currentCount,
+            'effectiveLimit' => $effectiveLimit,
+            'serviceLimit' => $serviceLimit,
+            'globalLimit' => $globalLimit,
+            'limitSource' => $limitSource,
+        ];
     }
 
     public function resolveMaxCoursesForUser(User $user): int
     {
-        $payload = $this->getUserExtraFieldJson($user, 'buycourses_max_courses');
-        if (\is_array($payload)) {
-            $expiry = (string) ($payload['expiry'] ?? '');
-            $limit = isset($payload['limit']) ? (int) $payload['limit'] : 0;
+        $status = $this->resolveCourseCreationCapabilityForUser($user);
 
-            if ($limit > 0 && '' !== $expiry && date('Y-m-d') <= $expiry) {
-                return $limit;
-            }
-        }
-
-        $raw = $this->settingsManager->getSetting('platform.max_courses_per_user', true);
-
-        return max(0, (int) ($raw ?? 0));
+        return (int) $status['effectiveLimit'];
     }
 
     public function countTeacherCoursesForUser(User $user): int
@@ -1799,13 +1816,64 @@ class CourseHelper
         $qb
             ->select('COUNT(cru.id)')
             ->from(CourseRelUser::class, 'cru')
-            ->andWhere('cru.user = :user')
+            ->andWhere('IDENTITY(cru.user) = :userId')
             ->andWhere('cru.status = :status')
-            ->setParameter('user', $user->getId())
+            ->setParameter('userId', $user->getId())
             ->setParameter('status', CourseRelUser::TEACHER)
         ;
 
         return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    private function resolveBaseMaxCoursesPerUser(): int
+    {
+        $raw = $this->settingsManager->getSetting('platform.max_courses_per_user', true);
+
+        return max(0, (int) ($raw ?? 0));
+    }
+
+    private function resolveValidBuyCoursesMaxCoursesForUser(User $user): ?int
+    {
+        if (!$this->isBuyCoursesPluginEnabled()) {
+            return null;
+        }
+
+        $payload = $this->getUserExtraFieldJson($user, 'buycourses_max_courses');
+        if (!\is_array($payload)) {
+            return null;
+        }
+
+        $expiry = (string) ($payload['expiry'] ?? '');
+        $limit = isset($payload['limit']) ? (int) $payload['limit'] : 0;
+
+        if ($limit <= 0 || '' === $expiry || date('Y-m-d') > $expiry) {
+            return null;
+        }
+
+        return $limit;
+    }
+
+    private function isBuyCoursesPluginEnabled(): bool
+    {
+        if (!class_exists('BuyCoursesPlugin')) {
+            return false;
+        }
+
+        try {
+            $plugin = \BuyCoursesPlugin::create();
+
+            if (method_exists($plugin, 'isEnabled')) {
+                return $plugin->isEnabled(true);
+            }
+
+            return true;
+        } catch (Throwable $exception) {
+            $this->debugLog('createCourse:buyCoursesPluginCheckFailed', [
+                'message' => $exception->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     public function resolveDocumentsToolQuotaMbForCourse(Course $course): int

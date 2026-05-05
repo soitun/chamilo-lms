@@ -79,7 +79,7 @@ function sanitizeCoursePayload(data) {
   return payload
 }
 
-function normalizeCreateCapabilityResponse(response) {
+function normalizeCapabilityResponse(response) {
   return response?.data || response || {}
 }
 
@@ -88,9 +88,8 @@ async function loadCreateCapability() {
 
   try {
     const response = await courseService.getCreateCourseCapability()
-    const capability = normalizeCreateCapabilityResponse(response)
+    const capability = normalizeCapabilityResponse(response)
 
-    // Only block when the backend explicitly says the user cannot create a course.
     if (false === capability.canCreate) {
       capabilityStatus.value = "blocked"
       createCapabilityMessage.value = capability.message || t("You cannot create more courses right now.")
@@ -101,8 +100,8 @@ async function loadCreateCapability() {
   } catch (error) {
     console.error("[course.create-capability] request failed", error)
 
-    // Do not block course creation because the pre-check failed.
-    // The backend remains the source of truth when submitting the form.
+    // Do not block the form because this is only a pre-check.
+    // The backend validates the real limit when submitting the course.
     capabilityStatus.value = "allowed"
   }
 }
