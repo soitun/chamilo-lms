@@ -61,6 +61,7 @@ use Exercise;
 use ExtraFieldValue;
 use Graphp\GraphViz\GraphViz;
 use IntlDateFormatter;
+use RuntimeException;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -1130,7 +1131,7 @@ class CourseController extends ToolBaseController
             );
         }
 
-        $capabilityStatus = $this->resolveCourseCreateCapabilityStatus((int) $user->getId(), $translator);
+        $capabilityStatus = $this->resolveCourseCreateCapabilityStatus($user, $translator, $courseHelper);
 
         if (!$capabilityStatus['canCreate']) {
             return new JsonResponse(
@@ -1261,6 +1262,14 @@ class CourseController extends ToolBaseController
                     'courseId' => $course->getId(),
                 ]);
             }
+        } catch (RuntimeException $exception) {
+            return new JsonResponse(
+                [
+                    'success' => false,
+                    'message' => $exception->getMessage(),
+                ],
+                Response::HTTP_FORBIDDEN
+            );
         } catch (Throwable $exception) {
             error_log(
                 '[course.create] throwable='.
@@ -1290,11 +1299,13 @@ class CourseController extends ToolBaseController
     }
 
     #[Route('/create-capability', name: 'chamilo_core_course_create_capability', methods: ['GET'])]
-    public function createCourseCapability(TranslatorInterface $translator): JsonResponse
-    {
+    public function createCourseCapability(
+        TranslatorInterface $translator,
+        CourseHelper $courseHelper,
+    ): JsonResponse {
         $user = $this->userHelper->getCurrent();
 
-        if (!$user || !method_exists($user, 'getId')) {
+        if (!$user instanceof User) {
             return new JsonResponse(
                 [
                     'success' => false,
@@ -1304,7 +1315,7 @@ class CourseController extends ToolBaseController
             );
         }
 
-        $status = $this->resolveCourseCreateCapabilityStatus((int) $user->getId(), $translator);
+        $status = $this->resolveCourseCreateCapabilityStatus($user, $translator, $courseHelper);
 
         return new JsonResponse([
             'success' => 'error' !== (string) ($status['limitSource'] ?? ''),
@@ -1316,6 +1327,70 @@ class CourseController extends ToolBaseController
             'limitSource' => (string) ($status['limitSource'] ?? 'error'),
             'message' => (string) ($status['message'] ?? ''),
         ]);
+    }
+
+    private function resolveCourseCreateCapabilityStatus(
+        User $user,
+        TranslatorInterface $translator,
+        CourseHelper $courseHelper,
+    ): array {
+        if ($this->isGranted('ROLE_ADMIN')) {
+            return [
+                'canCreate' => true,
+                'currentCount' => 0,
+                'effectiveLimit' => 0,
+                'serviceLimit' => null,
+                'globalLimit' => 0,
+                'limitSource' => 'admin',
+                'message' => '',
+            ];
+        }
+
+        try {
+            $status = $courseHelper->resolveCourseCreationCapabilityForUser($user);
+
+            $canCreate = (bool) ($status['canCreate'] ?? true);
+            $currentCount = (int) ($status['currentCount'] ?? 0);
+            $effectiveLimit = (int) ($status['effectiveLimit'] ?? 0);
+            $limitSource = (string) ($status['limitSource'] ?? 'unlimited');
+
+            $message = '';
+            if (!$canCreate) {
+                if ('service' === $limitSource) {
+                    $message = \sprintf(
+                        $translator->trans(
+                            'You already manage %d courses and your active service allows up to %d. To create another course, you need a higher service limit or reduce your current active courses.'
+                        ),
+                        $currentCount,
+                        $effectiveLimit
+                    );
+                } else {
+                    $message = \sprintf(
+                        $translator->trans(
+                            'You already manage %d courses and the platform currently allows up to %d for your account. You cannot create more courses right now.'
+                        ),
+                        $currentCount,
+                        $effectiveLimit
+                    );
+                }
+            }
+
+            $status['message'] = $message;
+
+            return $status;
+        } catch (Throwable $exception) {
+            error_log('[Course] Failed to resolve course creation capability: '.$exception->getMessage());
+
+            return [
+                'canCreate' => true,
+                'currentCount' => 0,
+                'effectiveLimit' => 0,
+                'serviceLimit' => null,
+                'globalLimit' => 0,
+                'limitSource' => 'error',
+                'message' => $translator->trans('Unable to verify whether you can create a new course right now.'),
+            ];
+        }
     }
 
     #[Route('/{id}/getAutoLaunchExerciseId', name: 'chamilo_core_course_get_auto_launch_exercise_id', methods: ['GET'])]
@@ -1889,102 +1964,5 @@ class CourseController extends ToolBaseController
             'courseId' => $course->getId(),
             'sessionId' => $sessionId,
         ];
-    }
-
-    private function resolveCourseCreateCapabilityStatus(int $userId, TranslatorInterface $translator): array
-    {
-        if ($this->isGranted('ROLE_ADMIN')) {
-            return [
-                'canCreate' => true,
-                'currentCount' => 0,
-                'effectiveLimit' => 0,
-                'serviceLimit' => null,
-                'globalLimit' => 0,
-                'limitSource' => 'admin',
-                'message' => '',
-            ];
-        }
-
-        if (!class_exists('BuyCoursesPlugin')) {
-            return [
-                'canCreate' => true,
-                'currentCount' => 0,
-                'effectiveLimit' => 0,
-                'serviceLimit' => null,
-                'globalLimit' => 0,
-                'limitSource' => 'unlimited',
-                'message' => '',
-            ];
-        }
-
-        try {
-            $plugin = BuyCoursesPlugin::create();
-
-            if (method_exists($plugin, 'isEnabled') && !$plugin->isEnabled(true)) {
-                return [
-                    'canCreate' => true,
-                    'currentCount' => 0,
-                    'effectiveLimit' => 0,
-                    'serviceLimit' => null,
-                    'globalLimit' => 0,
-                    'limitSource' => 'unlimited',
-                    'message' => '',
-                ];
-            }
-
-            $status = $plugin->getCourseCreationCapabilityStatus($userId);
-
-            $canCreate = (bool) ($status['canCreate'] ?? true);
-            $currentCount = (int) ($status['currentCount'] ?? 0);
-            $effectiveLimit = (int) ($status['effectiveLimit'] ?? 0);
-            $limitSource = (string) ($status['limitSource'] ?? 'unlimited');
-
-            $message = '';
-            if (!$canCreate) {
-                if ($effectiveLimit <= 0) {
-                    $message = $translator->trans('You cannot create more courses at this time.');
-                } elseif ('service' === $limitSource) {
-                    $message = \sprintf(
-                        $translator->trans(
-                            'You already manage %d courses and your active service allows up to %d. To create another course, you need a higher service limit or reduce your current active courses.'
-                        ),
-                        $currentCount,
-                        $effectiveLimit
-                    );
-                } else {
-                    $message = \sprintf(
-                        $translator->trans(
-                            'You already manage %d courses and the platform currently allows up to %d for your account. You cannot create more courses right now.'
-                        ),
-                        $currentCount,
-                        $effectiveLimit
-                    );
-                }
-            }
-
-            return [
-                'canCreate' => $canCreate,
-                'currentCount' => $currentCount,
-                'effectiveLimit' => $effectiveLimit,
-                'serviceLimit' => isset($status['serviceLimit']) ? (int) $status['serviceLimit'] : null,
-                'globalLimit' => (int) ($status['globalLimit'] ?? 0),
-                'limitSource' => $limitSource,
-                'message' => $message,
-            ];
-        } catch (Throwable $exception) {
-            error_log('[BuyCourses] Failed to resolve course creation capability: '.$exception->getMessage());
-
-            return [
-                'canCreate' => false,
-                'currentCount' => 0,
-                'effectiveLimit' => 0,
-                'serviceLimit' => null,
-                'globalLimit' => 0,
-                'limitSource' => 'error',
-                'message' => $translator->trans(
-                    'Unable to verify whether you can create a new course right now. Please try again later or contact the administrator.'
-                ),
-            ];
-        }
     }
 }
