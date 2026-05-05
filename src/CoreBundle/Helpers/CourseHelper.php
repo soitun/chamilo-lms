@@ -428,7 +428,7 @@ class CourseHelper
         $gradebook = $this->createRootGradebook($course);
         $this->debugLog('fillCourse:createRootGradebook:ok', ['gradebookId' => $gradebook->getId()]);
 
-        $setting = $this->settingsManager->getSetting('course.example_material_course_creation');
+        $setting = $this->settingsManager->getSetting('course.example_material_course_creation', true);
         $this->debugLog('fillCourse:setting.example_material_course_creation', ['value' => $setting]);
 
         if ('true' === $setting) {
@@ -446,7 +446,7 @@ class CourseHelper
     private function insertCourseSettings(Course $course): void
     {
         $defaultEmailExerciseAlert = 0;
-        if ('true' === $this->settingsManager->getSetting('exercise.email_alert_manager_on_new_quiz')) {
+        if ('true' === $this->settingsManager->getSetting('exercise.email_alert_manager_on_new_quiz', true)) {
             $defaultEmailExerciseAlert = 1;
         }
 
@@ -469,7 +469,7 @@ class CourseHelper
             'enable_document_auto_launch' => ['default' => 0, 'category' => 'document'],
             'pdf_export_watermark_text' => ['default' => '', 'category' => 'learning_path'],
             'allow_public_certificates' => [
-                'default' => 'true' === $this->settingsManager->getSetting('certificate.allow_public_certificates') ? 1 : '',
+                'default' => 'true' === $this->settingsManager->getSetting('certificate.allow_public_certificates', true) ? 1 : '',
                 'category' => 'certificates',
             ],
             'documents_default_visibility' => ['default' => 'visible', 'category' => 'document'],
@@ -948,8 +948,8 @@ class CourseHelper
 
     public function useTemplateAsBasisIfRequired($courseCode, $courseTemplate): void
     {
-        $templateSetting = $this->settingsManager->getSetting('course.course_creation_use_template');
-        $teacherCanSelectCourseTemplate = 'true' === $this->settingsManager->getSetting('workflows.teacher_can_select_course_template');
+        $templateSetting = $this->settingsManager->getSetting('course.course_creation_use_template', true);
+        $teacherCanSelectCourseTemplate = 'true' === $this->settingsManager->getSetting('workflows.teacher_can_select_course_template', true);
         $courseTemplate = isset($courseTemplate) ? (int) $courseTemplate : 0;
 
         $useTemplate = false;
@@ -1057,7 +1057,7 @@ class CourseHelper
 
     private function getDefaultSetting(string $name, $default = null)
     {
-        $settingValue = $this->settingsManager->getSetting($name);
+        $settingValue = $this->settingsManager->getSetting($name, true);
 
         return null !== $settingValue ? $settingValue : $default;
     }
