@@ -1,10 +1,12 @@
 <script setup>
 import { computed, ref, watch } from "vue"
+import { useRoute } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useCidReqStore } from "../../store/cidReq"
 import { usePlatformConfig } from "../../store/platformConfig"
 import courseService from "../../services/courseService"
 
+const route = useRoute()
 const cidReqStore = useCidReqStore()
 const { course, session, group } = storeToRefs(cidReqStore)
 
@@ -17,6 +19,14 @@ const isEnabled = computed(() => {
   const value = platformConfigStore.getSetting("course.show_toolshortcuts")
 
   return value === true || value === "true" || value === 1 || value === "1"
+})
+
+const isCourseHome = computed(() => {
+  return /^\/course\/\d+\/home\/?$/.test(route.path)
+})
+
+const shouldShowShortcuts = computed(() => {
+  return isEnabled.value && !isCourseHome.value
 })
 
 const visibleTools = computed(() => {
@@ -43,6 +53,10 @@ function getToolTitle(courseTool) {
 function getToolIconClass(courseTool) {
   const icon = courseTool?.tool?.icon || "mdi-tools"
 
+  if (icon.startsWith("mdi ")) {
+    return icon
+  }
+
   if (icon.startsWith("mdi-")) {
     return `mdi ${icon}`
   }
@@ -50,40 +64,40 @@ function getToolIconClass(courseTool) {
   return `mdi mdi-${icon}`
 }
 
-function appendMissingParam(url, key, value) {
-  if (!value) {
-    return url
+function getInternalUrl(url) {
+  if (!url) {
+    return null
   }
 
   try {
     const parsedUrl = new URL(url, window.location.origin)
 
-    if (!parsedUrl.searchParams.has(key)) {
-      parsedUrl.searchParams.set(key, value)
+    if (parsedUrl.origin !== window.location.origin) {
+      return null
     }
 
-    return parsedUrl.pathname + parsedUrl.search + parsedUrl.hash
+    return parsedUrl
   } catch (error) {
-    return url
+    return null
   }
 }
 
 function getToolUrl(courseTool) {
-  let url = courseTool?.url || "#"
+  const parsedUrl = getInternalUrl(courseTool?.url)
 
-  if (!url.startsWith("/") && !url.startsWith(window.location.origin)) {
+  if (!parsedUrl) {
     return "#"
   }
 
-  if (session.value?.id) {
-    url = appendMissingParam(url, "sid", session.value.id)
+  if (session.value?.id && !parsedUrl.searchParams.has("sid")) {
+    parsedUrl.searchParams.set("sid", session.value.id)
   }
 
-  if (group.value?.id) {
-    url = appendMissingParam(url, "gid", group.value.id)
+  if (group.value?.id && !parsedUrl.searchParams.has("gid")) {
+    parsedUrl.searchParams.set("gid", group.value.id)
   }
 
-  return url
+  return parsedUrl.pathname + parsedUrl.search + parsedUrl.hash
 }
 
 function isCurrentTool(courseTool) {
@@ -97,7 +111,7 @@ function isCurrentTool(courseTool) {
 }
 
 async function loadCourseTools() {
-  if (!isEnabled.value || !course.value?.id) {
+  if (!shouldShowShortcuts.value || !course.value?.id) {
     tools.value = []
     return
   }
@@ -105,7 +119,10 @@ async function loadCourseTools() {
   isLoading.value = true
 
   try {
-    tools.value = await courseService.loadCTools(course.value.id, session.value?.id || 0)
+    const response = await courseService.loadCTools(course.value.id, session.value?.id || 0)
+    const loadedTools = response?.data || response || []
+
+    tools.value = Array.isArray(loadedTools) ? loadedTools : []
   } catch (error) {
     console.error("Error loading course tool shortcuts:", error)
     tools.value = []
@@ -115,7 +132,7 @@ async function loadCourseTools() {
 }
 
 watch(
-  () => [isEnabled.value, course.value?.id, session.value?.id],
+  () => [shouldShowShortcuts.value, course.value?.id, session.value?.id, route.path],
   () => loadCourseTools(),
   { immediate: true },
 )
@@ -123,7 +140,7 @@ watch(
 
 <template>
   <nav
-    v-if="isEnabled && !isLoading && visibleTools.length"
+    v-if="shouldShowShortcuts && !isLoading && visibleTools.length"
     class="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-gray-25 bg-white p-2 shadow-sm"
     aria-label="Course tool shortcuts"
   >
