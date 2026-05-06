@@ -80,10 +80,12 @@ class LdapAuthenticator extends AbstractAuthenticator implements InteractiveAuth
             $dataCorrespondence = $this->dataCorrespondence;
         }
 
-        // When neither query_string nor a custom dn_string is configured, auto-build a queryString
-        // so CheckLdapCredentialsListener searches for the user's actual DN before binding.
-        // Binding with a plain username or uid=xxx template fails on AD; looking up the real DN first works.
-        if (null === $queryString && '{user_identifier}' === $dnString) {
+        // Always use the queryString approach (search for actual DN, then bind) unless the admin
+        // has explicitly set query_string in config. Templating the bind DN via dn_string fails on
+        // AD because the real DN is CN=...,OU=... which cannot be guessed from a uid/sAMAccountName.
+        // CheckLdapCredentialsListener: binds as service account → searches with queryString →
+        // gets real DN from entry → binds as user. This requires search_dn + search_password.
+        if (null === $queryString) {
             $queryString = '(&(objectClass='.$objectClass.')('.$uidKey.'={user_identifier}))';
             $dnString = $ldapConfig['base_dn'];
         }
