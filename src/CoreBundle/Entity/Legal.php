@@ -67,24 +67,25 @@ class Legal
     public const int MIN_TYPE = self::TYPE_TERMS;
     public const int MAX_TYPE = self::TYPE_PRIVACY_PROFILING;
 
-    public const array VALID_TYPES = [
-        self::TYPE_TERMS,
-        self::TYPE_PRIVACY_COLLECTION,
-        self::TYPE_PRIVACY_RECORDING,
-        self::TYPE_PRIVACY_ORGANIZATION,
-        self::TYPE_PRIVACY_STRUCTURE,
-        self::TYPE_PRIVACY_CONSERVATION,
-        self::TYPE_PRIVACY_ADAPTATION,
-        self::TYPE_PRIVACY_EXTRACTION,
-        self::TYPE_PRIVACY_CONSULTATION,
-        self::TYPE_PRIVACY_USAGE,
-        self::TYPE_PRIVACY_COMMUNICATION,
-        self::TYPE_PRIVACY_INTERCONNECTION,
-        self::TYPE_PRIVACY_LIMITATION,
-        self::TYPE_PRIVACY_DELETION,
-        self::TYPE_PRIVACY_DESTRUCTION,
-        self::TYPE_PRIVACY_PROFILING,
-    ];
+    public const array VALID_TYPES
+        = [
+            self::TYPE_TERMS,
+            self::TYPE_PRIVACY_COLLECTION,
+            self::TYPE_PRIVACY_RECORDING,
+            self::TYPE_PRIVACY_ORGANIZATION,
+            self::TYPE_PRIVACY_STRUCTURE,
+            self::TYPE_PRIVACY_CONSERVATION,
+            self::TYPE_PRIVACY_ADAPTATION,
+            self::TYPE_PRIVACY_EXTRACTION,
+            self::TYPE_PRIVACY_CONSULTATION,
+            self::TYPE_PRIVACY_USAGE,
+            self::TYPE_PRIVACY_COMMUNICATION,
+            self::TYPE_PRIVACY_INTERCONNECTION,
+            self::TYPE_PRIVACY_LIMITATION,
+            self::TYPE_PRIVACY_DELETION,
+            self::TYPE_PRIVACY_DESTRUCTION,
+            self::TYPE_PRIVACY_PROFILING,
+        ];
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -114,18 +115,6 @@ class Legal
     #[Groups(['legal:read', 'legal:write'])]
     #[ORM\Column(type: 'integer')]
     protected int $languageId = 0;
-
-    public static function isValidType(int $type): bool
-    {
-        return \in_array($type, self::VALID_TYPES, true);
-    }
-
-    public static function assertValidType(int $type): void
-    {
-        if (!self::isValidType($type)) {
-            throw new InvalidArgumentException(\sprintf('Invalid legal type "%d". Allowed range is %d..%d.', $type, self::MIN_TYPE, self::MAX_TYPE));
-        }
-    }
 
     public static function isPrivacyType(int $type): bool
     {
@@ -175,6 +164,18 @@ class Legal
         $this->type = $type;
 
         return $this;
+    }
+
+    public static function assertValidType(int $type): void
+    {
+        if (!self::isValidType($type)) {
+            throw new InvalidArgumentException(\sprintf('Invalid legal type "%d". Allowed range is %d..%d.', $type, self::MIN_TYPE, self::MAX_TYPE));
+        }
+    }
+
+    public static function isValidType(int $type): bool
+    {
+        return \in_array($type, self::VALID_TYPES, true);
     }
 
     public function getChanges(): string

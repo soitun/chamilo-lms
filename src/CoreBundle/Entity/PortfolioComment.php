@@ -53,11 +53,6 @@ class PortfolioComment extends AbstractResource implements ResourceInterface, St
         $this->visibility = self::VISIBILITY_VISIBLE;
     }
 
-    public function getId(): int
-    {
-        return $this->id;
-    }
-
     public function getItem(): Portfolio
     {
         return $this->item;
@@ -66,18 +61,6 @@ class PortfolioComment extends AbstractResource implements ResourceInterface, St
     public function setItem(Portfolio $item): self
     {
         $this->item = $item;
-
-        return $this;
-    }
-
-    public function getContent(): string
-    {
-        return $this->content;
-    }
-
-    public function setContent(string $content): self
-    {
-        $this->content = $content;
 
         return $this;
     }
@@ -164,8 +147,25 @@ class PortfolioComment extends AbstractResource implements ResourceInterface, St
         return $this->getContent();
     }
 
+    public function getContent(): string
+    {
+        return $this->content;
+    }
+
+    public function setContent(string $content): self
+    {
+        $this->content = $content;
+
+        return $this;
+    }
+
     public function getResourceIdentifier(): int|Uuid
     {
         return $this->getId();
+    }
+
+    public function getId(): int
+    {
+        return $this->id;
     }
 }

@@ -60,14 +60,6 @@ class SequenceResource
     }
 
     /**
-     * @return string
-     */
-    public function getGraph()
-    {
-        return $this->getSequence()->getGraph();
-    }
-
-    /**
      * @return bool
      */
     public function hasGraph()
@@ -78,21 +70,11 @@ class SequenceResource
     }
 
     /**
-     * @return int
+     * @return string
      */
-    public function getResourceId()
+    public function getGraph()
     {
-        return $this->resourceId;
-    }
-
-    /**
-     * @return $this
-     */
-    public function setResourceId(int $resourceId): self
-    {
-        $this->resourceId = $resourceId;
-
-        return $this;
+        return $this->getSequence()->getGraph();
     }
 
     /**
@@ -109,6 +91,24 @@ class SequenceResource
     public function setSequence(Sequence $sequence): self
     {
         $this->sequence = $sequence;
+
+        return $this;
+    }
+
+    /**
+     * @return int
+     */
+    public function getResourceId()
+    {
+        return $this->resourceId;
+    }
+
+    /**
+     * @return $this
+     */
+    public function setResourceId(int $resourceId): self
+    {
+        $this->resourceId = $resourceId;
 
         return $this;
     }

@@ -137,16 +137,16 @@ class UserRelUser
         return $this;
     }
 
+    public function getRelationType(): ?int
+    {
+        return $this->relationType;
+    }
+
     public function setRelationType(int $relationType): self
     {
         $this->relationType = $relationType;
 
         return $this;
-    }
-
-    public function getRelationType(): ?int
-    {
-        return $this->relationType;
     }
 
     public function getId(): ?int

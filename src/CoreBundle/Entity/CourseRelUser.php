@@ -375,14 +375,14 @@ class CourseRelUser implements Stringable
         return $this->hasNewContent;
     }
 
-    public function setHasNewContent(?bool $hasNewContent): void
-    {
-        $this->hasNewContent = $hasNewContent;
-    }
-
     public function getHasNewContent(): ?bool
     {
         return $this->hasNewContent;
+    }
+
+    public function setHasNewContent(?bool $hasNewContent): void
+    {
+        $this->hasNewContent = $hasNewContent;
     }
 
     public function isHasNewContent(): ?bool
@@ -395,14 +395,14 @@ class CourseRelUser implements Stringable
         return $this->hasRequirements;
     }
 
-    public function isHasRequirements(): ?bool
-    {
-        return $this->hasRequirements;
-    }
-
     public function setHasRequirements(?bool $hasRequirements): void
     {
         $this->hasRequirements = $hasRequirements;
+    }
+
+    public function isHasRequirements(): ?bool
+    {
+        return $this->hasRequirements;
     }
 
     public function getAllowSubscription(): ?bool
@@ -410,14 +410,14 @@ class CourseRelUser implements Stringable
         return $this->allowSubscription;
     }
 
-    public function isAllowSubscription(): ?bool
-    {
-        return $this->allowSubscription;
-    }
-
     public function setAllowSubscription(?bool $allowSubscription): void
     {
         $this->allowSubscription = $allowSubscription;
+    }
+
+    public function isAllowSubscription(): ?bool
+    {
+        return $this->allowSubscription;
     }
 
     public function getTeachersLite(): array

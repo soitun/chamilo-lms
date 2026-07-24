@@ -187,11 +187,6 @@ class PersonalFile extends AbstractResource implements ResourceInterface, String
         return $this->getTitle();
     }
 
-    public function getId(): int
-    {
-        return $this->id;
-    }
-
     public function getTitle(): string
     {
         return $this->title;
@@ -219,6 +214,11 @@ class PersonalFile extends AbstractResource implements ResourceInterface, String
     public function getResourceIdentifier(): int
     {
         return $this->getId();
+    }
+
+    public function getId(): int
+    {
+        return $this->id;
     }
 
     public function getResourceName(): string

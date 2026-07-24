@@ -70,21 +70,14 @@ class UserApiKey
         return $this->id;
     }
 
-    public function setUserId(int $userId): self
-    {
-        $this->userId = $userId;
-
-        return $this;
-    }
-
     public function getUserId(): int
     {
         return $this->userId;
     }
 
-    public function setApiKey(string $apiKey): self
+    public function setUserId(int $userId): self
     {
-        $this->apiKey = $apiKey;
+        $this->userId = $userId;
 
         return $this;
     }
@@ -94,9 +87,9 @@ class UserApiKey
         return $this->apiKey;
     }
 
-    public function setApiService(string $apiService): self
+    public function setApiKey(string $apiKey): self
     {
-        $this->apiService = $apiService;
+        $this->apiKey = $apiKey;
 
         return $this;
     }
@@ -106,9 +99,9 @@ class UserApiKey
         return $this->apiService;
     }
 
-    public function setApiEndPoint(?string $apiEndPoint): self
+    public function setApiService(string $apiService): self
     {
-        $this->apiEndPoint = $apiEndPoint;
+        $this->apiService = $apiService;
 
         return $this;
     }
@@ -118,9 +111,9 @@ class UserApiKey
         return $this->apiEndPoint;
     }
 
-    public function setCreatedDate(?DateTime $createdDate): self
+    public function setApiEndPoint(?string $apiEndPoint): self
     {
-        $this->createdDate = $createdDate;
+        $this->apiEndPoint = $apiEndPoint;
 
         return $this;
     }
@@ -130,9 +123,9 @@ class UserApiKey
         return $this->createdDate;
     }
 
-    public function setValidityStartDate(?DateTime $validityStartDate): self
+    public function setCreatedDate(?DateTime $createdDate): self
     {
-        $this->validityStartDate = $validityStartDate;
+        $this->createdDate = $createdDate;
 
         return $this;
     }
@@ -142,9 +135,9 @@ class UserApiKey
         return $this->validityStartDate;
     }
 
-    public function setValidityEndDate(?DateTime $validityEndDate): self
+    public function setValidityStartDate(?DateTime $validityStartDate): self
     {
-        $this->validityEndDate = $validityEndDate;
+        $this->validityStartDate = $validityStartDate;
 
         return $this;
     }
@@ -154,9 +147,9 @@ class UserApiKey
         return $this->validityEndDate;
     }
 
-    public function setDescription(?string $description): self
+    public function setValidityEndDate(?DateTime $validityEndDate): self
     {
-        $this->description = $description;
+        $this->validityEndDate = $validityEndDate;
 
         return $this;
     }
@@ -166,9 +159,9 @@ class UserApiKey
         return $this->description;
     }
 
-    public function setAccessUrlId(?int $accessUrlId): self
+    public function setDescription(?string $description): self
     {
-        $this->accessUrlId = $accessUrlId;
+        $this->description = $description;
 
         return $this;
     }
@@ -178,9 +171,9 @@ class UserApiKey
         return $this->accessUrlId;
     }
 
-    public function setKeyPrefix(?string $keyPrefix): self
+    public function setAccessUrlId(?int $accessUrlId): self
     {
-        $this->keyPrefix = $keyPrefix;
+        $this->accessUrlId = $accessUrlId;
 
         return $this;
     }
@@ -190,9 +183,9 @@ class UserApiKey
         return $this->keyPrefix;
     }
 
-    public function setLastUsedAt(?DateTime $lastUsedAt): self
+    public function setKeyPrefix(?string $keyPrefix): self
     {
-        $this->lastUsedAt = $lastUsedAt;
+        $this->keyPrefix = $keyPrefix;
 
         return $this;
     }
@@ -202,9 +195,9 @@ class UserApiKey
         return $this->lastUsedAt;
     }
 
-    public function setRevokedAt(?DateTime $revokedAt): self
+    public function setLastUsedAt(?DateTime $lastUsedAt): self
     {
-        $this->revokedAt = $revokedAt;
+        $this->lastUsedAt = $lastUsedAt;
 
         return $this;
     }
@@ -212,6 +205,13 @@ class UserApiKey
     public function getRevokedAt(): ?DateTime
     {
         return $this->revokedAt;
+    }
+
+    public function setRevokedAt(?DateTime $revokedAt): self
+    {
+        $this->revokedAt = $revokedAt;
+
+        return $this;
     }
 
     public function isActiveAt(DateTime $date): bool

@@ -183,18 +183,6 @@ class ExtraField
         return $this->id;
     }
 
-    public function getItemType(): int
-    {
-        return $this->itemType;
-    }
-
-    public function setItemType(int $itemType): self
-    {
-        $this->itemType = $itemType;
-
-        return $this;
-    }
-
     public function getValueType(): int
     {
         return $this->valueType;
@@ -344,6 +332,7 @@ class ExtraField
 
         return $this;
     }
+
     public function hasTag(string $tagName): bool
     {
         if (0 === $this->tags->count()) {
@@ -359,6 +348,18 @@ class ExtraField
             \ExtraField::FIELD_TYPE_RADIO, \ExtraField::FIELD_TYPE_SELECT => 'choice',
             default => 'text',
         };
+    }
+
+    public function getItemType(): int
+    {
+        return $this->itemType;
+    }
+
+    public function setItemType(int $itemType): self
+    {
+        $this->itemType = $itemType;
+
+        return $this;
     }
 
     public function getHelperText(): ?string

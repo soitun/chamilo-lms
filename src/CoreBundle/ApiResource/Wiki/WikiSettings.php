@@ -38,6 +38,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
         ),
         new Post(
             uriTemplate: '/wiki/settings',
+            status: Response::HTTP_NO_CONTENT,
             openapi: new Operation(
                 summary: 'Update Wiki settings for the current course',
                 parameters: [
@@ -48,10 +49,9 @@ use Symfony\Component\Serializer\Attribute\Groups;
                     new Parameter(name: 'isStudentView', in: 'query', required: false, schema: ['type' => 'boolean']),
                 ],
             ),
-            read: false,
-            output: false,
-            status: Response::HTTP_NO_CONTENT,
             security: "is_granted('IS_AUTHENTICATED_FULLY')",
+            output: false,
+            read: false,
             name: 'post_wiki_settings',
             processor: WikiSettingsProcessor::class,
         ),
