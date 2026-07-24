@@ -48,11 +48,7 @@ final readonly class ReviewCourseQualityTool
         } catch (AccessDeniedException|InvalidArgumentException|RuntimeException $exception) {
             throw new ToolCallException($exception->getMessage());
         } catch (Throwable $throwable) {
-            throw new ToolCallException(
-                'The course review could not be generated because of an unexpected server error. Check the Chamilo log for technical details.',
-                0,
-                $throwable,
-            );
+            throw new ToolCallException('The course review could not be generated because of an unexpected server error. Check the Chamilo log for technical details.', 0, $throwable);
         }
     }
 }

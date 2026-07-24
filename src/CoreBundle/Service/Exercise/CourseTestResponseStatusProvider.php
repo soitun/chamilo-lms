@@ -149,7 +149,7 @@ final readonly class CourseTestResponseStatusProvider
     private function findBaseCourseAttempts(int $courseId, int $quizId): array
     {
         /** @var list<array{attemptId: int|string, userId: int|string, status: string}> $rows */
-        $rows = $this->entityManager
+        return $this->entityManager
             ->createQueryBuilder()
             ->select(
                 'attempt.exeId AS attemptId',
@@ -166,7 +166,5 @@ final readonly class CourseTestResponseStatusProvider
             ->getQuery()
             ->getArrayResult()
         ;
-
-        return $rows;
     }
 }

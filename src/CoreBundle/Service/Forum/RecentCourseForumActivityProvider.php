@@ -14,6 +14,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use InvalidArgumentException;
 
+use const DATE_ATOM;
 use const ENT_HTML5;
 use const ENT_QUOTES;
 
@@ -34,10 +35,10 @@ final readonly class RecentCourseForumActivityProvider
         int $days,
     ): array {
         $topic = trim($topic);
-        if (2 > mb_strlen($topic)) {
+        if (mb_strlen($topic) < 2) {
             throw new InvalidArgumentException('The forum topic must contain at least two characters.');
         }
-        if (1 > $days || 365 < $days) {
+        if ($days < 1 || $days > 365) {
             throw new InvalidArgumentException('The recent activity range must be between 1 and 365 days.');
         }
 
@@ -45,7 +46,7 @@ final readonly class RecentCourseForumActivityProvider
             preg_split('/\s+/u', mb_strtolower($topic)) ?: [],
             static fn (string $term): bool => mb_strlen($term) >= 2,
         ));
-        $terms = array_slice(array_unique($terms), 0, 8);
+        $terms = \array_slice(array_unique($terms), 0, 8);
         if ([] === $terms) {
             throw new InvalidArgumentException('The forum topic does not contain searchable terms.');
         }
@@ -124,7 +125,7 @@ final readonly class RecentCourseForumActivityProvider
                     .'?cid='.(int) $course->getId(),
             ];
 
-            if (self::MAX_POSTS <= \count($items)) {
+            if (\count($items) >= self::MAX_POSTS) {
                 break;
             }
         }

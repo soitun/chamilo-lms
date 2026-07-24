@@ -82,12 +82,7 @@ final readonly class CreateCourseTool
         }
 
         if (null !== $code && mb_strlen($code) > CourseHelper::MAX_COURSE_LENGTH_CODE) {
-            throw new InvalidArgumentException(
-                \sprintf(
-                    'The course code cannot be longer than %d characters.',
-                    CourseHelper::MAX_COURSE_LENGTH_CODE,
-                )
-            );
+            throw new InvalidArgumentException(\sprintf('The course code cannot be longer than %d characters.', CourseHelper::MAX_COURSE_LENGTH_CODE));
         }
 
         $language = $this->resolveCourseLanguage($language);
@@ -152,15 +147,11 @@ final readonly class CreateCourseTool
         }
 
         if ('' === $requestedLanguage) {
-            throw new RuntimeException(
-                'Chamilo has no valid platform language configured for course creation.'
-            );
+            throw new RuntimeException('Chamilo has no valid platform language configured for course creation.');
         }
 
         if (mb_strlen($requestedLanguage) > 255) {
-            throw new InvalidArgumentException(
-                'The course language identifier cannot be longer than 255 characters.'
-            );
+            throw new InvalidArgumentException('The course language identifier cannot be longer than 255 characters.');
         }
 
         $normalizedIdentifier = mb_strtolower(str_replace(
@@ -179,12 +170,7 @@ final readonly class CreateCourseTool
         }
 
         if (null === $language) {
-            throw new InvalidArgumentException(
-                \sprintf(
-                    'The course language "%s" is not available in Chamilo. Use an available ISO code or language name.',
-                    $requestedLanguage,
-                )
-            );
+            throw new InvalidArgumentException(\sprintf('The course language "%s" is not available in Chamilo. Use an available ISO code or language name.', $requestedLanguage));
         }
 
         return $language->getIsocode();

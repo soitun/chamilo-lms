@@ -12,10 +12,10 @@ use Chamilo\CoreBundle\Entity\ResourceFile;
 use Chamilo\CoreBundle\Entity\User;
 use Chamilo\CoreBundle\Helpers\AccessUrlHelper;
 use Chamilo\CoreBundle\Helpers\AiDisclosureHelper;
-use Chamilo\CoreBundle\Service\Mcp\McpCourseAiFeatureManager;
 use Chamilo\CoreBundle\Repository\CourseRelUserRepository;
 use Chamilo\CoreBundle\Service\Ai\AiRequestQuotaGuard;
 use Chamilo\CoreBundle\Service\Ai\GeneratedMediaStorageService;
+use Chamilo\CoreBundle\Service\Mcp\McpCourseAiFeatureManager;
 use Chamilo\CourseBundle\Repository\CDocumentRepository;
 use InvalidArgumentException;
 use Mcp\Capability\Attribute\McpTool;
@@ -88,15 +88,11 @@ final readonly class CreateCourseIllustrationTool
         } catch (ToolCallException $exception) {
             throw $exception;
         } catch (
-            InvalidArgumentException
-            | RuntimeException
-            | AccessDeniedException $exception
+            AccessDeniedException|InvalidArgumentException|RuntimeException $exception
         ) {
             throw new ToolCallException($exception->getMessage());
         } catch (Throwable) {
-            throw new ToolCallException(
-                'The illustration could not be created because of an unexpected server error. Check the Chamilo log for technical details.'
-            );
+            throw new ToolCallException('The illustration could not be created because of an unexpected server error. Check the Chamilo log for technical details.');
         }
     }
 
@@ -131,23 +127,17 @@ final readonly class CreateCourseIllustrationTool
         bool $publish,
     ): array {
         if ($courseId <= 0) {
-            throw new InvalidArgumentException(
-                'The course ID must be a positive integer.'
-            );
+            throw new InvalidArgumentException('The course ID must be a positive integer.');
         }
 
         $user = $this->security->getUser();
         if (!$user instanceof User || null === $user->getId()) {
-            throw new AccessDeniedException(
-                'An authenticated Chamilo user is required.'
-            );
+            throw new AccessDeniedException('An authenticated Chamilo user is required.');
         }
 
         $accessUrl = $this->accessUrlHelper->getCurrent();
         if (null === $accessUrl) {
-            throw new RuntimeException(
-                'The current Chamilo access URL could not be resolved.'
-            );
+            throw new RuntimeException('The current Chamilo access URL could not be resolved.');
         }
 
         $course = $this->courseRelUserRepository
@@ -155,12 +145,11 @@ final readonly class CreateCourseIllustrationTool
                 $user,
                 $accessUrl,
                 $courseId,
-            );
+            )
+        ;
 
         if (null === $course) {
-            throw new AccessDeniedException(
-                'The course was not found or is not managed by the authenticated teacher.'
-            );
+            throw new AccessDeniedException('The course was not found or is not managed by the authenticated teacher.');
         }
 
         $enabledFeatures = $this->courseAiFeatureManager->ensureEnabled(
@@ -172,28 +161,20 @@ final readonly class CreateCourseIllustrationTool
 
         $title = trim(strip_tags($title));
         if ('' === $title) {
-            throw new InvalidArgumentException(
-                'The illustration title is required.'
-            );
+            throw new InvalidArgumentException('The illustration title is required.');
         }
 
         if (mb_strlen($title) > 180) {
-            throw new InvalidArgumentException(
-                'The illustration title cannot be longer than 180 characters.'
-            );
+            throw new InvalidArgumentException('The illustration title cannot be longer than 180 characters.');
         }
 
         $topic = trim(strip_tags($topic));
         if ('' === $topic) {
-            throw new InvalidArgumentException(
-                'The illustration topic is required.'
-            );
+            throw new InvalidArgumentException('The illustration topic is required.');
         }
 
         if (mb_strlen($topic) > 1_000) {
-            throw new InvalidArgumentException(
-                'The illustration topic cannot be longer than 1000 characters.'
-            );
+            throw new InvalidArgumentException('The illustration topic cannot be longer than 1000 characters.');
         }
 
         $prompt = null !== $prompt ? trim($prompt) : '';
@@ -202,9 +183,7 @@ final readonly class CreateCourseIllustrationTool
         }
 
         if (mb_strlen($prompt) > self::MAX_PROMPT_LENGTH) {
-            throw new InvalidArgumentException(
-                'The image prompt cannot be longer than 4000 characters.'
-            );
+            throw new InvalidArgumentException('The image prompt cannot be longer than 4000 characters.');
         }
 
         $language = null !== $language ? trim($language) : '';
@@ -213,18 +192,15 @@ final readonly class CreateCourseIllustrationTool
         }
 
         if (!preg_match('/^[a-zA-Z0-9_-]{1,20}$/', $language)) {
-            throw new InvalidArgumentException(
-                'The image language code is invalid.'
-            );
+            throw new InvalidArgumentException('The image language code is invalid.');
         }
 
         $availableProviders = $this->aiProviderFactory
-            ->getProvidersForType('image');
+            ->getProvidersForType('image')
+        ;
 
         if ([] === $availableProviders) {
-            throw new RuntimeException(
-                'No AI providers are configured for image generation.'
-            );
+            throw new RuntimeException('No AI providers are configured for image generation.');
         }
 
         $provider = null !== $provider ? trim($provider) : '';
@@ -233,9 +209,7 @@ final readonly class CreateCourseIllustrationTool
         }
 
         if (!\in_array($provider, $availableProviders, true)) {
-            throw new InvalidArgumentException(
-                'The selected AI image provider is not available.'
-            );
+            throw new InvalidArgumentException('The selected AI image provider is not available.');
         }
 
         $this->quotaGuard->assertCanRequest(
@@ -245,12 +219,11 @@ final readonly class CreateCourseIllustrationTool
         );
 
         $imageProvider = $this->aiProviderFactory
-            ->getProvider($provider, 'image');
+            ->getProvider($provider, 'image')
+        ;
 
         if (!$imageProvider instanceof AiImageProviderInterface) {
-            throw new RuntimeException(
-                'The selected provider does not support image generation.'
-            );
+            throw new RuntimeException('The selected provider does not support image generation.');
         }
 
         $generatedResult = $imageProvider->generateImage(
@@ -264,9 +237,7 @@ final readonly class CreateCourseIllustrationTool
         );
 
         if (null === $generatedResult || [] === $generatedResult) {
-            throw new RuntimeException(
-                'The AI provider returned an empty image.'
-            );
+            throw new RuntimeException('The AI provider returned an empty image.');
         }
 
         if (
@@ -294,9 +265,7 @@ final readonly class CreateCourseIllustrationTool
         $resourceNodeId = (int) ($resourceNode?->getId() ?? 0);
 
         if ($documentId <= 0 || $resourceNodeId <= 0) {
-            throw new RuntimeException(
-                'Chamilo created an incomplete illustration resource.'
-            );
+            throw new RuntimeException('Chamilo created an incomplete illustration resource.');
         }
 
         $resourceFile = $resourceNode?->getFirstResourceFile();

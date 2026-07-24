@@ -42,7 +42,7 @@ final readonly class McpCourseAiFeatureManager
     ) {}
 
     /**
-     * @return list<string> Features changed from disabled/missing to enabled.
+     * @return list<string> features changed from disabled/missing to enabled
      */
     public function ensureEnabled(
         Course $course,
@@ -63,7 +63,7 @@ final readonly class McpCourseAiFeatureManager
      *
      * @param list<string> $features
      *
-     * @return list<string> Features changed from disabled/missing to enabled.
+     * @return list<string> features changed from disabled/missing to enabled
      */
     public function ensureAllEnabled(
         Course $course,
@@ -135,18 +135,14 @@ final readonly class McpCourseAiFeatureManager
         );
 
         if (!$this->isTruthy($value)) {
-            throw new RuntimeException(
-                'AI helpers are disabled by the platform administrator.'
-            );
+            throw new RuntimeException('AI helpers are disabled by the platform administrator.');
         }
     }
 
     private function assertSupportedFeature(string $feature): void
     {
         if (!isset(self::SUPPORTED_FEATURES[$feature])) {
-            throw new InvalidArgumentException(
-                \sprintf('Unsupported MCP AI course feature "%s".', $feature)
-            );
+            throw new InvalidArgumentException(\sprintf('Unsupported MCP AI course feature "%s".', $feature));
         }
     }
 
@@ -166,12 +162,7 @@ final readonly class McpCourseAiFeatureManager
                 $courseId,
             )
         ) {
-            throw new RuntimeException(
-                \sprintf(
-                    'The AI feature "%s" is disabled by the platform administrator.',
-                    $feature,
-                )
-            );
+            throw new RuntimeException(\sprintf('The AI feature "%s" is disabled by the platform administrator.', $feature));
         }
     }
 

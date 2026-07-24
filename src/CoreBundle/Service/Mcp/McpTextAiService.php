@@ -96,11 +96,7 @@ PROMPT;
             try {
                 $decoded = $this->decodeJson($repairedRaw);
             } catch (RuntimeException $repairException) {
-                throw new RuntimeException(
-                    'The AI model returned invalid JSON after one repair attempt.',
-                    0,
-                    $repairException,
-                );
+                throw new RuntimeException('The AI model returned invalid JSON after one repair attempt.', 0, $repairException);
             }
         }
 
@@ -157,9 +153,7 @@ PROMPT,
 
         $content = $this->normalizeTextResponse($content);
         if (!$this->isUsableText($content)) {
-            throw new RuntimeException(
-                'The AI model did not return usable educational content after one retry.'
-            );
+            throw new RuntimeException('The AI model did not return usable educational content after one retry.');
         }
 
         return [
@@ -222,7 +216,7 @@ PROMPT,
             return $decoded;
         }
 
-        $length = strlen($raw);
+        $length = \strlen($raw);
         for ($offset = 0; $offset < $length; ++$offset) {
             $char = $raw[$offset];
             if ('{' !== $char && '[' !== $char) {
@@ -319,7 +313,7 @@ PROMPT,
         $stack = [];
         $inString = false;
         $escaped = false;
-        $length = strlen($raw);
+        $length = \strlen($raw);
 
         for ($index = $start; $index < $length; ++$index) {
             $char = $raw[$index];

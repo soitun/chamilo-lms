@@ -421,8 +421,7 @@ final class GeminiProvider implements AiProviderInterface, AiImageProviderInterf
         string $prompt,
         string $toolName,
         ?string $responseMimeType = null,
-    ): ?string
-    {
+    ): ?string {
         $this->lastTextError = null;
 
         $userId = $this->getUserId();

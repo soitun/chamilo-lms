@@ -15,6 +15,7 @@ use Chamilo\CoreBundle\Repository\Node\CourseRepository;
 use Chamilo\CourseBundle\Entity\CDocument;
 use Chamilo\CourseBundle\Repository\CDocumentRepository;
 use Doctrine\ORM\EntityManager;
+use finfo;
 use InvalidArgumentException;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -23,9 +24,13 @@ use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use const DNS_A;
+use const DNS_AAAA;
+use const FILEINFO_MIME_TYPE;
 use const FILTER_FLAG_NO_PRIV_RANGE;
 use const FILTER_FLAG_NO_RES_RANGE;
 use const FILTER_VALIDATE_IP;
+use const JSON_THROW_ON_ERROR;
 
 final readonly class GeneratedMediaStorageService
 {
@@ -70,9 +75,7 @@ final readonly class GeneratedMediaStorageService
 
         $detectedMimeType = $this->detectImageMimeType($binary);
         if (!isset(self::IMAGE_EXTENSIONS[$detectedMimeType])) {
-            throw new RuntimeException(
-                'The generated file is not a supported image.'
-            );
+            throw new RuntimeException('The generated file is not a supported image.');
         }
 
         $extension = self::IMAGE_EXTENSIONS[$detectedMimeType];
@@ -80,17 +83,13 @@ final readonly class GeneratedMediaStorageService
         $temporaryPath = tempnam(sys_get_temp_dir(), 'chamilo_mcp_image_');
 
         if (false === $temporaryPath) {
-            throw new RuntimeException(
-                'A temporary file for the generated image could not be created.'
-            );
+            throw new RuntimeException('A temporary file for the generated image could not be created.');
         }
 
         try {
             $writtenBytes = file_put_contents($temporaryPath, $binary);
             if (false === $writtenBytes || $writtenBytes <= 0) {
-                throw new RuntimeException(
-                    'The generated image could not be written to temporary storage.'
-                );
+                throw new RuntimeException('The generated image could not be written to temporary storage.');
             }
 
             if (
@@ -98,9 +97,7 @@ final readonly class GeneratedMediaStorageService
                 && !str_starts_with($declaredMimeType, 'image/')
                 && 'application/octet-stream' !== $declaredMimeType
             ) {
-                throw new RuntimeException(
-                    'The AI provider returned an invalid image content type.'
-                );
+                throw new RuntimeException('The AI provider returned an invalid image content type.');
             }
 
             $uploadedFile = new UploadedFile(
@@ -116,7 +113,7 @@ final readonly class GeneratedMediaStorageService
                 : ResourceLink::VISIBILITY_DRAFT;
 
             /** @var CDocument $document */
-            $document = $this->entityManager->wrapInTransaction(
+            return $this->entityManager->wrapInTransaction(
                 function () use (
                     $course,
                     $courseId,
@@ -127,9 +124,7 @@ final readonly class GeneratedMediaStorageService
                 ): CDocument {
                     $courseResourceNode = $course->getResourceNode();
                     if (null === $courseResourceNode || null === $courseResourceNode->getId()) {
-                        throw new RuntimeException(
-                            'The course resource node could not be resolved.'
-                        );
+                        throw new RuntimeException('The course resource node could not be resolved.');
                     }
 
                     $request = Request::create(
@@ -165,8 +160,6 @@ final readonly class GeneratedMediaStorageService
                     );
                 }
             );
-
-            return $document;
         } finally {
             if (is_file($temporaryPath)) {
                 @unlink($temporaryPath);
@@ -185,9 +178,7 @@ final readonly class GeneratedMediaStorageService
         if (\is_string($generatedResult)) {
             $value = trim($generatedResult);
             if ('' === $value) {
-                throw new RuntimeException(
-                    'The AI provider returned an empty image.'
-                );
+                throw new RuntimeException('The AI provider returned an empty image.');
             }
 
             if (preg_match('#^https://#i', $value)) {
@@ -233,9 +224,7 @@ final readonly class GeneratedMediaStorageService
             return $this->fetchRemoteImage($url);
         }
 
-        throw new RuntimeException(
-            'The AI provider did not return usable image content.'
-        );
+        throw new RuntimeException('The AI provider did not return usable image content.');
     }
 
     private function decodeBase64Image(string $content): string
@@ -243,9 +232,7 @@ final readonly class GeneratedMediaStorageService
         if (str_starts_with($content, 'data:')) {
             $commaPosition = strpos($content, ',');
             if (false === $commaPosition) {
-                throw new InvalidArgumentException(
-                    'The generated image data URI is invalid.'
-                );
+                throw new InvalidArgumentException('The generated image data URI is invalid.');
             }
 
             $content = substr($content, $commaPosition + 1);
@@ -257,15 +244,11 @@ final readonly class GeneratedMediaStorageService
         );
 
         if (false === $binary || '' === $binary) {
-            throw new RuntimeException(
-                'The AI provider returned invalid base64 image content.'
-            );
+            throw new RuntimeException('The AI provider returned invalid base64 image content.');
         }
 
         if (\strlen($binary) > self::MAX_IMAGE_BYTES) {
-            throw new RuntimeException(
-                'The generated image exceeds the maximum allowed size.'
-            );
+            throw new RuntimeException('The generated image exceeds the maximum allowed size.');
         }
 
         return $binary;
@@ -277,9 +260,7 @@ final readonly class GeneratedMediaStorageService
     private function fetchRemoteImage(string $url): array
     {
         if (!$this->isSafeRemoteUrl($url)) {
-            throw new RuntimeException(
-                'The remote image URL is not allowed.'
-            );
+            throw new RuntimeException('The remote image URL is not allowed.');
         }
 
         $response = $this->httpClient->request('GET', $url, [
@@ -289,9 +270,7 @@ final readonly class GeneratedMediaStorageService
 
         $statusCode = $response->getStatusCode();
         if ($statusCode < 200 || $statusCode >= 300) {
-            throw new RuntimeException(
-                'The remote image could not be downloaded.'
-            );
+            throw new RuntimeException('The remote image could not be downloaded.');
         }
 
         $headers = $response->getHeaders(false);
@@ -302,16 +281,12 @@ final readonly class GeneratedMediaStorageService
             && is_numeric($length)
             && (int) $length > self::MAX_IMAGE_BYTES
         ) {
-            throw new RuntimeException(
-                'The remote image exceeds the maximum allowed size.'
-            );
+            throw new RuntimeException('The remote image exceeds the maximum allowed size.');
         }
 
         $binary = $response->getContent(false);
         if ('' === $binary || \strlen($binary) > self::MAX_IMAGE_BYTES) {
-            throw new RuntimeException(
-                'The remote image content is empty or too large.'
-            );
+            throw new RuntimeException('The remote image content is empty or too large.');
         }
 
         $contentType = $headers['content-type'][0] ?? 'application/octet-stream';
@@ -368,7 +343,7 @@ final readonly class GeneratedMediaStorageService
 
     private function detectImageMimeType(string $binary): string
     {
-        $fileInfo = new \finfo(FILEINFO_MIME_TYPE);
+        $fileInfo = new finfo(FILEINFO_MIME_TYPE);
         $mimeType = $fileInfo->buffer($binary);
 
         return \is_string($mimeType)

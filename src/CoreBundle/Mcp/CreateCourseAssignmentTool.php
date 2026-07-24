@@ -57,11 +57,7 @@ final readonly class CreateCourseAssignmentTool
         } catch (AccessDeniedException|InvalidArgumentException|RuntimeException $exception) {
             throw new ToolCallException($exception->getMessage());
         } catch (Throwable $throwable) {
-            throw new ToolCallException(
-                'The assignment could not be created because of an unexpected server error. Check the Chamilo log for technical details.',
-                0,
-                $throwable,
-            );
+            throw new ToolCallException('The assignment could not be created because of an unexpected server error. Check the Chamilo log for technical details.', 0, $throwable);
         }
     }
 }

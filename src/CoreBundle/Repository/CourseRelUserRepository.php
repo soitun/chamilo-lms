@@ -36,7 +36,7 @@ class CourseRelUserRepository extends ServiceEntityRepository
     public function findTeacherCoursesForUserAndAccessUrl(User $user, AccessUrl $accessUrl): array
     {
         /** @var list<array{id: int, title: string, code: string, visualCode: string|null, visibility: int}> $courses */
-        $courses = $this->createQueryBuilder('cru')
+        return $this->createQueryBuilder('cru')
             ->select(
                 'DISTINCT course.id AS id, course.title AS title, course.code AS code, '
                 .'course.visualCode AS visualCode, course.visibility AS visibility'
@@ -54,8 +54,6 @@ class CourseRelUserRepository extends ServiceEntityRepository
             ->getQuery()
             ->getArrayResult()
         ;
-
-        return $courses;
     }
 
     /**

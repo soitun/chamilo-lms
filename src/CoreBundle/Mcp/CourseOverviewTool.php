@@ -15,7 +15,9 @@ use Chamilo\CourseBundle\Entity\CDocument;
 use Chamilo\CourseBundle\Entity\CForum;
 use Chamilo\CourseBundle\Entity\CLp;
 use Chamilo\CourseBundle\Entity\CQuiz;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\QueryBuilder;
 use Mcp\Capability\Attribute\McpTool;
 use RuntimeException;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -131,19 +133,23 @@ final readonly class CourseOverviewTool
     private function createBaseCourseResourceCountQuery(
         string $resourceClass,
         Course $course,
-    ): \Doctrine\ORM\QueryBuilder {
+    ): QueryBuilder {
         return $this->entityManager
             ->createQueryBuilder()
             ->select('COUNT(DISTINCT resource.iid)')
             ->from($resourceClass, 'resource')
             ->innerJoin('resource.resourceNode', 'node')
             ->innerJoin('node.resourceLinks', 'resourceLink')
-            ->andWhere('resourceLink.course = :course')
+            ->andWhere('IDENTITY(resourceLink.course) = :courseId')
             ->andWhere('resourceLink.session IS NULL')
             ->andWhere('resourceLink.group IS NULL')
             ->andWhere('resourceLink.userGroup IS NULL')
             ->andWhere('resourceLink.user IS NULL')
-            ->setParameter('course', $course)
+            ->setParameter(
+                'courseId',
+                (int) $course->getId(),
+                Types::INTEGER,
+            )
         ;
     }
 }

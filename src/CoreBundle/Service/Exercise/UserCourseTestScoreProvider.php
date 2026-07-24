@@ -15,7 +15,8 @@ use Chamilo\CourseBundle\Entity\CQuiz;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use InvalidArgumentException;
-use RuntimeException;
+
+use const DATE_ATOM;
 
 final readonly class UserCourseTestScoreProvider
 {
@@ -29,7 +30,7 @@ final readonly class UserCourseTestScoreProvider
      */
     public function provide(Course $course, int $testId, string $userIdentifier): array
     {
-        if (0 >= $testId) {
+        if ($testId <= 0) {
             throw new InvalidArgumentException('The test ID must be a positive integer.');
         }
 
@@ -58,7 +59,7 @@ final readonly class UserCourseTestScoreProvider
             throw new InvalidArgumentException('The requested user is not active.');
         }
 
-        $isStudent = 0 < (int) $this->entityManager->createQueryBuilder()
+        $isStudent = (int) $this->entityManager->createQueryBuilder()
             ->select('COUNT(courseUser.id)')
             ->from(CourseRelUser::class, 'courseUser')
             ->andWhere('courseUser.course = :courseId')
@@ -68,7 +69,7 @@ final readonly class UserCourseTestScoreProvider
             ->setParameter('userId', (int) $user->getId(), Types::INTEGER)
             ->setParameter('studentStatus', CourseRelUser::STUDENT, Types::INTEGER)
             ->getQuery()
-            ->getSingleScalarResult()
+            ->getSingleScalarResult() > 0
         ;
 
         if (!$isStudent) {
@@ -129,7 +130,7 @@ final readonly class UserCourseTestScoreProvider
             ],
             'status' => [] !== $completed
                 ? 'answered'
-                : (0 < $incompleteAttemptCount ? 'in_progress' : 'pending'),
+                : ($incompleteAttemptCount > 0 ? 'in_progress' : 'pending'),
             'completed_attempt_count' => \count($completed),
             'incomplete_attempt_count' => $incompleteAttemptCount,
             'latest_attempt' => $latest,

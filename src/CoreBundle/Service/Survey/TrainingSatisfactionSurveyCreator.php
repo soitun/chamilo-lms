@@ -52,7 +52,7 @@ final readonly class TrainingSatisfactionSurveyCreator
         if ('' === $title) {
             throw new InvalidArgumentException('The survey title is required.');
         }
-        if (255 < mb_strlen($title)) {
+        if (mb_strlen($title) > 255) {
             throw new InvalidArgumentException('The survey title cannot be longer than 255 characters.');
         }
 

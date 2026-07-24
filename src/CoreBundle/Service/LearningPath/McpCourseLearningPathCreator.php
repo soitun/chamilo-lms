@@ -30,6 +30,9 @@ use learnpath;
 use RuntimeException;
 use Throwable;
 
+use const ENT_QUOTES;
+use const ENT_SUBSTITUTE;
+
 final readonly class McpCourseLearningPathCreator
 {
     private const MAX_PAGE_COUNT = 10;
@@ -177,6 +180,7 @@ final readonly class McpCourseLearningPathCreator
             }
 
             require_once api_get_path(SYS_CODE_PATH).'lp/learnpath.class.php';
+
             require_once api_get_path(SYS_CODE_PATH).'exercise/exercise.class.php';
 
             $courseInfo = api_get_course_info($course->getCode());

@@ -146,11 +146,7 @@ final readonly class AiCourseTestGenerator
         }
 
         if ($questionCount < self::MIN_QUESTION_COUNT || $questionCount > self::MAX_QUESTION_COUNT) {
-            throw new InvalidArgumentException(\sprintf(
-                'The question count must be between %d and %d.',
-                self::MIN_QUESTION_COUNT,
-                self::MAX_QUESTION_COUNT,
-            ));
+            throw new InvalidArgumentException(\sprintf('The question count must be between %d and %d.', self::MIN_QUESTION_COUNT, self::MAX_QUESTION_COUNT));
         }
 
         $sourceText = $this->normalizeSourceText($sourceText);
@@ -217,11 +213,7 @@ final readonly class AiCourseTestGenerator
         } catch (Throwable $exception) {
             error_log('[AI][mcp_course_test] Question generation failed: '.$exception->getMessage());
 
-            throw new RuntimeException(
-                'The AI model could not generate the requested test: '.$exception->getMessage(),
-                0,
-                $exception,
-            );
+            throw new RuntimeException('The AI model could not generate the requested test: '.$exception->getMessage(), 0, $exception);
         } finally {
             $this->redactGeneratedRequestLogs(
                 (int) $user->getId(),
@@ -542,7 +534,7 @@ PROMPT;
 
         $questions = [];
 
-        foreach (array_slice(array_values($rawQuestions), 0, $questionCount) as $rawQuestion) {
+        foreach (\array_slice(array_values($rawQuestions), 0, $questionCount) as $rawQuestion) {
             if (!\is_array($rawQuestion)) {
                 return null;
             }
@@ -587,7 +579,7 @@ PROMPT;
             return $correct;
         }
 
-        if (\is_numeric($correct)) {
+        if (is_numeric($correct)) {
             $numeric = (int) $correct;
             if ($numeric >= 0 && $numeric <= 3) {
                 return $numeric;
@@ -599,7 +591,7 @@ PROMPT;
 
         $correctText = $this->oneLine((string) $correct);
         if (preg_match('/^[A-D]$/i', $correctText)) {
-            return ord(strtoupper($correctText)) - ord('A');
+            return \ord(strtoupper($correctText)) - \ord('A');
         }
 
         foreach ($answers as $index => $answer) {

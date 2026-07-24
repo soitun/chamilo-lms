@@ -118,8 +118,7 @@ final class AiCourseAnalyzerService
         bool $includeStandaloneDocuments = false,
         bool $includeStandaloneExercises = false,
         bool $includeDraftResources = false,
-    ): array
-    {
+    ): array {
         $payload = $this->buildPayload(
             $course,
             $session,
@@ -180,8 +179,7 @@ final class AiCourseAnalyzerService
         bool $includeStandaloneDocuments = false,
         bool $includeStandaloneExercises = false,
         bool $includeDraftResources = false,
-    ): array
-    {
+    ): array {
         $totalCharacters = 0;
         $lessonDocumentIds = [];
         $lessonExerciseIds = [];
@@ -268,8 +266,7 @@ final class AiCourseAnalyzerService
         array &$lessonDocumentIds,
         array &$lessonExerciseIds,
         bool $includeDraftResources,
-    ): array
-    {
+    ): array {
         $qb = $this->entityManager->createQueryBuilder();
         $qb
             ->select('learningPath', 'resourceNode', 'resourceLink')
@@ -384,8 +381,7 @@ final class AiCourseAnalyzerService
         array &$lessonDocumentIds,
         array &$lessonExerciseIds,
         bool $includeDraftResources,
-    ): array
-    {
+    ): array {
         $itemType = strtolower($item->getItemType());
         $resourceReference = $this->resolveLessonItemResourceReference($item);
 
@@ -519,8 +515,7 @@ final class AiCourseAnalyzerService
         Course $course,
         ?Session $session,
         bool $includeDraftResources,
-    ): ?CDocument
-    {
+    ): ?CDocument {
         $documentId = $this->normalizePositiveIntegerReference($reference);
         if (null === $documentId) {
             return null;
@@ -545,8 +540,7 @@ final class AiCourseAnalyzerService
         Course $course,
         ?Session $session,
         bool $includeDraftResources,
-    ): ?CQuiz
-    {
+    ): ?CQuiz {
         $quizId = $this->normalizePositiveIntegerReference($reference);
         if (null === $quizId) {
             return null;
@@ -582,8 +576,7 @@ final class AiCourseAnalyzerService
         Course $course,
         ?Session $session,
         bool $includeDraftResources,
-    ): bool
-    {
+    ): bool {
         return $this->findReviewableResourceLink(
             $resourceNode,
             $course,
@@ -597,8 +590,7 @@ final class AiCourseAnalyzerService
         Course $course,
         ?Session $session,
         bool $includeDraftResources,
-    ): ?ResourceLink
-    {
+    ): ?ResourceLink {
         foreach ($resourceNode->getResourceLinks() as $resourceLink) {
             if (!$resourceLink instanceof ResourceLink) {
                 continue;
@@ -660,8 +652,7 @@ final class AiCourseAnalyzerService
         QueryBuilder $queryBuilder,
         string $resourceLinkAlias,
         bool $includeDraftResources,
-    ): void
-    {
+    ): void {
         if ($includeDraftResources) {
             $queryBuilder
                 ->andWhere($resourceLinkAlias.'.visibility IN (:reviewVisibilities)')
@@ -762,8 +753,7 @@ final class AiCourseAnalyzerService
         array $excludedDocumentIds,
         int &$totalCharacters,
         bool $includeDraftResources,
-    ): array
-    {
+    ): array {
         $qb = $this->entityManager->createQueryBuilder();
         $qb
             ->select('document', 'resourceNode', 'resourceLink', 'resourceFile')
@@ -822,8 +812,7 @@ final class AiCourseAnalyzerService
         ?Session $session,
         array $excludedExerciseIds,
         bool $includeDraftResources,
-    ): array
-    {
+    ): array {
         $qb = $this->entityManager->createQueryBuilder();
         $qb
             ->select('quiz', 'resourceNode', 'resourceLink', 'quizQuestionRel', 'question', 'answer')
@@ -1042,8 +1031,7 @@ final class AiCourseAnalyzerService
         ?Course $course = null,
         ?Session $session = null,
         bool $includeDraftResources = false,
-    ): array
-    {
+    ): array {
         $resourceNode = $document->getResourceNode();
         $resourceLink = $resourceNode instanceof ResourceNode && $course instanceof Course
             ? $this->findReviewableResourceLink($resourceNode, $course, $session, $includeDraftResources)
@@ -1126,8 +1114,7 @@ final class AiCourseAnalyzerService
         ?Course $course = null,
         ?Session $session = null,
         bool $includeDraftResources = false,
-    ): array
-    {
+    ): array {
         $questions = [];
 
         foreach ($quiz->getQuestions() as $quizQuestionRel) {
@@ -1862,8 +1849,8 @@ final class AiCourseAnalyzerService
     private function decodeStructuredResponse(string $rawResponse): ?array
     {
         $response = trim($rawResponse);
-        $response = preg_replace('/^```(?:json)?\\s*/i', '', $response) ?? $response;
-        $response = preg_replace('/\\s*```$/', '', $response) ?? $response;
+        $response = preg_replace('/^```(?:json)?\s*/i', '', $response) ?? $response;
+        $response = preg_replace('/\s*```$/', '', $response) ?? $response;
 
         $start = strpos($response, '{');
         $end = strrpos($response, '}');

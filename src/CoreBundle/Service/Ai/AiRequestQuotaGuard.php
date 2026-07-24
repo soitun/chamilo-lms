@@ -10,6 +10,7 @@ use Chamilo\CoreBundle\Entity\AiRequests;
 use Chamilo\CoreBundle\Entity\User;
 use Chamilo\CoreBundle\Settings\SettingsManager;
 use DateTimeImmutable;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use RuntimeException;
 
@@ -63,15 +64,7 @@ final readonly class AiRequestQuotaGuard
             );
 
             if ($dailyUsed + $reservedTokens > $dailyLimit) {
-                throw new RuntimeException(
-                    sprintf(
-                        'The daily AI token limit for provider "%s" has been reached (used: %d, reserved for this request: %d, limit: %d).',
-                        $provider,
-                        $dailyUsed,
-                        $reservedTokens,
-                        $dailyLimit,
-                    )
-                );
+                throw new RuntimeException(\sprintf('The daily AI token limit for provider "%s" has been reached (used: %d, reserved for this request: %d, limit: %d).', $provider, $dailyUsed, $reservedTokens, $dailyLimit));
             }
         }
 
@@ -83,15 +76,7 @@ final readonly class AiRequestQuotaGuard
             );
 
             if ($monthlyUsed + $reservedTokens > $monthlyLimit) {
-                throw new RuntimeException(
-                    sprintf(
-                        'The monthly AI token limit for provider "%s" has been reached (used: %d, reserved for this request: %d, limit: %d).',
-                        $provider,
-                        $monthlyUsed,
-                        $reservedTokens,
-                        $monthlyLimit,
-                    )
-                );
+                throw new RuntimeException(\sprintf('The monthly AI token limit for provider "%s" has been reached (used: %d, reserved for this request: %d, limit: %d).', $provider, $monthlyUsed, $reservedTokens, $monthlyLimit));
             }
         }
     }
@@ -154,9 +139,13 @@ final readonly class AiRequestQuotaGuard
             ->andWhere('aiRequest.userId = :userId')
             ->andWhere('aiRequest.aiProvider = :provider')
             ->andWhere('aiRequest.requestedAt >= :start')
-            ->setParameter('userId', $userId)
-            ->setParameter('provider', $provider)
-            ->setParameter('start', $start)
+            ->setParameter('userId', $userId, Types::INTEGER)
+            ->setParameter('provider', $provider, Types::STRING)
+            ->setParameter(
+                'start',
+                $start,
+                Types::DATETIME_IMMUTABLE,
+            )
             ->getQuery()
             ->getSingleScalarResult()
         ;

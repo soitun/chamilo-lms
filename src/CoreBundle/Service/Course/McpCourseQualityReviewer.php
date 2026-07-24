@@ -24,7 +24,6 @@ use Chamilo\CourseBundle\Entity\CSurvey;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
-use RuntimeException;
 
 final readonly class McpCourseQualityReviewer
 {
@@ -44,8 +43,7 @@ final readonly class McpCourseQualityReviewer
         User $user,
         ?string $focus,
         ?string $provider,
-    ): array
-    {
+    ): array {
         $enabledFeatures = $this->courseAiFeatureManager->ensureEnabled(
             $course,
             $user,
@@ -55,7 +53,7 @@ final readonly class McpCourseQualityReviewer
 
         $providerName = $this->aiService->resolveProvider($user, $provider);
         $teacherPrompt = trim(strip_tags((string) $focus));
-        if (5000 < mb_strlen($teacherPrompt)) {
+        if (mb_strlen($teacherPrompt) > 5000) {
             $teacherPrompt = mb_substr($teacherPrompt, 0, 5000);
         }
         if ('' === $teacherPrompt) {
@@ -152,8 +150,7 @@ final readonly class McpCourseQualityReviewer
         string $resourceClass,
         Course $course,
         bool $excludeFolders = false,
-    ): array
-    {
+    ): array {
         return [
             'total' => $this->countResources($resourceClass, $course, $excludeFolders, null),
             'published' => $this->countResources(
@@ -185,8 +182,7 @@ final readonly class McpCourseQualityReviewer
         Course $course,
         bool $excludeFolders,
         ?int $visibility,
-    ): int
-    {
+    ): int {
         $queryBuilder = $this->entityManager->createQueryBuilder()
             ->select('COUNT(DISTINCT resource.iid)')
             ->from($resourceClass, 'resource')

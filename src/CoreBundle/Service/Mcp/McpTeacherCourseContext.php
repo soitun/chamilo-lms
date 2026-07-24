@@ -28,7 +28,7 @@ final readonly class McpTeacherCourseContext
      */
     public function resolve(int $courseId): array
     {
-        if (0 >= $courseId) {
+        if ($courseId <= 0) {
             throw new InvalidArgumentException('The course ID must be a positive integer.');
         }
 
@@ -49,9 +49,7 @@ final readonly class McpTeacherCourseContext
         );
 
         if (!$course instanceof Course) {
-            throw new AccessDeniedException(
-                'The course was not found or is not managed by the authenticated teacher.'
-            );
+            throw new AccessDeniedException('The course was not found or is not managed by the authenticated teacher.');
         }
 
         return [

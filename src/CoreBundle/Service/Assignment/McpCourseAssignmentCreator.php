@@ -14,6 +14,7 @@ use Chamilo\CourseBundle\Entity\CStudentPublicationAssignment;
 use Chamilo\CourseBundle\Repository\CStudentPublicationRepository;
 use DateTime;
 use InvalidArgumentException;
+use Security;
 
 final readonly class McpCourseAssignmentCreator
 {
@@ -39,18 +40,18 @@ final readonly class McpCourseAssignmentCreator
         if ('' === $title) {
             throw new InvalidArgumentException('The assignment title is required.');
         }
-        if (255 < mb_strlen($title)) {
+        if (mb_strlen($title) > 255) {
             throw new InvalidArgumentException('The assignment title cannot be longer than 255 characters.');
         }
-        if (2_000_000 < mb_strlen($description)) {
+        if (mb_strlen($description) > 2_000_000) {
             throw new InvalidArgumentException('The assignment description is too large.');
         }
 
-        $description = (string) \Security::remove_XSS($description);
+        $description = (string) Security::remove_XSS($description);
         if ('' === trim(strip_tags($description))) {
             throw new InvalidArgumentException('The assignment description is required.');
         }
-        if (0.0 >= $maximumScore || 100000.0 < $maximumScore) {
+        if ($maximumScore <= 0.0 || $maximumScore > 100000.0) {
             throw new InvalidArgumentException('The maximum score must be greater than zero and no greater than 100000.');
         }
         if (!\in_array($submissionMode, [0, 1, 2], true)) {

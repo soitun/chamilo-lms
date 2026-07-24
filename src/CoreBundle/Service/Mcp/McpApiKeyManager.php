@@ -19,6 +19,8 @@ use RuntimeException;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
+use const DATE_ATOM;
+
 final readonly class McpApiKeyManager
 {
     public const KEY_PREFIX = 'chamilo_mcp_';
@@ -117,7 +119,7 @@ final readonly class McpApiKeyManager
             return false;
         }
 
-        $secret = substr($plainKey, strlen(self::KEY_PREFIX));
+        $secret = substr($plainKey, \strlen(self::KEY_PREFIX));
 
         return 1 === preg_match('/^[A-Za-z0-9_-]{43}$/', $secret);
     }
