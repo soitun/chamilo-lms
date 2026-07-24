@@ -61,7 +61,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
 )]
 final class WikiSettings
 {
-    public const CSRF_TOKEN_ID = 'wiki_settings';
+    public const string CSRF_TOKEN_ID = 'wiki_settings';
 
     #[ApiProperty(identifier: true)]
     #[Groups(['wiki_settings:read'])]

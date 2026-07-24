@@ -19,13 +19,13 @@ use Stringable;
 #[ORM\Entity(repositoryClass: PortfolioRepository::class)]
 class Portfolio extends AbstractResource implements ExtraFieldItemInterface, ResourceInterface, Stringable
 {
-    public const TYPE_ITEM = 1;
-    public const TYPE_COMMENT = 2;
+    public const int TYPE_ITEM = 1;
+    public const int TYPE_COMMENT = 2;
 
-    public const VISIBILITY_HIDDEN = 0;
-    public const VISIBILITY_VISIBLE = 1;
-    public const VISIBILITY_HIDDEN_EXCEPT_TEACHER = 2;
-    public const VISIBILITY_PER_USER = 3;
+    public const int VISIBILITY_HIDDEN = 0;
+    public const int VISIBILITY_VISIBLE = 1;
+    public const int VISIBILITY_HIDDEN_EXCEPT_TEACHER = 2;
+    public const int VISIBILITY_PER_USER = 3;
 
     #[ORM\Column(name: 'id', type: 'integer')]
     #[ORM\Id]

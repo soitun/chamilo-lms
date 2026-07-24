@@ -37,9 +37,9 @@ use const PATHINFO_EXTENSION;
 #[Route('/search')]
 final class SearchController extends AbstractController
 {
-    private const DEFAULT_RESULTS_PER_PAGE = 20;
+    private const int DEFAULT_RESULTS_PER_PAGE = 20;
 
-    private const MAX_RESULTS_PER_PAGE = 100;
+    private const int MAX_RESULTS_PER_PAGE = 100;
 
     public function __construct(
         private readonly XapianSearchService $xapianSearchService,

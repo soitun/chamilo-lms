@@ -231,9 +231,9 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: CForumPostRepository::class)]
 class CForumPost extends AbstractResource implements ResourceInterface, Stringable
 {
-    public const STATUS_VALIDATED = 1;
-    public const STATUS_WAITING_MODERATION = 2;
-    public const STATUS_REJECTED = 3;
+    public const int STATUS_VALIDATED = 1;
+    public const int STATUS_WAITING_MODERATION = 2;
+    public const int STATUS_REJECTED = 3;
 
     #[ApiProperty(identifier: true)]
     #[Groups(['forum_post:read'])]

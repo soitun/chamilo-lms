@@ -103,10 +103,10 @@ use Symfony\Component\Serializer\Attribute\Groups;
 )]
 final class WikiDiscussionAction
 {
-    public const OPERATION_VISIBILITY = 'post_wiki_discussion_visibility';
-    public const OPERATION_COMMENTING = 'post_wiki_discussion_commenting';
-    public const OPERATION_RATING = 'post_wiki_discussion_rating';
-    public const OPERATION_SUBSCRIPTION = 'post_wiki_discussion_subscription';
+    public const string OPERATION_VISIBILITY = 'post_wiki_discussion_visibility';
+    public const string OPERATION_COMMENTING = 'post_wiki_discussion_commenting';
+    public const string OPERATION_RATING = 'post_wiki_discussion_rating';
+    public const string OPERATION_SUBSCRIPTION = 'post_wiki_discussion_subscription';
 
     #[ApiProperty(identifier: true)]
     #[Groups(['wiki_discussion_action:read'])]

@@ -20,7 +20,7 @@ class SettingsCurrentFixtures extends Fixture implements FixtureGroupInterface
      * Settings candidates that must be locked at URL-level (access_url_locked = 1),
      * based on the task list.
      */
-    private const ACCESS_URL_LOCKED_YES = [
+    private const array ACCESS_URL_LOCKED_YES = [
         'permissions_for_new_directories',
         'permissions_for_new_files',
         'course_creation_form_set_extra_fields_mandatory',
@@ -46,7 +46,7 @@ class SettingsCurrentFixtures extends Fixture implements FixtureGroupInterface
      * Settings candidates explicitly mentioned as "no" in the task list.
      * We set them to access_url_locked = 0, but only for this candidate list.
      */
-    private const ACCESS_URL_LOCKED_NO = [
+    private const array ACCESS_URL_LOCKED_NO = [
         'drh_allow_access_to_all_students',
         'ticket_allow_category_edition',
         'max_anonymous_users',

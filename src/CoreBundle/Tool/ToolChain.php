@@ -50,7 +50,7 @@ use Symfony\Bundle\SecurityBundle\Security;
  */
 class ToolChain
 {
-    private const COURSE_TOOL_ALIASES = [
+    private const array COURSE_TOOL_ALIASES = [
         'user' => 'member',
     ];
 

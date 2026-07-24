@@ -18,9 +18,9 @@ use const JSON_THROW_ON_ERROR;
 
 final readonly class McpTextAiService
 {
-    private const MAX_JSON_RESPONSE_LENGTH = 120_000;
-    private const MAX_TEXT_RESPONSE_LENGTH = 2_000_000;
-    private const MAX_REPAIR_CONTEXT_LENGTH = 30_000;
+    private const int MAX_JSON_RESPONSE_LENGTH = 120_000;
+    private const int MAX_TEXT_RESPONSE_LENGTH = 2_000_000;
+    private const int MAX_REPAIR_CONTEXT_LENGTH = 30_000;
 
     public function __construct(
         private AiProviderFactory $aiProviderFactory,

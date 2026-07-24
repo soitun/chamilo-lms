@@ -65,9 +65,9 @@ use const PHP_URL_QUERY;
 class AiController extends AbstractController
 {
     private bool $debug = false;
-    private const ACTIVE_MEDIA_PROVIDER_SESSION_PREFIX = 'ai_media_active_provider_';
-    private const LP_LEARNING_HELPER_MAX_SELECTED_TEXT_LENGTH = 5000;
-    private const LP_LEARNING_HELPER_METHODS = [
+    private const string ACTIVE_MEDIA_PROVIDER_SESSION_PREFIX = 'ai_media_active_provider_';
+    private const int LP_LEARNING_HELPER_MAX_SELECTED_TEXT_LENGTH = 5000;
+    private const array LP_LEARNING_HELPER_METHODS = [
         'mind_map',
         'feynman',
         'elaborative_interrogation',

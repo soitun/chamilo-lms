@@ -35,11 +35,11 @@ use const ENT_SUBSTITUTE;
 
 final readonly class McpCourseLearningPathCreator
 {
-    private const MAX_PAGE_COUNT = 10;
-    private const MAX_TOTAL_WORDS = 6000;
-    private const MAX_WORDS_PER_PAGE = 1500;
-    private const MIN_PAGE_COUNT = 1;
-    private const MIN_WORDS_PER_PAGE = 50;
+    private const int MAX_PAGE_COUNT = 10;
+    private const int MAX_TOTAL_WORDS = 6000;
+    private const int MAX_WORDS_PER_PAGE = 1500;
+    private const int MIN_PAGE_COUNT = 1;
+    private const int MIN_WORDS_PER_PAGE = 50;
 
     public function __construct(
         private McpTextAiService $aiService,

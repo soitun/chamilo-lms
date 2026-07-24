@@ -25,7 +25,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 #[Route('/admin/user-list-data')]
 class UserListController extends AbstractController
 {
-    private const ALLOWED_SORT_FIELDS = [
+    private const array ALLOWED_SORT_FIELDS = [
         'officialCode' => 'u.officialCode',
         'firstname' => 'u.firstname',
         'lastname' => 'u.lastname',
@@ -36,7 +36,7 @@ class UserListController extends AbstractController
         'lastLogin' => 'u.lastLogin',
     ];
 
-    private const ROLE_LABELS = [
+    private const array ROLE_LABELS = [
         'ROLE_STUDENT' => 'Learner',
         'ROLE_TEACHER' => 'Teacher',
         'ROLE_HR' => 'Human Resources Manager',

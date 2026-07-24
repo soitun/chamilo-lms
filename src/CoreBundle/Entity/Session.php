@@ -180,23 +180,23 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[UniqueEntity('title')]
 class Session implements ResourceWithAccessUrlInterface, Stringable
 {
-    public const READ_ONLY = 1;
-    public const VISIBLE = 2;
-    public const INVISIBLE = 3;
-    public const AVAILABLE = 4;
-    public const LIST_ONLY = 5;
+    public const int READ_ONLY = 1;
+    public const int VISIBLE = 2;
+    public const int INVISIBLE = 3;
+    public const int AVAILABLE = 4;
+    public const int LIST_ONLY = 5;
 
-    public const STUDENT = 0;
-    public const DRH = 1;
-    public const COURSE_COACH = 2;
-    public const GENERAL_COACH = 3;
-    public const SESSION_ADMIN = 4;
+    public const int STUDENT = 0;
+    public const int DRH = 1;
+    public const int COURSE_COACH = 2;
+    public const int GENERAL_COACH = 3;
+    public const int SESSION_ADMIN = 4;
 
-    public const STATUS_PLANNED = 1;
-    public const STATUS_PROGRESS = 2;
-    public const STATUS_FINISHED = 3;
-    public const STATUS_CANCELLED = 4;
-    public const STATUS_UNKNOWN = 0;
+    public const int STATUS_PLANNED = 1;
+    public const int STATUS_PROGRESS = 2;
+    public const int STATUS_FINISHED = 3;
+    public const int STATUS_CANCELLED = 4;
+    public const int STATUS_UNKNOWN = 0;
 
     #[Groups([
         'session:basic',

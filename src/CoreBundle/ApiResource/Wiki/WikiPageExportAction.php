@@ -42,7 +42,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
 )]
 final class WikiPageExportAction
 {
-    public const OPERATION_EXPORT_DOCUMENT = 'post_wiki_page_export_document';
+    public const string OPERATION_EXPORT_DOCUMENT = 'post_wiki_page_export_document';
 
     #[ApiProperty(identifier: true)]
     public ?int $pageId = null;

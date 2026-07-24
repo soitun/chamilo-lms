@@ -17,8 +17,8 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Table(name: 'portfolio_comment')]
 class PortfolioComment extends AbstractResource implements ResourceInterface, Stringable
 {
-    public const VISIBILITY_VISIBLE = 1;
-    public const VISIBILITY_PER_USER = 2;
+    public const int VISIBILITY_VISIBLE = 1;
+    public const int VISIBILITY_PER_USER = 2;
 
     #[ORM\Column(type: 'smallint', options: ['default' => self::VISIBILITY_VISIBLE])]
     protected int $visibility;

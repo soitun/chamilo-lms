@@ -46,28 +46,28 @@ use Symfony\Component\Serializer\Attribute\Groups;
 class Legal
 {
     // Terms section types (0 = main terms, 1..15 = GDPR privacy terms).
-    public const TYPE_TERMS = 0;
+    public const int TYPE_TERMS = 0;
 
-    public const TYPE_PRIVACY_COLLECTION = 1;
-    public const TYPE_PRIVACY_RECORDING = 2;
-    public const TYPE_PRIVACY_ORGANIZATION = 3;
-    public const TYPE_PRIVACY_STRUCTURE = 4;
-    public const TYPE_PRIVACY_CONSERVATION = 5;
-    public const TYPE_PRIVACY_ADAPTATION = 6;
-    public const TYPE_PRIVACY_EXTRACTION = 7;
-    public const TYPE_PRIVACY_CONSULTATION = 8;
-    public const TYPE_PRIVACY_USAGE = 9;
-    public const TYPE_PRIVACY_COMMUNICATION = 10;
-    public const TYPE_PRIVACY_INTERCONNECTION = 11;
-    public const TYPE_PRIVACY_LIMITATION = 12;
-    public const TYPE_PRIVACY_DELETION = 13;
-    public const TYPE_PRIVACY_DESTRUCTION = 14;
-    public const TYPE_PRIVACY_PROFILING = 15;
+    public const int TYPE_PRIVACY_COLLECTION = 1;
+    public const int TYPE_PRIVACY_RECORDING = 2;
+    public const int TYPE_PRIVACY_ORGANIZATION = 3;
+    public const int TYPE_PRIVACY_STRUCTURE = 4;
+    public const int TYPE_PRIVACY_CONSERVATION = 5;
+    public const int TYPE_PRIVACY_ADAPTATION = 6;
+    public const int TYPE_PRIVACY_EXTRACTION = 7;
+    public const int TYPE_PRIVACY_CONSULTATION = 8;
+    public const int TYPE_PRIVACY_USAGE = 9;
+    public const int TYPE_PRIVACY_COMMUNICATION = 10;
+    public const int TYPE_PRIVACY_INTERCONNECTION = 11;
+    public const int TYPE_PRIVACY_LIMITATION = 12;
+    public const int TYPE_PRIVACY_DELETION = 13;
+    public const int TYPE_PRIVACY_DESTRUCTION = 14;
+    public const int TYPE_PRIVACY_PROFILING = 15;
 
-    public const MIN_TYPE = self::TYPE_TERMS;
-    public const MAX_TYPE = self::TYPE_PRIVACY_PROFILING;
+    public const int MIN_TYPE = self::TYPE_TERMS;
+    public const int MAX_TYPE = self::TYPE_PRIVACY_PROFILING;
 
-    public const VALID_TYPES = [
+    public const array VALID_TYPES = [
         self::TYPE_TERMS,
         self::TYPE_PRIVACY_COLLECTION,
         self::TYPE_PRIVACY_RECORDING,

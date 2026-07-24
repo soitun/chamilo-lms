@@ -91,19 +91,19 @@ use Symfony\Component\Validator\Constraints as Assert;
 class Usergroup extends AbstractResource implements ResourceInterface, ResourceIllustrationInterface, ResourceWithAccessUrlInterface, Stringable
 {
     use TimestampableEntity;
-    public const SOCIAL_CLASS = 1;
-    public const NORMAL_CLASS = 0;
+    public const int SOCIAL_CLASS = 1;
+    public const int NORMAL_CLASS = 0;
     // Definition of constants for user permissions
-    public const GROUP_USER_PERMISSION_ADMIN = 1; // The admin of a group
-    public const GROUP_USER_PERMISSION_READER = 2; // A normal user
-    public const GROUP_USER_PERMISSION_PENDING_INVITATION = 3; // When an admin/moderator invites a user
-    public const GROUP_USER_PERMISSION_PENDING_INVITATION_SENT_BY_USER = 4; // A user requests to join a group
-    public const GROUP_USER_PERMISSION_MODERATOR = 5; // A moderator of the group
-    public const GROUP_USER_PERMISSION_ANONYMOUS = 6; // An anonymous user, not part of the group
-    public const GROUP_USER_PERMISSION_HRM = 7; // A human resource manager
+    public const int GROUP_USER_PERMISSION_ADMIN = 1; // The admin of a group
+    public const int GROUP_USER_PERMISSION_READER = 2; // A normal user
+    public const int GROUP_USER_PERMISSION_PENDING_INVITATION = 3; // When an admin/moderator invites a user
+    public const int GROUP_USER_PERMISSION_PENDING_INVITATION_SENT_BY_USER = 4; // A user requests to join a group
+    public const int GROUP_USER_PERMISSION_MODERATOR = 5; // A moderator of the group
+    public const int GROUP_USER_PERMISSION_ANONYMOUS = 6; // An anonymous user, not part of the group
+    public const int GROUP_USER_PERMISSION_HRM = 7; // A human resource manager
 
-    public const GROUP_PERMISSION_OPEN = 1;
-    public const GROUP_PERMISSION_CLOSED = 2;
+    public const int GROUP_PERMISSION_OPEN = 1;
+    public const int GROUP_PERMISSION_CLOSED = 2;
 
     #[Groups(['usergroup:read'])]
     #[ORM\Column(name: 'id', type: 'integer', nullable: false)]

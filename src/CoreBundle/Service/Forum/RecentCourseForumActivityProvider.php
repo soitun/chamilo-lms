@@ -20,7 +20,7 @@ use const ENT_QUOTES;
 
 final readonly class RecentCourseForumActivityProvider
 {
-    private const MAX_POSTS = 50;
+    private const int MAX_POSTS = 50;
 
     public function __construct(
         private EntityManagerInterface $entityManager,

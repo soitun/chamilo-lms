@@ -34,7 +34,7 @@ use const XML_PI_NODE;
 
 final readonly class DocumentParagraphMediaEmbedder
 {
-    private const WRAPPER_ID = '__chamilo_mcp_document_fragment__';
+    private const string WRAPPER_ID = '__chamilo_mcp_document_fragment__';
 
     public function __construct(
         private CDocumentRepository $documentRepository,

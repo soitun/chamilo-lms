@@ -51,10 +51,10 @@ class UserRepository extends ResourceRepository implements PasswordUpgraderInter
 {
     protected ?UserPasswordHasherInterface $hasher = null;
 
-    public const USER_IMAGE_SIZE_SMALL = 1;
-    public const USER_IMAGE_SIZE_MEDIUM = 2;
-    public const USER_IMAGE_SIZE_BIG = 3;
-    public const USER_IMAGE_SIZE_ORIGINAL = 4;
+    public const int USER_IMAGE_SIZE_SMALL = 1;
+    public const int USER_IMAGE_SIZE_MEDIUM = 2;
+    public const int USER_IMAGE_SIZE_BIG = 3;
+    public const int USER_IMAGE_SIZE_ORIGINAL = 4;
 
     public function __construct(
         ManagerRegistry $registry,

@@ -41,7 +41,7 @@ class PageCategory
 {
     use TimestampableTypedEntity;
 
-    public const ADMIN_BLOCKS_CATEGORIES = [
+    public const array ADMIN_BLOCKS_CATEGORIES = [
         'block-admin-users',
         'block-admin-courses',
         'block-admin-sessions',
@@ -53,7 +53,7 @@ class PageCategory
         'block-admin-chamilo',
     ];
 
-    public const ANONYMOUS_CATEGORIES = [
+    public const array ANONYMOUS_CATEGORIES = [
         'faq',
         'demo',
         'home',

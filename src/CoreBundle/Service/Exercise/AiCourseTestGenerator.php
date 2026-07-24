@@ -33,12 +33,12 @@ use const ENT_QUOTES;
 
 final readonly class AiCourseTestGenerator
 {
-    private const MAX_GENERATED_LENGTH = 100_000;
-    private const MAX_QUESTION_COUNT = 20;
-    private const MAX_SOURCE_LENGTH = 20_000;
-    private const MIN_QUESTION_COUNT = 1;
-    private const QUESTION_TYPE_UNIQUE_ANSWER = 1;
-    private const TOTAL_SCORE = 20.0;
+    private const int MAX_GENERATED_LENGTH = 100_000;
+    private const int MAX_QUESTION_COUNT = 20;
+    private const int MAX_SOURCE_LENGTH = 20_000;
+    private const int MIN_QUESTION_COUNT = 1;
+    private const int QUESTION_TYPE_UNIQUE_ANSWER = 1;
+    private const float TOTAL_SCORE = 20.0;
 
     public function __construct(
         private AiFeatureAccessHelper $aiFeatureAccessHelper,

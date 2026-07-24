@@ -43,7 +43,7 @@ use const PATHINFO_EXTENSION;
 
 abstract class AbstractMigrationChamilo extends AbstractMigration
 {
-    public const BATCH_SIZE = 20;
+    public const int BATCH_SIZE = 20;
 
     protected ?EntityManagerInterface $entityManager = null;
     protected ?ContainerInterface $container = null;

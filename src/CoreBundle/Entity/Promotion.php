@@ -19,8 +19,8 @@ class Promotion
 {
     use TimestampableEntity;
 
-    public const PROMOTION_STATUS_ACTIVE = 1;
-    public const PROMOTION_STATUS_INACTIVE = 0;
+    public const int PROMOTION_STATUS_ACTIVE = 1;
+    public const int PROMOTION_STATUS_INACTIVE = 0;
 
     #[Groups(['calendar_event:read'])]
     #[ORM\Column(name: 'id', type: 'integer')]

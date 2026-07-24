@@ -15,8 +15,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'plugin')]
 class Plugin
 {
-    public const SOURCE_THIRD_PARTY = 'third_party';
-    public const SOURCE_OFFICIAL = 'official';
+    public const string SOURCE_THIRD_PARTY = 'third_party';
+    public const string SOURCE_OFFICIAL = 'official';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]

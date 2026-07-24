@@ -23,8 +23,8 @@ use const DATE_ATOM;
 
 final readonly class McpApiKeyManager
 {
-    public const KEY_PREFIX = 'chamilo_mcp_';
-    public const SERVICE = 'mcp';
+    public const string KEY_PREFIX = 'chamilo_mcp_';
+    public const string SERVICE = 'mcp';
 
     public function __construct(
         private UserHelper $userHelper,

@@ -157,15 +157,15 @@ use Symfony\Component\Serializer\Attribute\Groups;
 )]
 final class WikiPageAction
 {
-    public const CSRF_TOKEN_ID = 'wiki_page_management';
+    public const string CSRF_TOKEN_ID = 'wiki_page_management';
 
-    public const OPERATION_VISIBILITY = 'post_wiki_page_visibility';
-    public const OPERATION_PROTECTION = 'post_wiki_page_protection';
-    public const OPERATION_SUBSCRIPTION = 'post_wiki_page_subscription';
-    public const OPERATION_DELETE_PAGE = 'post_wiki_page_delete';
-    public const OPERATION_ADD_LOCK = 'post_wiki_context_add_lock';
-    public const OPERATION_CONTEXT_SUBSCRIPTION = 'post_wiki_context_subscription';
-    public const OPERATION_DELETE_CONTEXT = 'post_wiki_context_delete';
+    public const string OPERATION_VISIBILITY = 'post_wiki_page_visibility';
+    public const string OPERATION_PROTECTION = 'post_wiki_page_protection';
+    public const string OPERATION_SUBSCRIPTION = 'post_wiki_page_subscription';
+    public const string OPERATION_DELETE_PAGE = 'post_wiki_page_delete';
+    public const string OPERATION_ADD_LOCK = 'post_wiki_context_add_lock';
+    public const string OPERATION_CONTEXT_SUBSCRIPTION = 'post_wiki_context_subscription';
+    public const string OPERATION_DELETE_CONTEXT = 'post_wiki_context_delete';
 
     #[Groups(['wiki_page_action:write'])]
     public string $csrfToken = '';

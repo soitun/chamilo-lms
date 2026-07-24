@@ -20,11 +20,11 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 readonly class AzureAuthenticatorHelper
 {
-    public const EXTRA_FIELD_ORGANISATION_EMAIL = 'organisationemail';
-    public const EXTRA_FIELD_AZURE_ID = 'azure_id';
-    public const EXTRA_FIELD_AZURE_UID = 'azure_uid';
+    public const string EXTRA_FIELD_ORGANISATION_EMAIL = 'organisationemail';
+    public const string EXTRA_FIELD_AZURE_ID = 'azure_id';
+    public const string EXTRA_FIELD_AZURE_UID = 'azure_uid';
 
-    public const QUERY_USER_FIELDS = [
+    public const array QUERY_USER_FIELDS = [
         'givenName',
         'surname',
         'mail',
@@ -36,13 +36,13 @@ readonly class AzureAuthenticatorHelper
         'id',
         'preferredLanguage',
     ];
-    public const QUERY_GROUP_FIELDS = [
+    public const array QUERY_GROUP_FIELDS = [
         'id',
         'displayName',
         'description',
     ];
 
-    public const QUERY_GROUP_MEMBERS_FIELDS = [
+    public const array QUERY_GROUP_MEMBERS_FIELDS = [
         'mail',
         'mailNickname',
         'id',

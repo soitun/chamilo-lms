@@ -22,8 +22,8 @@ class Career
 {
     use TimestampableEntity;
 
-    public const CAREER_STATUS_ACTIVE = 1;
-    public const CAREER_STATUS_INACTIVE = 0;
+    public const int CAREER_STATUS_ACTIVE = 1;
+    public const int CAREER_STATUS_INACTIVE = 0;
 
     #[Groups(['calendar_event:read'])]
     #[ORM\Column(name: 'id', type: 'integer')]

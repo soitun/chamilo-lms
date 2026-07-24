@@ -19,14 +19,14 @@ use RuntimeException;
 
 final readonly class McpCourseAiFeatureManager
 {
-    private const CATEGORY = 'ai_helpers';
+    private const string CATEGORY = 'ai_helpers';
 
     /**
      * Titles verified against the current AI settings fixtures.
      *
      * @var array<string, string>
      */
-    private const SUPPORTED_FEATURES = [
+    private const array SUPPORTED_FEATURES = [
         'learning_path_generator' => 'Learning paths generator',
         'exercise_generator' => 'Exercise generator',
         'image_generator' => 'Image generator',

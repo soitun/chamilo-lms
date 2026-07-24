@@ -57,8 +57,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: SkillRepository::class)]
 class Skill implements Stringable, Translatable
 {
-    public const STATUS_DISABLED = 0;
-    public const STATUS_ENABLED = 1;
+    public const int STATUS_DISABLED = 0;
+    public const int STATUS_ENABLED = 1;
 
     #[Groups(['skill:read', 'skill_profile:read'])]
     #[ORM\Column(name: 'id', type: 'integer')]

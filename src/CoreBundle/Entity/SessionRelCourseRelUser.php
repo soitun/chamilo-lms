@@ -63,7 +63,7 @@ class SessionRelCourseRelUser
     /**
      * @var array<int, string>
      */
-    public const STATUS_LIST = [
+    public const array STATUS_LIST = [
         Session::STUDENT => 'student',
         Session::COURSE_COACH => 'course_coach',
     ];

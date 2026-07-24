@@ -58,8 +58,8 @@ final readonly class LearningPathRuntimeProvider implements ProviderInterface
 {
     use LearningPathStateHelperTrait;
 
-    private const AUDIO_EXTENSIONS = ['aac', 'm4a', 'mp3', 'ogg', 'wav', 'webm'];
-    private const COMPLETED_STATUSES = ['completed', 'passed', 'succeeded', 'browsed', 'failed'];
+    private const array AUDIO_EXTENSIONS = ['aac', 'm4a', 'mp3', 'ogg', 'wav', 'webm'];
+    private const array COMPLETED_STATUSES = ['completed', 'passed', 'succeeded', 'browsed', 'failed'];
 
     public function __construct(
         private EntityManagerInterface $entityManager,

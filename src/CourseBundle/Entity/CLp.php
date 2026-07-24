@@ -210,9 +210,9 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: CLpRepository::class)]
 class CLp extends AbstractResource implements ResourceInterface, ResourceShowCourseResourcesInSessionInterface, Stringable
 {
-    public const LP_TYPE = 1;
-    public const SCORM_TYPE = 2;
-    public const AICC_TYPE = 3;
+    public const int LP_TYPE = 1;
+    public const int SCORM_TYPE = 2;
+    public const int AICC_TYPE = 3;
 
     #[ORM\Column(name: 'iid', type: 'integer')]
     #[ORM\Id]

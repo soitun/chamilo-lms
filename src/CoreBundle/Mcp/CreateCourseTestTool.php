@@ -24,8 +24,8 @@ use Throwable;
 
 final readonly class CreateCourseTestTool
 {
-    private const MAX_TITLE_LENGTH = 255;
-    private const MAX_TOPIC_LENGTH = 20_000;
+    private const int MAX_TITLE_LENGTH = 255;
+    private const int MAX_TOPIC_LENGTH = 20_000;
 
     public function __construct(
         private Security $security,

@@ -120,9 +120,9 @@ class User implements UserInterface, EquatableInterface, ResourceInterface, Reso
     use TimestampableEntity;
     use UserCreatorTrait;
 
-    public const USERNAME_MAX_LENGTH = 100;
-    public const ROLE_DEFAULT = 'ROLE_USER';
-    public const ANONYMOUS = 6;
+    public const int USERNAME_MAX_LENGTH = 100;
+    public const string ROLE_DEFAULT = 'ROLE_USER';
+    public const int ANONYMOUS = 6;
 
     /**
      * Global status for the fallback user.
@@ -130,13 +130,13 @@ class User implements UserInterface, EquatableInterface, ResourceInterface, Reso
      * or fallback for content ownership when regular users are deleted.
      * This ensures data integrity and prevents orphaned content within the system.
      */
-    public const ROLE_FALLBACK = 99;
+    public const int ROLE_FALLBACK = 99;
 
     // User active field constants
-    public const ACTIVE = 1;
-    public const INACTIVE = 0;
-    public const INACTIVE_AUTOMATIC = -1;
-    public const SOFT_DELETED = -2;
+    public const int ACTIVE = 1;
+    public const int INACTIVE = 0;
+    public const int INACTIVE_AUTOMATIC = -1;
+    public const int SOFT_DELETED = -2;
 
     /**
      * Context roles must NEVER be persisted.
@@ -150,7 +150,7 @@ class User implements UserInterface, EquatableInterface, ResourceInterface, Reso
      * List of all context roles used by the platform security layer.
      * These roles must not be stored in the DB.
      */
-    public const CONTEXT_ROLES = [
+    public const array CONTEXT_ROLES = [
         'ROLE_CURRENT_COURSE_TEACHER',
         'ROLE_CURRENT_COURSE_STUDENT',
         'ROLE_CURRENT_COURSE_GROUP_TEACHER',

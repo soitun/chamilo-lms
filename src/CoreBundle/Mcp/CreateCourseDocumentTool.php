@@ -36,9 +36,9 @@ use const PREG_SPLIT_NO_EMPTY;
 
 final readonly class CreateCourseDocumentTool
 {
-    private const MAX_CONTENT_LENGTH = 2_000_000;
-    private const MAX_REQUESTED_WORDS = 5_000;
-    private const MIN_REQUESTED_WORDS = 50;
+    private const int MAX_CONTENT_LENGTH = 2_000_000;
+    private const int MAX_REQUESTED_WORDS = 5_000;
+    private const int MIN_REQUESTED_WORDS = 50;
 
     public function __construct(
         private Security $security,

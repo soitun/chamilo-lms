@@ -27,7 +27,7 @@ use Throwable;
 
 final readonly class CreateCourseIllustrationTool
 {
-    private const MAX_PROMPT_LENGTH = 4_000;
+    private const int MAX_PROMPT_LENGTH = 4_000;
 
     public function __construct(
         private Security $security,

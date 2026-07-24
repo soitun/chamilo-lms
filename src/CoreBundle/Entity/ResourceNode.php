@@ -78,7 +78,7 @@ class ResourceNode implements Stringable
     use TimestampableAgoTrait;
     use TimestampableTypedEntity;
 
-    public const PATH_SEPARATOR = '/';
+    public const string PATH_SEPARATOR = '/';
 
     #[Groups(['resource_node:read', 'document:read', 'ctool:read', 'user_json:read', 'course:read'])]
     #[ORM\Id]

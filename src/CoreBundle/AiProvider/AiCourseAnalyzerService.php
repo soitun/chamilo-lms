@@ -38,26 +38,26 @@ use const PATHINFO_EXTENSION;
 
 final class AiCourseAnalyzerService
 {
-    private const MAX_LESSONS = 20;
-    private const MAX_ITEMS_PER_LESSON = 120;
-    private const MAX_STANDALONE_DOCUMENTS = 25;
-    private const MAX_STANDALONE_EXERCISES = 20;
-    private const MAX_ASSIGNMENTS = 20;
-    private const MAX_SURVEYS = 15;
-    private const MAX_SURVEY_QUESTIONS = 50;
-    private const MAX_SURVEY_OPTIONS = 20;
-    private const MAX_EXERCISES = 20;
-    private const MAX_QUESTIONS_PER_EXERCISE = 80;
-    private const MAX_ANSWERS_PER_QUESTION = 20;
-    private const MAX_CHARS_PER_DOCUMENT = 12000;
-    private const MAX_TOTAL_TEXT_CHARS = 90000;
-    private const MAX_ANALYSIS_OUTPUT_TOKENS = 12000;
-    private const MAX_COMPACT_OUTPUT_TOKENS = 7000;
+    private const int MAX_LESSONS = 20;
+    private const int MAX_ITEMS_PER_LESSON = 120;
+    private const int MAX_STANDALONE_DOCUMENTS = 25;
+    private const int MAX_STANDALONE_EXERCISES = 20;
+    private const int MAX_ASSIGNMENTS = 20;
+    private const int MAX_SURVEYS = 15;
+    private const int MAX_SURVEY_QUESTIONS = 50;
+    private const int MAX_SURVEY_OPTIONS = 20;
+    private const int MAX_EXERCISES = 20;
+    private const int MAX_QUESTIONS_PER_EXERCISE = 80;
+    private const int MAX_ANSWERS_PER_QUESTION = 20;
+    private const int MAX_CHARS_PER_DOCUMENT = 12000;
+    private const int MAX_TOTAL_TEXT_CHARS = 90000;
+    private const int MAX_ANALYSIS_OUTPUT_TOKENS = 12000;
+    private const int MAX_COMPACT_OUTPUT_TOKENS = 7000;
 
     /**
      * @var string[]
      */
-    private const DOCUMENT_LIKE_ITEM_TYPES = [
+    private const array DOCUMENT_LIKE_ITEM_TYPES = [
         'document',
         'video',
     ];
@@ -65,7 +65,7 @@ final class AiCourseAnalyzerService
     /**
      * @var string[]
      */
-    private const EXERCISE_LIKE_ITEM_TYPES = [
+    private const array EXERCISE_LIKE_ITEM_TYPES = [
         'quiz',
         'exercise',
         'test',
@@ -74,7 +74,7 @@ final class AiCourseAnalyzerService
     /**
      * @var string[]
      */
-    private const READABLE_EXTENSIONS = [
+    private const array READABLE_EXTENSIONS = [
         'txt',
         'md',
         'markdown',
@@ -92,7 +92,7 @@ final class AiCourseAnalyzerService
     /**
      * @var string[]
      */
-    private const READABLE_MIME_PREFIXES = [
+    private const array READABLE_MIME_PREFIXES = [
         'text/',
         'application/json',
         'application/xml',

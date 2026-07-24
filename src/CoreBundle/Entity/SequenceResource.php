@@ -13,8 +13,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: SequenceResourceRepository::class)]
 class SequenceResource
 {
-    public const COURSE_TYPE = 1;
-    public const SESSION_TYPE = 2;
+    public const int COURSE_TYPE = 1;
+    public const int SESSION_TYPE = 2;
 
     #[ORM\Column(name: 'id', type: 'integer')]
     #[ORM\Id]

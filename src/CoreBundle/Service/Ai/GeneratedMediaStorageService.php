@@ -34,12 +34,12 @@ use const JSON_THROW_ON_ERROR;
 
 final readonly class GeneratedMediaStorageService
 {
-    private const MAX_IMAGE_BYTES = 10_485_760;
+    private const int MAX_IMAGE_BYTES = 10_485_760;
 
     /**
      * @var array<string, string>
      */
-    private const IMAGE_EXTENSIONS = [
+    private const array IMAGE_EXTENSIONS = [
         'image/gif' => 'gif',
         'image/jpeg' => 'jpg',
         'image/png' => 'png',

@@ -47,7 +47,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\EntityListeners([LanguageListener::class])]
 class Language
 {
-    public const ISO_MAX_LENGTH = 8;
+    public const int ISO_MAX_LENGTH = 8;
 
     #[Groups(['language:read', 'resource_node:read', 'resource_file:read', 'document:read', 'personal_file:read', 'student_publication:read', 'attendance:read', 'calendar_event:read', 'link:read'])]
     #[ORM\Column(name: 'id', type: 'integer')]

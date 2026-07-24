@@ -41,9 +41,9 @@ class ResourceLink implements Stringable
     use SoftDeleteableEntity;
     use TimestampableTypedEntity;
 
-    public const VISIBILITY_DRAFT = 0;
-    public const VISIBILITY_PENDING = 1;
-    public const VISIBILITY_PUBLISHED = 2;
+    public const int VISIBILITY_DRAFT = 0;
+    public const int VISIBILITY_PENDING = 1;
+    public const int VISIBILITY_PUBLISHED = 2;
 
     #[ORM\Id]
     #[ORM\Column(type: 'integer')]

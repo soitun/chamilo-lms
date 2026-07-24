@@ -82,13 +82,13 @@ use const SORT_NATURAL;
 #[ORM\EntityListeners([ResourceListener::class, CourseListener::class])]
 class Course extends AbstractResource implements ResourceInterface, ResourceWithAccessUrlInterface, ResourceIllustrationInterface, ExtraFieldItemInterface, Stringable
 {
-    public const CLOSED = 0;
-    public const REGISTERED = 1;
+    public const int CLOSED = 0;
+    public const int REGISTERED = 1;
     // Only registered users in the course.
-    public const OPEN_PLATFORM = 2;
+    public const int OPEN_PLATFORM = 2;
     // All users registered in the platform (default).
-    public const OPEN_WORLD = 3;
-    public const HIDDEN = 4;
+    public const int OPEN_WORLD = 3;
+    public const int HIDDEN = 4;
 
     #[Groups([
         'course:read',

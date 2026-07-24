@@ -92,8 +92,8 @@ class CourseRelUser implements Stringable
 {
     use UserTrait;
 
-    public const TEACHER = 1;
-    public const STUDENT = 5;
+    public const int TEACHER = 1;
+    public const int STUDENT = 5;
 
     #[ORM\Column(name: 'id', type: 'integer')]
     #[ORM\Id]
